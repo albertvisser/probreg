@@ -1,6 +1,9 @@
 Files in this directory
 =======================
 
+pr_start.pyw
+    starter voor file(s) in package "probreg":
+
 __init__.py
     (lege) package indicator
 compare.py

@@ -2001,8 +2001,10 @@ class MainWindow(wx.Frame):
             prt.Destroy()
         dlg.Destroy()
 
-if __name__ == '__main__':
+def main(args):
     app = wx.App(redirect=False)
-    frame = MainWindow(None, -1, sys.argv[1:])
+    frame = MainWindow(None, -1, args[1:])
     app.MainLoop()
+if __name__ == '__main__':
+    main(sys.argv)
     ## h = raw_input('...')
