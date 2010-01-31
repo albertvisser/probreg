@@ -2,6 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 import sys, os
+LIN = True if os.name == 'posix' else False
 import wx
 import wx.html as html
 import wx.lib.mixins.listctrl  as  listmix
@@ -31,7 +32,8 @@ class Page(wx.Panel):
         self.parent = parent
         wx.Panel.__init__(self,parent,wx.ID_ANY, style=wx.WANTS_CHARS)
         self.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_BTNFACE))
-        self.text1 = wx.TextCtrl(self, -1, size=(490, 430),
+        high = 350 if LIN else 430
+        self.text1 = wx.TextCtrl(self, -1, size=(490, high),
                                 style=wx.TE_MULTILINE
                                 | wx.TE_PROCESS_TAB
                                 | wx.TE_RICH2
@@ -323,7 +325,8 @@ class Page0(Page, listmix.ColumnSorterMixin):
                                  #~ | wx.LC_HRULES
                                  | wx.LC_SINGLE_SEL
                                  )
-        self.p0list.SetMinSize((440,444))
+        high = 400 if LIN else 444
+        self.p0list.SetMinSize((440,high))
 
         self.p0list.SetImageList(self.il, wx.IMAGE_LIST_SMALL)
 
@@ -458,11 +461,7 @@ class Page0(Page, listmix.ColumnSorterMixin):
             self.p0list.SetStringItem(index, 4, data[4])
             self.p0list.SetStringItem(index, 5, data[5])
             self.p0list.SetItemData(index, key)
-            if kleur:
-                #~ self.p0list.SetItemBackgroundColour(key,wx.SystemSettings.GetColour(wx.SYS_COLOUR_MENU))
-            #~ else:
-                self.p0list.SetItemBackgroundColour(key,wx.SystemSettings.GetColour(wx.SYS_COLOUR_INFOBK))
-            kleur = not kleur
+        self.Colorize()
 
     def GetListCtrl(self):
         return self.p0list
@@ -470,10 +469,11 @@ class Page0(Page, listmix.ColumnSorterMixin):
     def GetSortImages(self):
         return (self.sm_dn, self.sm_up)
 
-    def AfterSort(self):
+    def Colorize(self):
         """ na het sorteren moeten de regels weer om en om gekleurd worden"""
         kleur = False
-        for key in range(len(self.data.items)):
+        for key in xrange(self.p0list.GetItemCount()):
+        ## for key in range(len(self.data.items)):
             if kleur:
                 #~ self.p0list.SetItemBackgroundColour(key,wx.SystemSettings.GetColour(wx.SYS_COLOUR_MENU))
             #~ else:
@@ -499,6 +499,7 @@ class Page0(Page, listmix.ColumnSorterMixin):
     def OnColClick(self, event):
         ## print "OnColClick: %d\n" % event.GetColumn()
         self.parent.sorter = self.GetColumnSorter()
+        self.Colorize()
         event.Skip()
 
     def OnDoubleClick(self, event):
@@ -529,9 +530,9 @@ class Page0(Page, listmix.ColumnSorterMixin):
             e = wx.MessageDialog( self, "Sorry, werkt nog niet", "Oeps", wx.OK)  # Create a message dialog box
             e.ShowModal() # Shows it
             e.Destroy() # finally destroy it when finished.
+            # self.Colorize() # formerly known as self.AfterSort()
         d.Destroy() # finally destroy it when finished.
         self.parent.parent.zetfocus(0)
-
 
     def archiveer(self,evt=None):
         seli = self.p0list.GetItemData(self.parent.currentItem)
@@ -544,7 +545,7 @@ class Page0(Page, listmix.ColumnSorterMixin):
         self.vulp()
         self.parent.parent.zetfocus(0)
         # het navolgende geldt alleen voor de selectie "gearchiveerd en actief"
-        if self.sel["arch"] == "alles":
+        if self.sel.get("arch","") == "alles":
             self.p0list.EnsureVisible(seli)
             hlp = "&Herleef" if self.parent.p.arch else "&Archiveer"
             self.btnArch.SetLabel(hlp)
@@ -687,6 +688,12 @@ class Page1(Page):
     def savep(self,evt=None):
         Page.savep(self)
         s1 = self.txtPrc.GetValue()
+        try:
+            s1 = s1[0].upper() + s1[1:]
+            self.txtPrc.SetValue(s1)
+            self.enableButtons(False)
+        except IndexError:
+            pass
         s2 = self.txtMld.GetValue()
         if s1 == "" or s2 == "":
             wx.MessageBox("Beide tekstrubrieken moeten worden ingevuld","Oeps")
@@ -774,6 +781,7 @@ class Page6(Page):
         # Evt TEST is voor de enableButtons
         self.parent = parent
         self.currentItem = 0
+        self.oldtext = ""
         wx.Panel.__init__(self,parent,wx.ID_ANY,
         ## style=wx.WANTS_CHARS
             )
@@ -785,10 +793,12 @@ class Page6(Page):
             ## )
         ## self.txtStat.Bind(wx.EVT_KEY_DOWN, self.OnKeyPress)
         ## self.txtStat.Bind(wx.EVT_TEXT, self.OnEvtText,))
-        self.lstVoortg = MyListCtrl(self, -1, size=(500,280),
+        high = 200 if LIN else 280
+        self.lstVoortg = MyListCtrl(self, -1, size=(500,high),
             style=wx.LC_REPORT | wx.LC_HRULES | wx.LC_VRULES | wx.LC_SINGLE_SEL)
         self.lstVoortg.InsertColumn(0,'Momenten')
-        self.txtVoortg = wx.TextCtrl(self, -1, size=(500,110), style=wx.TE_MULTILINE
+        high = 100 if LIN else 110
+        self.txtVoortg = wx.TextCtrl(self, -1, size=(500,high), style=wx.TE_MULTILINE
             ## | wx.TE_PROCESS_TAB
             | wx.TE_RICH2
             | wx.TE_WORDWRAP
@@ -853,6 +863,7 @@ class Page6(Page):
                 self.lstVoortg.SetItemData(index, x)
         ## self.oldbuf = (self.txtStat.GetValue(),self.olijst,self.odata)
         self.oldbuf = (self.olijst,self.odata)
+        self.oldtext = ''
         self.init = True
         ## print "klaar met vulp, edata is", self.edata
 
@@ -1366,7 +1377,9 @@ class MainWindow(wx.Frame):
         self.oldsort = -1
         self.idlist = self.actlist = self.alist = []
 
-        wx.Frame.__init__(self,parent,wx.ID_ANY, self.title,size = (588, 594),
+        high = 680 if LIN else 594
+        wx.Frame.__init__(self,parent,wx.ID_ANY, self.title,pos=(2,2),
+                size = (588, high),
                             style=wx.DEFAULT_FRAME_STYLE|wx.NO_FULL_REPAINT_ON_RESIZE)
         self.sb = self.CreateStatusBar() # A Statusbar in the bottom of the window
 

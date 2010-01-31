@@ -169,7 +169,7 @@ class Acties:
                 ct = sett.cat[h]
             tl = x.find("titel").text
             if tl == None: tl = ""
-            if "titel" in select and select["titel"] not in tl:
+            if "titel" in select and select["titel"].upper() not in tl.upper():
                 continue
             self.lijst.append((nr,dd,st,ct,tl,lu))
 
