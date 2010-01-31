@@ -11,7 +11,7 @@ else:
 from os import getcwd
 from os.path import exists,split,splitext
 from shutil import copyfile
-from datetime import datetime
+import datetime as dt
 
 # 18-11-2007: statdict en catdict uit Settings class overgenomen, aanmaken nieuw bestand toegevoegd
 # 18-06-2008: rename i.p.v. copyfile
@@ -82,8 +82,7 @@ class LaatsteActie:
         else:
             raise DataError("datafile bestaat niet")
         if jaar == None:
-            from datetime import date
-            jaar = str(date.today().year)
+            jaar = str(dt.date.today().year)
         tree = ElementTree(file=dnaam)
         nummer = 0
         rt = tree.getroot()
@@ -365,7 +364,7 @@ class Actie:
 
     def nieuw(self):
         self.id = LaatsteActie(self.fn).nieuwetitel
-        self.datum= datetime.today().isoformat(' ')[:19]
+        self.datum= dt.datetime.today().isoformat(' ')[:19]
 
     def nieuwfile(self):
         f = open(self.fn,"w")
@@ -393,6 +392,11 @@ class Actie:
             if h is not None:
                 if h == "arch":
                     self.arch = True
+            h = x.get("updated")
+            if h is not None:
+                self.updated = h
+            else:
+                self.updated = dt.datetime.today().isoformat(' ')[:19]
             for y in list(x):
                 if y.tag == "titel":
                     if y.text is not None:
@@ -483,7 +487,7 @@ class Actie:
                     found = True
                     break
         if found:
-            x.set("updated",datetime.today().isoformat(' ')[:10])
+            x.set("updated",dt.datetime.today().isoformat(' ')[:10])
             h = self.soort
             if h is None:
                 self.soort = ""
