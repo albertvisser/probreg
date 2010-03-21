@@ -1,4 +1,4 @@
-    ## from django.template import Context, loader
+## from django.template import Context, loader
 ## from django.http import
 from django.http import Http404
 from django.http import HttpResponse, HttpResponseRedirect
