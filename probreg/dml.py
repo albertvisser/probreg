@@ -174,6 +174,8 @@ class Acties:
 
 class Settings:
     """
+        argument = filenaam
+        mag leeg zijn, moet eindingen op ".xml" (anders: DataError exception)
         de soorten hebben een numeriek id en alfanumerieke code
         de categorieen hebben een numeriek id en een numerieke code
         de id's bepalen de volgorde in de listboxen en de codes worden in de xml opgeslagen
