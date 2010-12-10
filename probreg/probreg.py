@@ -19,7 +19,7 @@ def get_dts():
         return "%i-%02i-%02i %02i:%02i:%02i" % (
             (dts.year,dts.month,dts.day,dts.hour,dts.minute,dts.second))
 
-from dml import checkfile,Acties, Actie, Settings
+from dml import DataError,checkfile,Acties, Actie, Settings
 
 class MyListCtrl(wx.ListCtrl, listmix.ListCtrlAutoWidthMixin):
     def __init__(self, parent, ID, pos=wx.DefaultPosition,
@@ -106,6 +106,7 @@ class Page(wx.Panel):
             self.parent.newitem = True
             if self.parent.currentTab == 1:
                 self.vulp() # om de velden leeg te maken
+                self.txtPrc.SetFocus()
             else:
                 self.gotoPage(1)
         else:
@@ -325,8 +326,8 @@ class Page0(Page, listmix.ColumnSorterMixin):
                                  #~ | wx.LC_HRULES
                                  | wx.LC_SINGLE_SEL
                                  )
-        high = 400 if LIN else 444
-        self.p0list.SetMinSize((440,high))
+        ## high = 400 if LIN else 444
+        ## self.p0list.SetMinSize((440,high))
 
         self.p0list.SetImageList(self.il, wx.IMAGE_LIST_SMALL)
 
@@ -345,8 +346,8 @@ class Page0(Page, listmix.ColumnSorterMixin):
         self.p0list.Bind(wx.EVT_LEFT_DCLICK, self.OnDoubleClick)
         self.p0list.Bind(wx.EVT_KEY_DOWN, self.OnKeyPress)
 
-        self.btnSort = wx.Button(self, pr.ID_SORT, '&Sorteren')
-        self.btnZoek = wx.Button(self, pr.ID_ZOEK, '&Filteren')
+        self.btnSort = wx.Button(self, pr.ID_SORT, 's&Orteren')
+        self.btnZoek = wx.Button(self, pr.ID_ZOEK, 'f&Ilteren')
         self.btnGa = wx.Button(self, pr.ID_GANAAR, '&Ga naar melding')
         self.btnArch = wx.Button(self, pr.ID_ARCH, '&Archiveer')
         self.btnNieuw = wx.Button(self, pr.ID_MELD, '&Nieuwe melding opvoeren')
@@ -426,7 +427,7 @@ class Page0(Page, listmix.ColumnSorterMixin):
         info.m_text = ""
         self.p0list.InsertColumnInfo(0, info)
 
-        info.m_width = 64
+        info.m_width = 84 if LIN else 64
         info.m_text = self.parent.ctitels[0]
         self.p0list.InsertColumnInfo(1, info)
 
@@ -434,15 +435,15 @@ class Page0(Page, listmix.ColumnSorterMixin):
         info.m_text = self.parent.ctitels[1]
         self.p0list.InsertColumnInfo(2, info)
 
-        info.m_width = 114
+        info.m_width = 146 if LIN else 114
         info.m_text = self.parent.ctitels[2]
         self.p0list.InsertColumnInfo(3, info)
 
-        info.m_width = 72
+        info.m_width = 90 if LIN else 72
         info.m_text = self.parent.ctitels[3]
         self.p0list.InsertColumnInfo(4, info)
 
-        info.m_width = 292
+        info.m_width = 400 if LIN else 292
         info.m_text = self.parent.ctitels[4]
         self.p0list.InsertColumnInfo(5, info)
 
@@ -461,6 +462,7 @@ class Page0(Page, listmix.ColumnSorterMixin):
             self.p0list.SetStringItem(index, 4, data[4])
             self.p0list.SetStringItem(index, 5, data[5])
             self.p0list.SetItemData(index, key)
+        print "Page0.populatelist: na opbouwen list inhoud",
         self.Colorize()
 
     def GetListCtrl(self):
@@ -471,12 +473,15 @@ class Page0(Page, listmix.ColumnSorterMixin):
 
     def Colorize(self):
         """ na het sorteren moeten de regels weer om en om gekleurd worden"""
+        print "Page0.colorize called"
         kleur = False
         for key in xrange(self.p0list.GetItemCount()):
         ## for key in range(len(self.data.items)):
+        ## for key,item in enumerate(self.p0list):
+            print key, self.p0list.GetItemText(key)
             if kleur:
-                #~ self.p0list.SetItemBackgroundColour(key,wx.SystemSettings.GetColour(wx.SYS_COLOUR_MENU))
-            #~ else:
+                self.p0list.SetItemBackgroundColour(key,wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOW))
+            else:
                 self.p0list.SetItemBackgroundColour(key,wx.SystemSettings.GetColour(wx.SYS_COLOUR_INFOBK))
             kleur = not kleur
 
@@ -499,8 +504,14 @@ class Page0(Page, listmix.ColumnSorterMixin):
     def OnColClick(self, event):
         ## print "OnColClick: %d\n" % event.GetColumn()
         self.parent.sorter = self.GetColumnSorter()
+        print "Page0.oncolclick: na bepalen columnsorter",
         self.Colorize()
         event.Skip()
+
+    ## def OnSortOrderChanged(self):
+        ## # listmix.ColumnSorterMixin.OnSortOrderChanged(self)
+        ## print "Page0.onsortorderchanged: ",
+        ## self.Colorize()
 
     def OnDoubleClick(self, event):
         self.gotoActie()
@@ -1083,16 +1094,19 @@ class SelectOptionsDialog(wx.Dialog):
         # sel is de dictionary waarin de filterwaarden zitten, bv:
         # {'status': ['probleem'], 'idlt': '2006-0009', 'titel': 'x', 'soort': ['gemeld'], 'id': 'and', 'idgt': '2005-0019'}
         self.parent = parent
-
-        wx.Dialog.__init__(self,parent,-1,title="Selecteren", size=(250, 250), pos=wx.DefaultPosition, style=wx.DEFAULT_DIALOG_STYLE)
+        ## size = (500,820) if LIN else (250,250)
+        ## pos = (10,10) if LIN else wx.DefaultPosition
+        wx.Dialog.__init__(self,parent,-1,title="Selecteren",
+            ## size=size, pos=pos,
+            style=wx.DEFAULT_DIALOG_STYLE ) #| wx.RESIZE_BORDER)
         self.cb1 = wx.CheckBox(self, -1, parent.parent.ctitels[0].join((" "," -")))
-        l1a = wx.StaticText(self, -1, "groter dan:", size=(70,-1))
+        l1a = wx.StaticText(self, -1, "groter dan:", size=(90,-1))
         self.t1a = wx.TextCtrl(self, pr.ID_T1A, "", size=(153, -1))
         self.Bind(wx.EVT_TEXT, self.OnEvtText, self.t1a)
         l1c = wx.StaticText(self, -1, "", size=(70,-1))
         self.rb1a = wx.RadioButton(self, -1, "en")
         self.rb1b = wx.RadioButton(self, -1, "of")
-        l1b = wx.StaticText(self, -1, "kleiner dan:", size=(70,-1))
+        l1b = wx.StaticText(self, -1, "kleiner dan:", size=(90,-1))
         self.t1b = wx.TextCtrl(self, pr.ID_T1B, "", size=(153, -1))
         self.Bind(wx.EVT_TEXT, self.OnEvtText, self.t1b)
         if "idgt" in sel: self.t1a.SetValue(sel["idgt"])
@@ -1115,7 +1129,7 @@ class SelectOptionsDialog(wx.Dialog):
             self.cb2.SetValue(True)
 
         self.cb3 = wx.CheckBox(self, -1, parent.parent.ctitels[2].join((" "," -")))
-        l3 = wx.StaticText(self, -1, "selecteer\néén of meer:", size=(70,-1))
+        l3 = wx.StaticText(self, -1, "selecteer\neen of meer:", size=(70,-1))
         h = self.parent.parent.stats.keys()
         h.sort()
         self.cl3 = wx.CheckListBox(self, pr.ID_CL3, choices=[x[0] for x in [self.parent.parent.stats[y] for y in h]])
@@ -1185,7 +1199,7 @@ class SelectOptionsDialog(wx.Dialog):
         sizer.Add(btnsizer, 0, wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5)
 
         self.SetSizer(sizer)
-        self.SetAutoLayout(True)
+        ## self.SetAutoLayout(True)
         sizer.Fit(self)
 
     def OnEvtText(self,evt=None):
@@ -1377,9 +1391,10 @@ class MainWindow(wx.Frame):
         self.oldsort = -1
         self.idlist = self.actlist = self.alist = []
 
-        high = 680 if LIN else 594
+        wide = 764 if LIN else 588
+        high = 720 if LIN else 594
         wx.Frame.__init__(self,parent,wx.ID_ANY, self.title,pos=(2,2),
-                size = (588, high),
+                size = (wide, high),
                             style=wx.DEFAULT_FRAME_STYLE|wx.NO_FULL_REPAINT_ON_RESIZE)
         self.sb = self.CreateStatusBar() # A Statusbar in the bottom of the window
 
@@ -1803,7 +1818,11 @@ class MainWindow(wx.Frame):
             self.nb.SetSelection(0)
 
     def leesSettings(self):
-        h = Settings(self.nb.fnaam)
+        try:
+            h = Settings(self.nb.fnaam)
+        except DataError as d:
+            wx.MessageBox(str(d),"Oh-oh!")
+            return
         self.nb.stats = {}
         self.nb.cats = {}
         self.nb.tabs = {}
@@ -2015,7 +2034,7 @@ class MainWindow(wx.Frame):
         dlg.Destroy()
 
 def main(args):
-    app = wx.App(redirect=False)
+    app = wx.App(redirect=True, filename="probreg.log") # False)
     frame = MainWindow(None, -1, args[1:])
     app.MainLoop()
 if __name__ == '__main__':
