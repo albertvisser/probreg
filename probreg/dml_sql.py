@@ -12,22 +12,22 @@ Actie is aangepast mhoo direct sql gebruik
 testen:
 - checkfile is ok
 - get_acties is ok
-- Settings s ok
+- Settings is ok
 - Actie
 """
+#sys.path.append("/home/visser/django")
+#os.environ["DJANGO_SETTINGS_MODULE"] = 'actiereg.settings'
+#import settings
+#import actiereg._basic.models as my
+# from django.contrib.auth.models import User, Group
 
 from __future__ import print_function
 ## import sys
 ## import os
 import pprint as pp
-#sys.path.append("/home/visser/django")
-#os.environ["DJANGO_SETTINGS_MODULE"] = 'actiereg.settings'
-import sqlite3 as sql
-#import settings
-#import actiereg._basic.models as my
-# from django.contrib.auth.models import User, Group
 import datetime as dt
-from config import DBLOC, USER
+import sqlite3 as sql
+from config import DBLOC, USER, kopdict, statdict, catdict
 
 def getsql(con, cmd, item=None):
     """retrieval sql uitvoeren en resultaat teruggeven
@@ -39,7 +39,7 @@ def getsql(con, cmd, item=None):
     if item is None:
         item = ()
     try:
-        result = con.execute(cmd, item)
+        result = [x for x in con.execute(cmd, item)]
     except (sql.ProgrammingError, sql.OperationalError):
         raise
     return result
@@ -61,50 +61,53 @@ def doesql(con, cmd, item=None):
         err = msg
     return err
 
-
-# onderstaande definities zijn overgenomen uit dml.py voor de xml
-
-kopdict = {
-    "0": "Lijst",
-    "1": "Titel/Status",
-    "2": "Probleem/Wens",
-    "3": "Oorzaak/Analyse",
-    "4": "Oplossing",
-    "5": "Vervolgactie",
-    "6": "Voortgang"
-}
-statdict = {
-    "0": ("gemeld", 0),
-    "1": ("in behandeling", 1),
-    "2": ("oplossing controleren",2),
-    "3": ("nog niet opgelost",3),
-    "4": ("afgehandeld", 4),
-    "5": ("afgehandeld - vervolg",5)
-}
-catdict = {
-    "P": ("probleem",1),
-    "W": ("wens",2),
-    "": ("onbekend",0),
-    "V": ("vraag",3),
-    "I": ("idee",4),
-    "F": ("div. informatie",5)
-}
-
 def checkfile(naam, new=False):
-    """Controleert of het opgegeven project al bestaat in de database
+    """Controleert of het opgegeven project (naam) al bestaat in de database
 
-    Geeft True of False terug, tenzij het tweede argument de waarde True heeft
-    In dat geval wordt (nog niet) een nieuw setje tabellen aangemaakt"""
-    if new:
-        # voeg tabellen toe conform bovenstaande dicts
-        # zie ook newapp.py in de django versie
-        return "Sorry, new = True is voorlopig nog even niet mogelijk"
+    Geeft niks of een foutmelding terug.
+    Als het tweede argument de waarde True heeft wordt een nieuw setje
+    tabellen aangemaakt (settings voor het betreffende project)
+
+    FIXME: dit controleert of niet of het project bestaat maar of er al acties
+    opgevoerd zijn - settings zonder acties == geen settings, geen acties
+    settings.read controleert op aanwezigheid van settings
+    """
     con = sql.connect(DBLOC)
+    if new:
+        # is rollback hier wel nodig als er nog niet gecommit is?
+        insert_stmt = 'insert into {0}_status values(?,?,?,?)'.format(naam)
+        for ix, stat in enumerate(statdict):
+            titel, volgorde = statdict[stat]
+            rtn = doesql(con, insert_stmt, (ix+1,titel,int(stat),volgorde))
+            if rtn:
+                con.rollback()
+                con.close()
+                return rtn
+        insert_stmt = 'insert into ','_soort values(?,?,?,?)'.format(naam)
+        for ix, cat in enumerate(catdict):
+            titel, volgorde = catdict[cat]
+            rtn = doesql(con, insert_stmt, (ix+1,titel,int(cat),volgorde))
+            if rtn:
+                con.rollback()
+                con.close()
+                return rtn
+        insert_stmt = 'insert into ','_page values(?,?,?,?)'.format(naam)
+        for ix, kop in enumerate(kopdict):
+            titel, link = kopdict[kop]
+            volgorde = ix
+            rtn = doesql(con, insert_stmt, (ix+1,titel,link,volgorde))
+            if rtn:
+                con.rollback()
+                con.close()
+                return rtn
+        con.commit()
+        con.close()
+        return         # vgl. newapp.py in de django versie
     try:
         getsql(con, "select count(*) from {0}_actie".format(naam))
-        r = True
-    except sql.OperationalError:
-        r = False
+        r = ""
+    except sql.OperationalError as msg:
+        r = msg
     con.close()
     return r
 
@@ -113,9 +116,9 @@ class DataError(Exception):
     pass
 
 class Settings:
-    """instellingen voor project ophalen
+    """instellingen voor project
 
-    argument = projectnaam, mag leeg zijn
+    buffer tussen programma en database
     """
     def __init__(self, fnaam=""):
         self.kop = kopdict
@@ -140,12 +143,12 @@ class Settings:
             return
         self.exists = True
         for y in h:
-            self.kop[str(y["order"])] = y["title"]
-        h = getsql(con, "select * from {0}_status" \
+            self.kop[str(y["order"])] = (y["title"], y["link"])
+        h = getsql(con, "select * from {0}_status"
             " order by value".format(self.naam))
         for y in h:
             self.stat[str(y["value"])] = (y["title"], y["order"])
-        h = getsql(con, "select * from {0}_soort" \
+        h = getsql(con, "select * from {0}_soort"
             " order by value".format(self.naam))
         for y in h:
             self.cat[y["value"]] = (y["title"], y["order"])
@@ -156,46 +159,47 @@ class Settings:
         con = sql.connect(DBLOC)
         con.row_factory = sql.Row
         if not self.exists:
-            # zouden in de nieuwe situatie drie settings tabellen voor moeten worden opgericht
-            self.exists = True
+            checkfile(self.naam, new = True)
+            # dit impliceert eerst de standaard settings opvoeren en daarna wijzigen
+            # wat er niet standaard is. Is dat de beste manier?
         _pages = getsql(con,
             'select * from {0}_page order by "order"'.format(self.naam))
         rtn = 0
         for item in _pages:
             ix = str(item["order"])
-            if self.kop[ix] != item["title"]:
-                rtn = doesql(con, "update {0}_page set title = ?" \
-                    ' where "order" = ?'.format(self.naam),
-                    (self.kop[ix], ix))
+            if self.kop[ix] != (item["title"], item["link"]):
+                rtn = doesql(con, "update {0}_page set title = ?,"
+                    ' link = ? where "order" = ?'.format(self.naam),
+                    (self.kop[ix][0], self.kop[ix][1], ix))
         if rtn:
             con.rollback()
             con.close()
             raise DataError(rtn)
         namen = []
         max_id = 0
-        _stats = getsql(con, "select * from {0}_status" \
+        _stats = getsql(con, "select * from {0}_status"
             " order by value".format(self.naam))
         for item in _stats:
             if item["id"] > max_id:
                 max_id = int(item["id"])
             ix = str(item["value"])
             if ix not in self.stat.keys():
-                rtn = doesql(con, "delete from {0}_status" \
+                rtn = doesql(con, "delete from {0}_status"
                     " where value = ?".format(self.naam),
                     (ix,))
             else:
                 namen.append(ix)
                 if self.stat[ix] != (item["title"], item["order"]):
-                    rtn = doesql(con, 'update {0}_status set title = ?, "order" = ?' \
-                        ' where value = ?'.format(self.naam),
+                    rtn = doesql(con, 'update {0}_status set title = ?,'
+                        ' "order" = ? where value = ?'.format(self.naam),
                         (self.stat[ix][0], self.stat[ix][1], ix))
         ## print namen
         for key, value in self.stat.items():
             ## print key, value
             if key not in namen:
                 max_id += 1
-                rtn = doesql(con, 'insert into {0}_status (id, title, "order", value)' \
-                    " values (?, ?, ?, ?)".format(self.naam),
+                rtn = doesql(con, 'insert into {0}_status (id, title,'
+                    '"order", value) values (?, ?, ?, ?)'.format(self.naam),
                     (max_id, value[0], value[key][1], key))
         if rtn:
             con.rollback()
@@ -203,28 +207,29 @@ class Settings:
             raise DataError(rtn)
         namen = []
         max_id = 0
-        _cats = getsql(con, "select * from {0}_soort" \
+        _cats = getsql(con, "select * from {0}_soort"
             " order by value".format(self.naam))
         for item in _cats:
             if item["id"] > max_id:
                 max_id = item["id"]
             ix = item["value"]
             if ix not in self.cat.keys():
-                rtn = doesql(con, "delete from {0}_soort" \
+                rtn = doesql(con, "delete from {0}_soort"
                     " where value = ?".format(self.naam),
                     (ix,))
             else:
                 namen.append(ix)
                 if self.cat[ix] != (item["title"], item["order"]):
-                    rtn = doesql(con, 'update {0}_soort set title = ?, "order" = ?' \
-                        " where value = ?".format(self.naam),
+                    rtn = doesql(con, 'update {0}_soort set title = ?,'
+                        ' "order" = ? where value = ?'.format(self.naam),
+
                         (self.cat[ix][0], self.cat[ix][1], ix))
         pp.pprint(self.cat.items())
         for key, value in self.cat.items():
             if key not in namen:
                 max_id += 1
-                rtn = doesql(con, 'insert into {0}_soort (id, title, "order", value)' \
-                    " values (?, ?, ?, ?)".format(self.naam),
+                rtn = doesql(con, 'insert into {0}_soort (id, title, "order",'
+                    ' value) values (?, ?, ?, ?)"'.format(self.naam),
                     (max_id, value[0], value[1], key))
         if rtn:
             con.rollback()
@@ -232,6 +237,20 @@ class Settings:
             raise DataError(rtn)
         con.commit()
         con.close()
+
+    def get_statustext(self, waarde):
+        "geef tekst bij statuscode"
+        try: # if str(waarde) in statdict:
+            return statdict[str(waarde)][0]
+        except KeyError: # else:
+            raise DataError("Geen tekst gevonden bij statuscode")
+
+    def get_soorttext(self, waarde):
+        "geef tekst bij soortcode"
+        try: # if waarde in catdict:
+            return catdict[waarde][0]
+        except KeyError: # else:
+            raise DataError("Geen tekst gevonden bij soortcode")
 
 def get_acties(naam, select=None, arch=""):
     """selecteer acties; geef het resultaat terug of throw an exception
@@ -302,7 +321,7 @@ def get_acties(naam, select=None, arch=""):
     if sel:
         cmd += "where {0}".format(" and ".join(sel))
     data = getsql(con, cmd, args)
-    if data:
+    if data or len(data) == 0:
         return data
     else:
         raise DataError(naam + " bestaat niet")
@@ -312,11 +331,12 @@ class Actie:
     def __init__(self, naam, id_):
         self.meld = ''
         self.naam = naam
+        self.settings = Settings(naam)
         self.id = id_
-        self.new_data = [0, '', '', '', '', '0', '', False, '', '', '', '']
-        nummer, self.datum, self.over, self.titel, \
-            gewijzigd, self.status, self.soort, self.arch, \
-            self.melding, self.oorzaak, self.oplossing, self.vervolg = self.new_data
+        self.new_data = [0, '', '', '', '', '0', ' ', False, '', '', '', '']
+        (nummer, self.datum, self.over, self.titel, gewijzigd,
+            self.status, self.soort, self.arch, self.melding,
+            self.oorzaak, self.oplossing, self.vervolg) = self.new_data
         self.events = []
         self.exists = False
         self.con = sql.connect(DBLOC)
@@ -347,55 +367,51 @@ class Actie:
     def read(self):
         "gegevens lezen van een bepaalde actie"
         data = getsql(self.con,
-            "select {0}_actie.id, nummer, start, about, {0}_actie.title, gewijzigd, " \
-            "{0}_status.value, {0}_soort.value, arch, " \
-            "melding, oorzaak, oplossing, vervolg from {0}_actie " \
-            "join {0}_soort on {0}_soort.id = {0}_actie.soort_id " \
-            "join {0}_status on {0}_status.id = {0}_actie.status_id " \
-            "where nummer = ?".format(self.naam), (self.id,))
+            "select {0}_actie.id, nummer, start, about, {0}_actie.title,"
+            " gewijzigd, {0}_status.value, {0}_soort.value, arch,"
+            " melding, oorzaak, oplossing, vervolg from {0}_actie"
+            " join {0}_soort on {0}_soort.id = {0}_actie.soort_id"
+            " join {0}_status on {0}_status.id = {0}_actie.status_id"
+            " where nummer = ?".format(self.naam), (self.id,))
         ## for item in data:
             ## print(item)
         ## return
-        if data:
-            for item in data:
-                actie, self.id, self.datum, self.over, self.titel, self.updated, \
-                    self.status, self.soort, self.arch, self.melding, self.oorzaak, \
-                    self.oplossing, self.vervolg = item
+        if len(data) == 0:
+            self.exists = False
+            return
+        elif not data:
+            raise DataError(self.naam + " bestaat niet")
+        for item in data:
+            (actie, self.id, self.datum, self.over, self.titel, self.updated,
+            self.status, self.soort, self.arch, self.melding, self.oorzaak,
+            self.oplossing, self.vervolg) = item
             self.titel = " - ".join((self.over, self.titel))
             print(self.status, self.soort, sep=" ")
-        else:
-            raise DataError(self.naam + " bestaat niet")
-        data = getsql(self.con, "select id, start, starter_id, text from {0}_event " \
-            "where actie_id = ?".format(self.naam), (actie,))
+        data = getsql(self.con, "select id, start, starter_id, text from"
+            " {0}_event where actie_id = ?".format(self.naam), (actie,))
         for item in data:
             self.events.append((item[1],item[3]))
         self.exists = True
 
-    def getStatusText(self, waarde):
+    def get_statustext(self):
         "geef tekst bij statuscode"
-        if str(waarde) in statdict:
-            return statdict[str(waarde)][0]
-        else:
-            raise DataError("Geen tekst gevonden bij statuscode")
+        return self.settings.get_statustext(self.status)
 
-    def getSoortText(self, waarde):
+    def get_soorttext(self):
         "geef tekst bij soortcode"
-        if waarde in catdict:
-            return catdict[waarde][0]
-        else:
-            raise DataError("Geen tekst gevonden bij soortcode")
+        return self.settings.get_soorttext(self.soort)
 
-    def setStatus(self, waarde):
-        "stel status in (code of tekst)"
-        if type(waarde) is int:
-            if str(waarde) in statdict:
+    def set_status(self, waarde):
+        "stel status in (code of tekst) met controle a.h.v. project settings"
+        if isinstance(waarde, int):
+            if str(waarde) in self.settings.stat:
                 self.status = waarde
             else:
                 raise DataError("Foutieve numerieke waarde voor status")
-        elif type(waarde) is str:
+        elif isinstance(waarde, str):
             found = False
-            for x, y in list(statdict.values()):
-                if x == waarde:
+            for x, y in list(self.settings.stat.items()):
+                if y[0] == waarde:
                     found = True
                     self.status = x
                     break
@@ -404,13 +420,13 @@ class Actie:
         else:
             raise DataError("Foutief datatype voor status")
 
-    def setSoort(self, waarde):
-        "stel soort in (code of tekst)"
-        if type(waarde) is str:
-            if waarde in catdict:
+    def set_soort(self, waarde):
+        "stel soort in (code of tekst) met controle a.h.v. project settings"
+        if isinstance(waarde, str):
+            if waarde in self.settings.cat:
                 self.soort = waarde
             else:
-                for x, y in list(catdict.items()):
+                for x, y in list(self.settings.cat.items()):
                     if y[0] == waarde:
                         found = True
                         self.soort = x
@@ -420,12 +436,12 @@ class Actie:
         else:
             raise DataError("Foutief datatype voor categorie")
 
-    def setArch(self, waarde):
-        "stel archiefstatus in"
-        if type(waarde) is bool:
-            self.arch = waarde
+    def set_arch(self, waarde):
+        "stel archiefstatus in - garandeert dat dat een boolean waarde wordt"
+        if waarde:
+            self.arch = True
         else:
-            raise DataError("Foutief datatype voor archiveren")
+            self.arch = False
 
     def write(self):
         "actiegegevens (terug)schrijven"
@@ -450,7 +466,7 @@ class Actie:
         update = []
         insert = []
         items = []
-        self.over, self.titel = self.titel.split(" - ", 1)
+        ## self.over, self.titel = self.titel.split(" - ", 1)
         if not self.exists or self.over != data[2]:
             insert.append("about")
             update.append("about = ?")
@@ -510,10 +526,10 @@ class Actie:
             raise DataError(rtn)
         data = getsql(self.con, "select id, start, starter_id, text from {0}_event " \
                 "where actie_id = ?".format(self.naam), (actie_id,))
-        if not data:
-            self.con.rollback()
-            raise DataError("Problem getting events")
-        current_events = [x for x in data]
+        ## if not data:
+            ## self.con.rollback()
+            ## raise DataError("Problem getting events")
+        current_events = [x for x in data] if data else []
         last_id = 0
         data = getsql(self.con, "select id from {0}_event ".format(self.naam))
         for item in data:
@@ -537,13 +553,13 @@ class Actie:
     def list(self):
         "actiegegevens uitlijsten naar print"
         print("%s %s gemeld op %s status %s %s" % (
-            self.getSoortText(self.soort),
+            self.get_soorttext(),
             self.id,
             self.datum,
             self.status,
-            self.getStatusText(self.status)
+            self.get_statustext()
             ))
-        print("Titel:", self.titel, sep=" ")
+        print("Titel", self.over, self.titel, sep=": ")
         print("Melding:", self.melding, sep=" ")
         print("Oorzaak:", self.oorzaak, sep=" ")
         print("Oplossing:", self.oplossing, sep=" ")
@@ -558,63 +574,103 @@ class Actie:
 def test_checkfile(fnaam):
     "test routine"
     h = checkfile(fnaam, False)
-    print('checkfile "{0}", False: {1}'.format(fnaam, h))
+    print('checkfile({0}) levert op "{1}"'.format(fnaam, h), end = "\n")
     h = checkfile("gnarfl", False)
-    print('checkfile "{0}", False: {1}'.format("gnarfl", h))
+    print('checkfile({0}) levert op "{1}"'.format("gnarfl", h), end = "\n")
     h = checkfile(fnaam, True)
-    print('checkfile "{0}", True: {1}'.format(fnaam, h))
+    print('checkfile({0}) levert op "{1}"'.format(fnaam, h), end = "\n")
 
 def test_get_acties(fnaam):
     "test routine"
-    ## h = get_acties(fnaam,{})
-    ## h = get_acties(fnaam,{"idlt": "2010", })
-    ## h = get_acties(fnaam,{"idlt": "2010",  "id": "and",  "idgt": "2007-0003"})
-    ## h = get_acties(fnaam,{"idgt": "2010",  "id": "or",  "idlt": "2007-0003"})
-    ## h = get_acties(fnaam,{"idgt": "2007-0003",})
-    ## h = get_acties(fnaam,{"status": "1",  "soort" : "2",})
-    h = get_acties(fnaam, {"titel": "en"})
-    ## h = get_acties(fnaam,{}, "arch")
-    ## h = get_acties(fnaam,{}, "alles")
-    i = 0
-    for item in h:
-        i += 1
-        print(item[0])
-        pp.pprint(item)
-    print("{0} records".format(i))
-
-def test_Actie(fnaam):
-    "test routine"
-    ## p = Actie(fnaam, 0)
-    p = Actie(fnaam, "2010-0002")
-    p.status = 2
-    p.setArch(True)
-    p.melding = "Het is niet gebeurd"
-    p.oorzaak = "Het leek maar alsof"
-    p.oplossing = "Dus hebben we teruggedraaid wat we er aan gedaan hebben"
-    p.vervolg = ""
-    ## p.events.append((dt.datetime.today().isoformat(' ')[:19], "Actie opgevoerd"))
-    ## p.events.append((dt.datetime.today().isoformat(' ')[:19], "Meldingtekst aangepast"))
-    p.events.append((dt.datetime.today().isoformat(' ')[:19], "Actie gearchiveerd"))
-    ## p.events.append((dt.datetime.today().isoformat(' ')[:19], "Actie heropend"))
-    ## p.list()
-    p.write()
+    for op1, op2 in (
+            ({}, ""),
+            ({"idlt": "2010", }, ""),
+            ({"idlt": "2010",  "id": "and",  "idgt": "2007-0003"}, ""),
+            ({"idgt": "2010",  "id": "or",  "idlt": "2007-0003"}, ""),
+            ({"idgt": "2007-0003",}, ""),
+            ({"status": "1",  "soort" : "2",}, ""),
+            ({"titel": "en"}, ""),
+            ({}, "arch"),
+            ({}, "alles"),):
+        h = get_acties(fnaam, op1, op2)
+        i = 0
+        for item in h:
+            i += 1
+            print(item[0])
+            pp.pprint(item)
+        print("{0} records".format(i))
 
 def test_Settings(fnaam):
     "test routine"
     h = Settings(fnaam)
-    ## h.stat['7'] = ("Gloekgloekgloe", 15)
-    ## h.cat["X"] = ("Willen we niet weten", 6)
-    ## h.kop['4'] = "Gargl"
-    ## h.stat['7'] = ("Gloekgloekgloe", 7)
-    ## h.cat["X"] = ("Ahum ahum", 7)
-    ## h.kop['4'] = "Oplossing/SvZ"
+    pp.pprint(h.kop)
+    pp.pprint(h.stat)
+    pp.pprint(h.cat)
+    h.stat['7'] = ("Gloekgloekgloe", 15)
+    h.cat["X"] = ("Willen we niet weten", 6)
+    h.kop['4'] = ("Gargl", "opl")
+    print("\nNa toevoegen waarden:")
+    pp.pprint(h.kop)
+    pp.pprint(h.stat)
+    pp.pprint(h.cat)
+    h.stat['7'] = ("Gloekgloekgloe", 7)
+    h.cat["X"] = ("Ahum ahum", 7)
+    h.kop['4'] = ("Oplossing/SvZ", "opl")
+    print("\nNa wijzigen waarden:")
+    pp.pprint(h.kop)
+    pp.pprint(h.stat)
+    pp.pprint(h.cat)
     h.stat.pop('7')
     h.cat.pop("X")
     h.write()
     h = Settings(fnaam)
+    print("\nNa schrijven en opnieuw lezen:")
     pp.pprint(h.kop)
     pp.pprint(h.stat)
     pp.pprint(h.cat)
+
+def test_Actie(fnaam):
+    "test routine"
+    p = Actie(fnaam, "2009-0002")
+    pp.pprint(p.__dict__)
+    p = Actie(fnaam, "2011-0001")
+    if not p.exists:
+        p = Actie(fnaam, "0")
+        p.events.append((dt.datetime.today().isoformat(' ')[:19],
+            "Actie opgevoerd"))
+        p.over = "test"
+        p.titel = "nieuwe actie"
+        p.events.append((dt.datetime.today().isoformat(' ')[:19],
+            'titel gewijzigd in "{0}: {1}"'.format(p.over, p.titel)))
+        p.set_soort("probleem")
+        p.events.append((dt.datetime.today().isoformat(' ')[:19],
+            'soort gewijzigd in "{0}"'.format(p.get_soorttext())))
+        p.set_status("in behandeling")
+        p.events.append((dt.datetime.today().isoformat(' ')[:19],
+            'status gewijzigd in "{0}"'.format(p.get_statustext())))
+        pp.pprint(p.__dict__)
+    else:
+        p.list()
+        return
+    p.list()
+    p.melding = "Het is niet gebeurd"
+    p.events.append((dt.datetime.today().isoformat(' ')[:19],
+        "Meldingtekst aangepast"))
+    p.oorzaak = "Het leek maar alsof"
+    p.events.append((dt.datetime.today().isoformat(' ')[:19],
+        "Beschrijving oorzaak aangepast"))
+    p.oplossing = "Dus hebben we teruggedraaid wat we er aan gedaan hebben"
+    p.events.append((dt.datetime.today().isoformat(' ')[:19],
+        "Beschrijving oplossing aangepast"))
+    ## p.vervolg = ""
+    p.status = 2
+    p.set_arch(True)
+    p.events.append((dt.datetime.today().isoformat(' ')[:19],
+        "Actie gearchiveerd"))
+    ## p.events.append((dt.datetime.today().isoformat(' ')[:19], "Actie heropend"))
+    p.list()
+    ## return
+    p.write()
 
 if __name__ == "__main__":
     fnm = "_basic"
@@ -622,5 +678,5 @@ if __name__ == "__main__":
     ## test_doesql()
     ## test_checkfile(fnm)
     ## test_get_acties(fnm)
-    test_Actie(fnm)
     ## test_Settings(fnm)
+    test_Actie(fnm)
