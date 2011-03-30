@@ -187,6 +187,9 @@ class Page(wx.Panel):
             self.oldbuf = self.parent.p.vervolg = t
             self.parent.p.events.append((get_dts(),"Tekst vervolgactie aangepast"))
             self.parent.p.write()
+        self.parent.p.read()    # om "updated" attribuut op te halen
+        self.parent.page0.p0list.SetStringItem(self.parent.currentItem,
+            4, self.parent.p.updated) # bijwerken in panel 0
         return True
 
     def savepgo(self, evt=None):
@@ -795,9 +798,12 @@ class Page1(Page):
                 (get_dts(), "Actie {0}".format(hlp)))
             wijzig = True
         if wijzig:
-            #~ print "savep: schrijven",self.oldbuf
-            self.parent.rereadlist = True
+            ## print "savep: schrijven",self.oldbuf
+            ## self.parent.rereadlist = True
             self.parent.p.write()
+            self.parent.p.read()    # om "updated" attribuut op te halen
+            self.parent.page0.p0list.SetStringItem(self.parent.currentItem,
+                4, self.parent.p.updated) # bijwerken in panel 0
             if self.parent.newitem:
                 #~ print len(self.parent.data)
                 self.parent.currentItem = len(self.parent.data) # + 1
@@ -972,6 +978,9 @@ class Page6(Page):
             #~ print "savep: schrijven"
             ## self.parent.p.list() # NB element 0 is leeg
             self.parent.p.write()
+            self.parent.p.read()    # om "updated" attribuut op te halen
+            self.parent.page0.p0list.SetStringItem(self.parent.currentItem,
+                4, self.parent.p.updated) # bijwerken in panel 0
             self.olijst = self.elijst[:]
             self.odata = self.edata[:]
             ## self.oldbuf = (self.txtStat.GetValue(),self.olijst,self.odata)
