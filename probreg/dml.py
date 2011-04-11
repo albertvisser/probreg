@@ -1,7 +1,8 @@
 #! C:/python24
 # -*- coding: UTF-8 -*-
-# aangepast python 2.5: xml.etree ipv elementtree
+"data managenent statements"
 
+from __future__ import print_function
 import sys
 if sys.version[:3] >= '2.5':
     from xml.etree.ElementTree import ElementTree, Element, SubElement
@@ -9,14 +10,14 @@ else:
     from elementtree.ElementTree import ElementTree, Element, SubElement
 
 from os import getcwd
-from os.path import exists,split,splitext
+from os.path import exists, split, splitext
 from shutil import copyfile
 import datetime as dt
 
 # 18-11-2007: statdict en catdict uit Settings class overgenomen, aanmaken nieuw bestand toegevoegd
 # 18-06-2008: rename i.p.v. copyfile
 
-datapad = getcwd() + "\\"
+datapad = getcwd() + "/"
 kopdict = {
     "0": "Lijst",
     "1": "Titel/Status",
@@ -43,22 +44,23 @@ catdict = {
     "F": ("div. informatie",5)
 }
 
-def checkfile(fn,new=False):
+def checkfile(fn, new=False):
+    "controleer of projectbestand bestaat, maak indien aangegeven nieuwe aan"
     r = ''
     if new:
         root = Element("acties")
         s = SubElement(root,"settings")
         t = SubElement(s,"stats")
-        for x,y in list(statdict.items()):
-            u = SubElement(t,"stat",order=str(y[1]),value=x)
+        for x, y in list(statdict.items()):
+            u = SubElement(t, "stat", order=str(y[1]), value=x)
             u.text = y[0]
         t = SubElement(s,"cats")
-        for x,y in list(catdict.items()):
-            u = SubElement(t,"cat",order=str(y[1]),value=x)
+        for x, y in list(catdict.items()):
+            u = SubElement(t, "cat", order=str(y[1]), value=x)
             u.text = y[0]
         t = SubElement(s,"koppen")
-        for x,y in list(kopdict.items()):
-            u = SubElement(t,"kop",value=x)
+        for x, y in list(kopdict.items()):
+            u = SubElement(t, "kop", value=x)
             u.text = y
         ElementTree(root).write(fn)
     else:
@@ -71,10 +73,12 @@ def checkfile(fn,new=False):
     return r
 
 class DataError(Exception):
+    "algemene exception"
     pass
 
 class LaatsteActie:
-    def __init__(self,fnaam,jaar=None):
+    "bepaal nieuw uit te geven actienummer"
+    def __init__(self, fnaam, jaar=None):
         if exists(fnaam):
             dnaam = fnaam
         elif exists(datapad + fnaam):
@@ -88,10 +92,12 @@ class LaatsteActie:
         rt = tree.getroot()
         for x in rt.findall("actie"):
             t = x.get("id").split("-")
-            if t[0] != jaar: continue
-            if int(t[1]) > nummer: nummer = int(t[1])
+            if t[0] != jaar:
+                continue
+            if int(t[1]) > nummer:
+                nummer = int(t[1])
         self.nieuwnummer = nummer + 1
-        self.nieuwetitel = ("%s-%04i" % (jaar,self.nieuwnummer))
+        self.nieuwetitel = ("%s-%04i" % (jaar, self.nieuwnummer))
 
 class Acties:
     """
@@ -109,11 +115,13 @@ class Acties:
         als de string niet eindigt met een * dan moet de titel ermee eindigen
         als er een * in zitmoet wat ervoor zit en erna komt in de titel zitten
      """
-    def __init__(self,fnaam,select={},arch=""):
+    def __init__(self, fnaam, select=None, arch=""):
+        if select is None:
+            select = {}
         if len(select) > 0:
             keyfout = False
             for x in list(select.keys()):
-                if x not in ("idlt","id","idgt","soort","status","titel"):
+                if x not in ("idlt", "id", "idgt", "soort", "status", "titel"):
                     keyfout = True
                     break
             if keyfout:
@@ -121,8 +129,9 @@ class Acties:
             if "id" in select:
                 if "idlt" not in select or "idgt" not in select:
                     raise DataError("Foutieve combinatie van selectie-argumenten opgegeven")
-        if arch not in ("","arch","alles"):
-            raise DataError("Foutieve waarde voor archief opgegeven (moet niks, 'arch'  of 'alles' zijn)")
+        if arch not in ("", "arch", "alles"):
+            raise DataError("Foutieve waarde voor archief opgegeven " \
+                "(moet niks, 'arch'  of 'alles' zijn)")
         sett = Settings(fnaam)
         self.meld = ''
         self.lijst = []
@@ -137,7 +146,8 @@ class Acties:
         for x in rt.findall("actie"):
             a = x.get("arch")
             if a is None:
-                if arch == "arch": continue
+                if arch == "arch":
+                    continue
             else:
                 if (a == "arch" and arch == "") or (a != "arch" and arch == "arch"):
                     continue
@@ -146,13 +156,15 @@ class Acties:
                 if nr <= select["idgt"] and nr >= select["idlt"]:
                     continue
             else:
-                if ("idgt" in select and nr <= select["idgt"]) or ("idlt" in select and nr >= select["idlt"]):
+                if ("idgt" in select and nr <= select["idgt"]) \
+                    or ("idlt" in select and nr >= select["idlt"]):
                     continue
             dd = x.get("datum")
             if dd is None:
                 dd = ''
             lu = x.get("updated")
-            if lu is None: lu = ""
+            if lu is None:
+                lu = ""
             h = x.get("status")
             if "status" in select and h not in select["status"]:
                 continue
@@ -160,17 +172,19 @@ class Acties:
             if h in list(sett.stat.keys()):
                 st = sett.stat[h]
             h = x.get("soort")
-            if h is None: h = ""
+            if h is None:
+                h = ""
             if "soort" in select and h not in select["soort"]:
                 continue
             ct = ''
             if h in list(sett.cat.keys()):
                 ct = sett.cat[h]
             tl = x.find("titel").text
-            if tl == None: tl = ""
+            if tl == None:
+                tl = ""
             if "titel" in select and select["titel"].upper() not in tl.upper():
                 continue
-            self.lijst.append((nr,dd,st,ct,tl,lu))
+            self.lijst.append((nr, dd, st, ct, tl, lu))
 
 class Settings:
     """
@@ -180,7 +194,7 @@ class Settings:
         de categorieen hebben een numeriek id en een numerieke code
         de id's bepalen de volgorde in de listboxen en de codes worden in de xml opgeslagen
     """
-    def __init__(self,fnaam=""):
+    def __init__(self, fnaam=""):
         self.kop = kopdict
         self.stat = statdict
         self.cat = catdict
@@ -206,28 +220,30 @@ class Settings:
             self.read()
 
     def read(self):
+        "settings lezen"
         tree = ElementTree(file=self.fn)
         rt = tree.getroot()
-        found = False
+        found = False # wordt niet gebruikt
         x = rt.find("settings")
         if x is not None:
             h = x.find("stats")
             if h is not None:
                 self.stat = {}
                 for y in h.findall("stat"):
-                    self.stat[y.get("value")] = (y.text,y.get("order"))
-                    h = x.find("cats")
+                    self.stat[y.get("value")] = (y.text, y.get("order"))
+            h = x.find("cats")
             if h is not None:
                 self.cat = {}
                 for y in h.findall("cat"):
-                    self.cat[y.get("value")] = (y.text,y.get("order"))
-                    h = x.find("koppen")
+                    self.cat[y.get("value")] = (y.text, y.get("order"))
+            h = x.find("koppen")
             if h is not None:
                 self.kop = {}
                 for y in h.findall("kop"):
                     self.kop[y.get("value")] = y.text
 
     def write(self):
+        "settings terugschrijven"
         if not self.exists:
             f = open(self.fn,"w")
             f.write('<?xml version="1.0" encoding="iso-8859-1"?>\n<acties>\n</acties>\n')
@@ -248,27 +264,30 @@ class Settings:
         h = SubElement(el,"stats")
         #~ print self.stat
         for x in list(self.stat.keys()):
-            if x is int: x = str(x)
-            j = SubElement(h,"stat",value=x)
-            j.set("order",str(self.stat[x][1]))
+            if x is int:
+                x = str(x)
+            j = SubElement(h, "stat", value=x)
+            j.set("order", str(self.stat[x][1]))
             j.text = self.stat[x][0]
         h = SubElement(el,"cats")
         #~ print self.cat
         for x in list(self.cat.keys()):
-            j = SubElement(h,"cat",value=x)
-            j.set("order",str(self.cat[x][1]))
+            j = SubElement(h, "cat", value=x)
+            j.set("order", str(self.cat[x][1]))
             j.text = self.cat[x][0]
         h = SubElement(el,"koppen")
         #~ print self.kop
         for x in list(self.kop.keys()):
-            if x is int: x = str(x)
-            j = SubElement(h,"kop",value=x)
+            if x is int:
+                x = str(x)
+            j = SubElement(h, "kop", value=x)
             j.text = self.kop[x]
-        copyfile(self.fn,self.fno)
+        copyfile(self.fn, self.fno)
         tree.write(self.fn)
 
-    def set(self,naam,key=None,waarde=None):
-        if naam not in ("stat","cat","kop"):
+    def set(self, naam, key=None, waarde=None):
+        "settings warde instellen"
+        if naam not in ("stat", "cat", "kop"):
             self.meld = 'Foutieve soort opgegeven'
             raise DataError(self.meld)
         elif key is None:
@@ -293,8 +312,9 @@ class Settings:
                 raise DataError(self.meld)
             self.kop[key] = waarde
 
-    def get(self,naam,key=None):
-        if naam not in ("stat","cat","kop"):
+    def get(self, naam, key=None):
+        "settings waarde lezen"
+        if naam not in ("stat", "cat", "kop"):
             self.meld = 'Foutieve soort opgegeven'
             raise DataError(self.meld)
         elif naam == "stat":
@@ -328,7 +348,7 @@ class Settings:
 
 class Actie:
     """lijst alle gegevens van een bepaald item"""
-    def __init__(self,fnaam,id):
+    def __init__(self, fnaam, _id):
         self.meld = ''
         if splitext(fnaam)[1] != ".xml":
             #~ print splitext(fnaam)[1]
@@ -341,7 +361,7 @@ class Actie:
         else:
             self.fn = datapad + fnaam # naam van het xml bestand
             self.fnaam = fnaam
-        self.id = id
+        self.id = _id
         self.datum = ''
         self.status = '0'
         self.soort = ''
@@ -357,23 +377,26 @@ class Actie:
         self.exists = False
         if exists(self.fn):
             pass
-        elif id == 0 or id == "0":
+        elif _id == 0 or _id == "0":
             self.nieuwfile()
-        if id == 0 or id == "0":
+        if _id == 0 or _id == "0":
             self.nieuw()
         else:
             self.read()
 
     def nieuw(self):
+        "nieuwe actie initialiseren"
         self.id = LaatsteActie(self.fn).nieuwetitel
-        self.datum= dt.datetime.today().isoformat(' ')[:19]
+        self.datum = dt.datetime.today().isoformat(' ')[:19]
 
     def nieuwfile(self):
-        f = open(self.fn,"w")
+        "nieuw projectbestand aanmaken"
+        f = open(self.fn, "w")
         f.write('<?xml version="1.0" encoding="iso-8859-1"?>\n<acties>\n</acties>\n')
         f.close()
 
     def read(self):
+        "gegevens lezen van een bepaalde actie"
         tree = ElementTree(file=self.fn)
         rt = tree.getroot()
         found = False
@@ -420,22 +443,25 @@ class Actie:
                         self.stand = y.text
                 elif y.tag == "events":
                     for z in list(y):
-                        self.events.append((z.get("id"),z.text))
+                        self.events.append((z.get("id"), z.text))
             self.exists = True
 
-    def getStatusText(self,waarde):
+    def getStatusText(self, waarde):
+        "geef tekst bij statuscode"
         if str(waarde) in statdict:
             return statdict[str(waarde)]
         else:
             raise DataError("Geen tekst gevonden bij statuscode")
 
-    def getSoortText(self,waarde):
+    def getSoortText(self, waarde):
+        "geef tekst bij soortcode"
         if waarde in catdict:
             return catdict[waarde]
         else:
             raise DataError("Geen tekst gevonden bij soortcode")
 
-    def setStatus(self,waarde):
+    def setStatus(self, waarde):
+        "stel status in (code of tekst)"
         if type(waarde) is int:
             if str(waarde) in statdict:
                 self.status = waarde
@@ -443,7 +469,7 @@ class Actie:
                 raise DataError("Foutieve numerieke waarde voor status")
         elif type(waarde) is str:
             found = False
-            for x,y in list(statdict.values()):
+            for x, y in list(statdict.values()):
                 if x == waarde:
                     found = True
                     self.status = x
@@ -453,35 +479,43 @@ class Actie:
         else:
             raise DataError("Foutief datatype voor status")
 
-    def setSoort(self,waarde):
+    def setSoort(self, waarde):
+        "stel soort in (code of tekst)"
+        print(waarde)
         if type(waarde) is str:
             if waarde in catdict:
                 self.soort = waarde
             else:
-                for x,y in list(catdict.items()):
+                found = False
+                for x, y in list(catdict.items()):
+                    print(y)
                     if y[0] == waarde:
+                        found = True
                         self.soort = x
-                    else:
-                        raise DataError("Foutieve tekstwaarde voor categorie")
+                        break
+                if not found:
+                    raise DataError("Foutieve tekstwaarde voor categorie")
         else:
             raise DataError("Foutief datatype voor categorie")
 
-    def setArch(self,waarde):
+    def setArch(self, waarde):
+        "stel archiefstatus in"
         if type(waarde) is bool:
             self.arch = waarde
         else:
             raise DataError("Foutief datatype voor archiveren")
 
     def write(self):
+        "actiegegevens terugschrijven"
         if exists(self.fn):
             tree = ElementTree(file=self.fn)
             rt = tree.getroot()
         else:
             rt = Element("acties")
         if not self.exists:
-            x = SubElement(rt,"actie")
-            x.set("id",self.id)
-            x.set("datum",self.datum)
+            x = SubElement(rt, "actie")
+            x.set("id", self.id)
+            x.set("datum", self.datum)
             found = True
         else:
             for x in rt.findall("actie"):
@@ -489,57 +523,58 @@ class Actie:
                     found = True
                     break
         if found:
-            x.set("updated",dt.datetime.today().isoformat(' ')[:10])
+            x.set("updated", dt.datetime.today().isoformat(' ')[:10])
             h = self.soort
             if h is None:
                 self.soort = ""
-            x.set("soort",self.soort)
-            x.set("status",self.status)
+            x.set("soort", self.soort)
+            x.set("status", self.status)
             if self.arch:
-                x.set("arch","arch")
+                x.set("arch", "arch")
             else:
                 h = x.get("arch")
                 if h is not None:
-                    x.set("arch","herl")
+                    x.set("arch", "herl")
             h = x.find("titel")
             if h is None:
-                h = SubElement(x,"titel")
+                h = SubElement(x, "titel")
             h.text = self.titel
             h = x.find("melding")
             if h is None:
-                h = SubElement(x,"melding")
+                h = SubElement(x, "melding")
             h.text = self.melding
             h = x.find("oorzaak")
             if h is None:
-                h = SubElement(x,"oorzaak")
+                h = SubElement(x, "oorzaak")
             h.text = self.oorzaak
             h = x.find("oplossing")
             if h is None:
-                h = SubElement(x,"oplossing")
+                h = SubElement(x, "oplossing")
             h.text = self.oplossing
             h = x.find("vervolg")
             if h is None:
-                h = SubElement(x,"vervolg")
+                h = SubElement(x, "vervolg")
             h.text = self.vervolg
             h = x.find("stand")
             if h is None:
-                h = SubElement(x,"stand")
+                h = SubElement(x, "stand")
             h.text = self.stand
             h = x.find("events")
             if h is not None:
                 x.remove(h)
-            h = SubElement(x,"events") # maakt dit een bestaande "leeg" ?
-            for y,z in self.events:
-                q = SubElement(h,"event",id=y)
+            h = SubElement(x, "events") # maakt dit een bestaande "leeg" ?
+            for y, z in self.events:
+                q = SubElement(h, "event", id=y)
                 q.text = z
             tree = ElementTree(rt)
-            copyfile(self.fn,self.fno)
+            copyfile(self.fn, self.fno)
             tree.write(self.fn)
             self.exists = True
         else:
             return False
 
     def list(self):
+        "actie uitlijsten naar print"
         print("%s %s gemeld op %s status %s %s" % (
             self.getSoortText(self.soort),
             self.id,
@@ -547,23 +582,24 @@ class Actie:
             self.status,
             self.getStatusText(self.status)
             ))
-        print("Titel:",self.titel)
-        print("Melding:",self.melding)
-        print("Oorzaak:",self.oorzaak)
-        print("Oplossing:",self.oplossing)
-        print("Vervolg:",self.vervolg)
-        print("Stand:",self.stand)
+        print("Titel:", self.titel, sep=" ")
+        print("Melding:", self.melding, sep=" ")
+        print("Oorzaak:", self.oorzaak, sep=" ")
+        print("Oplossing:", self.oplossing, sep=" ")
+        print("Vervolg:", self.vervolg, sep=" ")
+        print("Stand:", self.stand, sep=" ")
         print("Verslag:")
-        for x,y in self.events:
-            print("\t",x,"-",y)
+        for x, y in self.events:
+            print("   {0} - {1}".format(x, y))
         if self.arch:
             print("Actie is gearchiveerd.")
 
 def test(i):
+    "test routines"
     #~ fn = "pythoneer.xml"
     #~ fn = "magiokis.xml"
-    ## fn = "_probreg.xml"
-    fn = 'Project.xml'
+    fn = "_probreg.xml"
+    ## fn = 'Project.xml'
     if i == "Laatste":
         try:
             h = LaatsteActie(fn)
@@ -573,14 +609,14 @@ def test(i):
             print(h.nieuwetitel)
     elif i == "Acties":
         try:
-            h = Acties(fn,arch="")
+            h = Acties(fn, arch="")
             ## h = Acties(fn,select={"idgt": "2006-0010"})
-            ## h = Acties(fn,{"idlt": "2005-0019"})
-            ## h = Acties(fn,{"idgt": "2005-0019" ,"idlt": "2006-0010"})
-            ## h = Acties(fn,{"idgt": "2005-0019" ,"idlt": "2006-0010", "id": "and" })
-            ## h = Acties(fn,{"idgt": "2006-0010" ,"idlt": "2005-0019", "id": "or" })
-            ## h = Acties(fn,{"status": ("0","1","3")})
-            ## h = Acties(fn,{"soort": ("W","P")})
+            ## h = Acties(fn,{"idlt":  "2005-0019"})
+            ## h = Acties(fn,{"idgt": "2005-0019" , "idlt": "2006-0010"})
+            ## h = Acties(fn,{"idgt": "2005-0019" , "idlt": "2006-0010",  "id": "and" })
+            ## h = Acties(fn,{"idgt": "2006-0010" , "idlt": "2005-0019",  "id": "or" })
+            ## h = Acties(fn,{"status": ("0", "1", "3")})
+            ## h = Acties(fn,{"soort": ("W", "P")})
             ## h = Acties(fn,{"titel": ("tekst")})
         except DataError as meld:
             print(meld)
@@ -592,7 +628,7 @@ def test(i):
                 print(x)
     elif i == "Actie":
         ## h = Actie(fn,"2007-0001")
-        h = Actie(fn,"1")
+        h = Actie(fn, "1")
         print(h.meld)
         if h.exists:
             h.list()
@@ -612,7 +648,7 @@ def test(i):
             #~ h.vervolg = "maar er moet nog een vervolg komen"
             #~ h.list()
             #~ h.write()
-            h = Actie(fn,0)
+            h = Actie(fn, 0)
             print("na init")
             h.list()
             h.titel = "er ging nog iets mis"
@@ -621,7 +657,7 @@ def test(i):
             h.oplossing  = "we hebben het weer zo opgelost"
             h.vervolg = "uitzoeken of er een verband is"
             h.stand = "net begonnen"
-            h.events = [("eerste","hallo"),("tweede","daar")]
+            h.events = [("eerste","hallo"), ("tweede","daar")]
             h.list()
             h.write()
     elif i == "Settings":
@@ -631,21 +667,21 @@ def test(i):
             print(x)
         print("stat: ")
         for x in h.stat:
-                print("\t",x,h.stat[x])
+            print("\t", x, h.stat[x], sep=" ")
         print("cat: ")
         for x in h.cat:
-                print("\t",x,h.cat[x])
+            print("\t", x, h.cat[x], sep=" ")
         print("kop: ")
         for x in h.kop:
-                print("\t",x,h.kop[x])
+            print("\t", x, h.kop[x], sep=" ")
         return
         stats = {}
         cats = {}
         tabs = {}
         for x in list(h.stat.keys()):
-            stats[h.stat[x][1]] = (x,h.stat[x][0])
+            stats[h.stat[x][1]] = (x, h.stat[x][0])
         for x in list(h.cat.keys()):
-            cats[h.cat[x][1]] = (x,h.cat[x][0])
+            cats[h.cat[x][1]] = (x, h.cat[x][0])
         for x in list(h.kop.keys()):
             tabs[x] = h.kop[x]
         print(stats)
@@ -656,50 +692,50 @@ def test(i):
             #~ h.set("test")
             #~ h.set("cat")
             #~ h.set("stat")
-            #~ h.set("cat","test")
-            #~ h.set("stat","test")
-            #~ h.set("cat","V","vraag")
-            #~ h.set("stat","4","onoplosbaar")
-            #~ h.set("cat","","o niks")
-            #~ h.set("stat","3","opgelost")
+            #~ h.set("cat", "test")
+            #~ h.set("stat", "test")
+            #~ h.set("cat", "V", "vraag")
+            #~ h.set("stat", "4", "onoplosbaar")
+            #~ h.set("cat", "", "o niks")
+            #~ h.set("stat", "3", "opgelost")
             #~ print h.get("test")
             #~ print h.get("cat")
-            #~ print h.get("stat","x")
-            #~ print h.get("cat","x")
-            #~ print h.get("stat","1")
-            #~ print h.get("cat","")
-            #~ print h.get("kop","1")
-            #~ print h.get("stat",3)
-            #~ print h.get("cat",3)
-            #~ print h.get("kop",1)
-        #~ except DataError,meld:
+            #~ print h.get("stat", "x")
+            #~ print h.get("cat", "x")
+            #~ print h.get("stat", "1")
+            #~ print h.get("cat", "")
+            #~ print h.get("kop", "1")
+            #~ print h.get("stat", 3)
+            #~ print h.get("cat", 3)
+            #~ print h.get("kop", 1)
+        #~ except DataError as meld:
             #~ print meld
             #~ return
         #~ print "-- na set -----------------"
         #~ for x in h.__dict__.items():
             #~ print x
         for x in list(h.stat.keys()):
-            h.set("stat",x,(h.stat[x][0],x))
+            h.set("stat", x, (h.stat[x][0], x))
         i = 0
         for x in list(h.cat.keys()):
-            h.set("cat",x,(h.cat[x][0],str(i)))
+            h.set("cat", x, (h.cat[x][0], str(i)))
             i += 1
         print("-- na bijwerken -----------")
-        print("stat: ",h.stat)
-        print("cat:",h.cat)
-        h.set("cat","V",("vraag","5"))
-        h.set("stat","4",("onoplosbaar","7"))
-        h.set("kop","7","bonuspagina")
-        h.set("cat","",("o niks","8"))
-        h.set("stat","3",("opgelost","15"))
-        h.set("kop","2","opmerking")
+        print("stat: ", h.stat, sep=" ")
+        print("cat:", h.cat, sep=" ")
+        h.set("cat", "V", ("vraag", "5"))
+        h.set("stat", "4", ("onoplosbaar", "7"))
+        h.set("kop", "7", "bonuspagina")
+        h.set("cat", "", ("o niks", "8"))
+        h.set("stat", "3", ("opgelost", "15"))
+        h.set("kop", "2", "opmerking")
         print("-- na sets -----------------")
-        print("stat: ",h.stat)
-        print("cat:",h.cat)
-        print("kop:",h.kop)
+        print("stat: ", h.stat, sep=" ")
+        print("cat:", h.cat, sep=" ")
+        print("kop:", h.kop, sep=" ")
         h.write()
     elif i == "Archiveren":
-        h = Actie(fn,"2006-0001")
+        h = Actie(fn, "2006-0001")
         print(h.meld)
         if h.exists:
             h.list()
@@ -718,14 +754,13 @@ if __name__ == "__main__":
         0: "Geen test, afbreken"
         }
     print("Wat voor test:")
-    for x in list(watten.items()):
-        print("    %s. %s" % x)
+    for iets in list(watten.items()):
+        print("    %s. %s" % iets)
     wat = -1
     while wat:
         try:
-            wat = int(input("Kies 1-5 of 0: "))
-        except:
+            wat = int(raw_input("Kies 1-5 of 0: "))
+        except ValueError:
             wat = -1
         if wat in watten:
             test(watten[wat])
-
