@@ -803,6 +803,10 @@ class Page1(Page):
             self.parent.p.write()
             self.parent.p.read()    # om "updated" attribuut op te halen
             self.parent.page0.p0list.SetStringItem(self.parent.currentItem,
+                2, self.parent.p.getSoortText(self.parent.p.soort)[0][0].upper()) # bijwerken in panel 0
+            self.parent.page0.p0list.SetStringItem(self.parent.currentItem,
+                3, self.parent.p.getStatusText(self.parent.p.status)[0]) # bijwerken in panel 0
+            self.parent.page0.p0list.SetStringItem(self.parent.currentItem,
                 4, self.parent.p.updated) # bijwerken in panel 0
             if self.parent.newitem:
                 #~ print len(self.parent.data)
@@ -1511,7 +1515,7 @@ class MainWindow(wx.Frame):
 
         wide = 764 if LIN else 588
         high = 720 if LIN else 594
-        wx.Frame.__init__(self, parent, id_, self.title, pos=(2, 2),
+        wx.Frame.__init__(self, parent, id_, self.title, pos=(20, 32),
                 size=(wide, high),
                 style=wx.DEFAULT_FRAME_STYLE|wx.NO_FULL_REPAINT_ON_RESIZE)
         self.sb = self.CreateStatusBar()

@@ -361,6 +361,7 @@ class Actie:
         else:
             self.fn = datapad + fnaam # naam van het xml bestand
             self.fnaam = fnaam
+        self.settings = Settings(fnaam)
         self.id = _id
         self.datum = ''
         self.status = '0'
@@ -448,17 +449,21 @@ class Actie:
 
     def getStatusText(self, waarde):
         "geef tekst bij statuscode"
-        if str(waarde) in statdict:
-            return statdict[str(waarde)]
-        else:
-            raise DataError("Geen tekst gevonden bij statuscode")
+        ## if str(waarde) in statdict:
+        try:
+            return self.settings.stat[str(waarde)]
+        ## else:
+        except KeyError:
+            raise DataError("Geen tekst gevonden bij statuscode {}".format(waarde))
 
     def getSoortText(self, waarde):
         "geef tekst bij soortcode"
-        if waarde in catdict:
-            return catdict[waarde]
-        else:
-            raise DataError("Geen tekst gevonden bij soortcode")
+        ## if waarde in catdict:
+        try:
+            return self.settings.cat[waarde]
+        ## else:
+        except KeyError:
+            raise DataError("Geen tekst gevonden bij soortcode {}".format(waarde))
 
     def setStatus(self, waarde):
         "stel status in (code of tekst)"
