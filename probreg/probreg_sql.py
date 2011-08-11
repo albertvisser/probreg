@@ -14,11 +14,11 @@ import pr_globals as pr
 from config import APPS
 from datetime import datetime
 
+from dml_sql import DataError, get_acties, Actie, Settings
+
 def get_dts():
     "routine om een geformatteerd date/time stamp te verkrijgen"
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-from dml_sql import DataError, checkfile, get_acties, Actie, Settings
 
 class MyListCtrl(wx.ListCtrl, listmix.ListCtrlAutoWidthMixin):
     "list control mixed in with width adapter"
@@ -189,6 +189,9 @@ class Page(wx.Panel):
             self.oldbuf = self.parent.p.vervolg = t
             self.parent.p.events.append((get_dts(),"Tekst vervolgactie aangepast"))
             self.parent.p.write()
+        self.parent.p.read()    # om "updated" attribuut op te halen
+        self.parent.page0.p0list.SetStringItem(self.parent.currentItem,
+            4, self.parent.p.updated) # bijwerken in panel 0
         return True
 
     def savepgo(self, evt=None):
@@ -428,8 +431,8 @@ class Page0(Page, listmix.ColumnSorterMixin):
             for item in h:
                 ix += 1
                 nummer, start, stat, stat_code, cat, cat_code, over, titel, gewijzigd = item
-                self.parent.data[ix] = (nummer, start, ".".join((str(stat_code),stat)), \
-                    ".".join((cat_code,cat)), gewijzigd, ": ".join((over,titel)))
+                self.parent.data[ix] = (nummer, start, ".".join((cat_code,cat)), \
+                    ".".join((str(stat_code),stat)), gewijzigd, ": ".join((over,titel)))
                 ## self.parent.data[y[0]] = (x[0],x[1],".".join((str(x[3][1]),x[3][0])),
                     ## ".".join((str(x[2][1]),x[2][0])),x[5],x[4])
         self.PopulateList()
@@ -705,7 +708,10 @@ class Page1(Page):
             self.txtDat.SetValue(self.parent.p.datum)
             self.parch = self.parent.p.arch
             if self.parent.p.titel is not None:
-                h = self.parent.p.titel.split(" - ")
+                if " - " in self.parent.p.titel:
+                    h = self.parent.p.titel.split(" - ",1)
+                else:
+                    h = self.parent.p.titel.split(": ",1)
                 self.txtPrc.SetValue(h[0])
                 if len(h) > 1:
                     self.txtMld.SetValue(h[1])
@@ -779,28 +785,30 @@ class Page1(Page):
                 (get_dts(), 'Categorie gewijzigd in "{0}"'.format(sel)))
             wijzig = True
         if self.parch != self.parent.p.arch:
-            ## if self.parch:
-                ## self.parent.p.setArch(True)
-            ## else:
-                ## self.parent.p.setArch(False)
             self.parent.p.setArch(self.parch)
             hlp = "gearchiveerd" if self.parch else "herleefd"
             self.parent.p.events.append(
                 (get_dts(), "Actie {0}".format(hlp)))
             wijzig = True
         if wijzig:
-            #~ print "savep: schrijven",self.oldbuf
-            self.parent.rereadlist = True
+            ## print "savep: schrijven",self.oldbuf
             self.parent.p.write()
+            self.parent.p.read()    # om "updated" attribuut op te halen
+            self.parent.page0.p0list.SetStringItem(self.parent.current_item,
+                2, self.parent.p.get_soorttext(self.parent.p.soort)[0].upper())
+            self.parent.page0.p0list.SetStringItem(self.parent.currentItem,
+                3, self.parent.p.get_statustext(self.parent.p.status))
+            self.parent.page0.p0list.SetStringItem(self.parent.currentItem,
+                4, self.parent.p.updated)
             if self.parent.newitem:
                 #~ print len(self.parent.data)
                 self.parent.currentItem = len(self.parent.data) # + 1
-                self.parent.data[self.parent.currentItem] = (self.txtDat.GetValue(), \
-                    " - ".join((self.txtPrc.GetValue(), self.txtMld.GetValue())), \
-                    self.cmbStat.GetSelection(), self.cmbCat.GetSelection(), \
+                self.parent.data[self.parent.currentItem] = (self.txtDat.GetValue(),
+                    " - ".join((self.txtPrc.GetValue(), self.txtMld.GetValue())),
+                    self.cmbStat.GetSelection(), self.cmbCat.GetSelection(),
                     self.txtId.GetValue())
                 self.parent.newitem = False
-            self.oldbuf = (self.txtPrc.GetValue(), self.txtMld.GetValue(), \
+            self.oldbuf = (self.txtPrc.GetValue(), self.txtMld.GetValue(),
                 self.cmbStat.GetSelection(), self.cmbCat.GetSelection())
         return True
 
@@ -966,6 +974,9 @@ class Page6(Page):
             #~ print "savep: schrijven"
             ## self.parent.p.list() # NB element 0 is leeg
             self.parent.p.write()
+            self.parent.p.read()    # om "updated" attribuut op te halen
+            self.parent.page0.p0list.SetStringItem(self.parent.currentItem,
+                4, self.parent.p.updated) # bijwerken in panel 0
             self.olijst = self.elijst[:]
             self.odata = self.edata[:]
             ## self.oldbuf = (self.txtStat.GetValue(),self.olijst,self.odata)
@@ -1919,12 +1930,7 @@ class MainWindow(wx.Frame):
 
     def startfile(self):
         "initialisatie t.b.v. nieuw bestand"
-        f = os.path.join(self.filename)
-        if not checkfile(f, self.newfile):
-            wx.MessageBox(f + " bestaat niet", "Oeps")
-            return
-        self.nb.fnaam = f
-        self.title = self.filename
+        self.nb.fnaam = self.title = self.filename
         self.nb.rereadlist = True
         self.nb.sorter = None
         self.leesSettings()
@@ -1938,7 +1944,7 @@ class MainWindow(wx.Frame):
             self.nb.SetSelection(0)
 
     def leesSettings(self):
-        "inlezeen instellingen"
+        "inlezen instellingen"
         try:
             h = Settings(self.nb.fnaam)
         except DataError as d:
@@ -1954,16 +1960,17 @@ class MainWindow(wx.Frame):
         "Voorgestelde oplossing",
         "Eventuele vervolgactie(s)",
         "Overzicht stand van zaken"]
-        for x in h.stat.keys():
-            self.nb.stats[h.stat[x][1]] = (h.stat[x][0], x)
-        for x in h.cat.keys():
-            self.nb.cats[h.cat[x][1]] = (h.cat[x][0], x)
-        for x in h.kop.keys():
-            self.nb.tabs[int(x)] = x + " " + h.kop[x]
+        for key, waarde in h.stat.iteritems():
+            self.nb.stats[waarde[1]] = (waarde[0], key)
+        for key, waarde in h.cat.iteritems():
+            self.nb.cats[waarde[1]] = (waarde[0], key)
+        for key, waarde in h.kop.iteritems():
+            print key, waarde
+            self.nb.tabs[int(key)] = key + " " + waarde[0].title()
             #~ self.nb.pagehelp.append(...)
-            if 6 not in self.nb.tabs:
-                h.kop["6"] = "Voortgang"
-                self.nb.tabs[6] = "6 Voortgang"
+        if 6 not in self.nb.tabs:
+            h.kop["6"] = "Voortgang"
+            self.nb.tabs[6] = "6 Voortgang"
 
     def saveSettings(self, srt, d):
         "instelingen terugschrijven"

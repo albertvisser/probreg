@@ -7,7 +7,7 @@ kopdict = {
     "1": ("Titel/Status",'detail'),
     "2": ("Probleem/Wens",'meld'),
     "3": ("Oorzaak/Analyse",'oorz'),
-    "4": ("Oplossing",'opl'),
+    "4": ("Oplossing/SvZ",'opl'),
     "5": ("Vervolgactie",'verv'),
     "6": ("Voortgang",'voortg')
 }

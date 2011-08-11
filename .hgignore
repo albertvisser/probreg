@@ -9,3 +9,4 @@ syntax: glob
 *xml.old
 afrift*.ini
 pylint*
+*txt
