@@ -13,6 +13,7 @@ from os import getcwd
 from os.path import exists, split, splitext
 from shutil import copyfile
 import datetime as dt
+import pprint
 
 # 18-11-2007: statdict en catdict uit Settings class overgenomen, aanmaken nieuw bestand toegevoegd
 # 18-06-2008: rename i.p.v. copyfile
@@ -443,6 +444,7 @@ class Actie:
                     if y.text is not None:
                         self.stand = y.text
                 elif y.tag == "events":
+                    self.events = []
                     for z in list(y):
                         self.events.append((z.get("id"), z.text))
             self.exists = True

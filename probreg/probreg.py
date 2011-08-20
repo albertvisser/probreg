@@ -78,8 +78,7 @@ class Page(wx.Panel):
         self.enable_buttons(False)
         if self.parent.current_tab == 0:
             self.parent.parent.SetTitle(" | ".join((self.parent.parent.title, self.seltitel)))
-            self.parent.parent.SetStatusText("{0} - {1} items".format(
-                self.parent.pagehelp[self.parent.current_tab], len(self.parent.data)))
+            ## print self.parent.parent
         else:
             self.parent.parent.SetTitle(" | ".join((self.parent.parent.title,
                 ' '.join((self.parent.pagedata.id, self.parent.pagedata.titel)))))
@@ -102,6 +101,7 @@ class Page(wx.Panel):
                     self.text1.SetEditable(True)
             self.text1.SetValue(self.oldbuf)
         self.initializing = False
+
 
     def readp(self, pid):
         "lezen van een actie"
@@ -126,7 +126,6 @@ class Page(wx.Panel):
 
     def leavep(self):
         "afsluitende acties uit te voeren alvorens de pagina te verlaten"
-        ## print "leave page - huidige scherm is",self.parent.current_tab,self.__class__
         if self.parent.current_tab == 1:
             newbuf = (self.proc_entry.GetValue(), self.desc_entry.GetValue(),
                 self.stat_choice.GetSelection(), self.cat_choice.GetSelection())
@@ -134,45 +133,28 @@ class Page(wx.Panel):
                 and not self.parent.parent.exiting:
                 self.parent.newitem = False
                 self.parent.pagedata = Actie(self.parent.fnaam, self.parent.old_id)
-                #~ d = wx.MessageDialog(self,
-                        #~ "U moet wel iets melden",
-                        #~ self.parent.parent.title,
-                        #~ wx.OK | wx.ICON_EXCLAMATION
-                #~ )
-                #~ d.ShowModal()
-                #~ d.Destroy()
-                #~ return False
         elif self.parent.current_tab == 6:
-            ## newbuf = (self.txtStat.GetValue(),self.elijst,self.edata)
-            newbuf = (self.elijst, self.edata)
-            ## print self.oldbuf
-            ## print newbuf
+            newbuf = (self.event_list, self.event_data)
         elif self.parent.current_tab > 1:
             newbuf = self.text1.GetValue()
         ok_to_leave = True
         if self.parent.current_tab > 0 and newbuf != self.oldbuf:
-            dlg = wx.MessageDialog(self, "\n".join(
+            dlg = wx.MessageDialog(self, "\n".join((
                 "De gegevens op de pagina zijn gewijzigd, ",
-                "wilt u",
-                "de wijzigingen opslaan voordat u verder gaat?"),
+                "wilt u de wijzigingen opslaan voordat u verder gaat?")),
                 self.parent.parent.title,
                 wx.YES_NO | wx.CANCEL | wx.ICON_EXCLAMATION
             )
             retval = dlg.ShowModal()
             if retval == wx.ID_YES:
-                ## if self.parent.current_tab == 6:     # is het wel nodig om dit zo te doen?
-                    ## ok_to_leave = self.parent.page6.savep()  # is niet page6.savep == self.savep ?
-                ## else:
                 ok_to_leave = self.savep()
             elif retval == wx.ID_CANCEL:
                 ok_to_leave = False
             dlg.Destroy()
-        ## print "klaar met controleren, ok is",ok
         return ok_to_leave
 
     def savep(self, evt = None):
         "gegevens van een actie opslaan afhankelijk van pagina"
-        ## print "savep: current_tab is ",self.parent.current_tab,self.__class__
         self.enable_buttons(False)
         if self.parent.current_tab <= 1 or self.parent.current_tab == 6:
             return
@@ -213,14 +195,12 @@ class Page(wx.Panel):
         "callback voor EVT_KEYUP"
         keycode = evt.GetKeyCode()
         togo = keycode - 48
-        ## print togo
         if evt.GetModifiers() == wx.MOD_ALT: # evt.AltDown()
             if keycode == wx.WXK_LEFT or keycode == wx.WXK_NUMPAD_LEFT: #  keycode == 314
                 self.goto_prev()
             elif keycode == wx.WXK_RIGHT or keycode == wx.WXK_NUMPAD_RIGHT: #  keycode == 316
                 self.goto_next()
             elif togo >= 0 and togo <= self.parent.pages: # Alt-0 t/m Alt-6
-                ## print togo,self.parent.current_tab
                 if togo != self.parent.current_tab:
                     self.goto_page(togo)
             elif keycode == 83: # Alt-S
@@ -233,9 +213,6 @@ class Page(wx.Panel):
                 if self.parent.current_tab == 0:
                     self.goto_actie()
             elif keycode == 78: # Alt-N
-                ## if self.parent.current_tab > 0:
-                    ## self.leavep()
-                    ## # self.savep()
                 self.nieuwp()
         elif evt.GetModifiers() == wx.MOD_CONTROL: # evt.ControlDown()
             if keycode == 81: # Ctrl-Q
@@ -263,10 +240,6 @@ class Page(wx.Panel):
         elif keycode == wx.WXK_RETURN or keycode == wx.WXK_NUMPAD_ENTER:# 13 or 372: # Enter
             if self.parent.current_tab == 0:
                 self.goto_next()
-            #~ else:                       # -- waarvoor was dit ook alweer?
-                #~ evt.Skip()
-        #~ else:
-            #~ evt.Skip()
         evt.Skip()
 
     def on_text(self, evt):
@@ -275,7 +248,6 @@ class Page(wx.Panel):
         de initializing flag wordt uitgevraagd omdat deze event ook tijdens vulp()
         plaatsvindt"""
         if not self.initializing:
-            print "ok, enabling buttons"
             self.enable_buttons()
 
     def on_choice(self, evt):
@@ -287,7 +259,6 @@ class Page(wx.Panel):
         self.save_button.Enable(state)
         self.saveandgo_button.Enable(state)
         self.cancel_button.Enable(state)
-        ## print "abled buttons to",state
 
     def goto_actie(self, evt = None):
         "naar startpagina actie gaan"
@@ -296,7 +267,6 @@ class Page(wx.Panel):
     def goto_next(self):
         "naar de volgende pagina gaan"
         if not self.leavep():
-            ## print "gotonextpage: mag niet weg"
             return
         if self.parent.current_tab < self.parent.pages:
             self.parent.AdvanceSelection()
@@ -308,7 +278,6 @@ class Page(wx.Panel):
     def goto_prev(self):
         "naar de vorige pagina gaan"
         if not self.leavep():
-            ## print "gotoprevpage: mag niet weg"
             return
         if self.parent.current_tab > 0:
             self.parent.AdvanceSelection(False)
@@ -317,7 +286,6 @@ class Page(wx.Panel):
     def goto_page(self, page_num):
         "naar de aangegeven pagina gaan"
         if not self.leavep():
-            ## print "gotopage: mag niet weg"
             return
         if 0 <= page_num <= self.parent.pages:
             self.parent.SetSelection(page_num)
@@ -339,17 +307,18 @@ class Page(wx.Panel):
 class Page0(Page, listmix.ColumnSorterMixin):
     "pagina 0: overzicht acties"
     def __init__(self, parent, id_):
+        print('init page 0')
         self.parent = parent
         Page.__init__(self, parent, id_, False)
         self.seltitel = 'alle meldingen'
         self.sel_args = {}
         self.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_BTNFACE))
 
-        imglist = wx.ImageList(16, 16)
+        self.imglist = wx.ImageList(16, 16)
 
-        self.idx1 = imglist.Add(images.getPtBitmap())
-        self.up_arrow = imglist.Add(images.getSmallUpArrowBitmap())
-        self.down_arrow = imglist.Add(images.getSmallDnArrowBitmap())
+        self.idx1 = self.imglist.Add(images.getPtBitmap())
+        self.up_arrow = self.imglist.Add(images.getSmallUpArrowBitmap())
+        self.down_arrow = self.imglist.Add(images.getSmallDnArrowBitmap())
 
         self.p0list = MyListCtrl(self, -1, style = wx.LC_REPORT |
                                                    wx.BORDER_SUNKEN |
@@ -357,15 +326,17 @@ class Page0(Page, listmix.ColumnSorterMixin):
         ## high = 400 if LIN else 444
         ## self.p0list.SetMinSize((440,high))
 
-        self.p0list.SetImageList(imglist, wx.IMAGE_LIST_SMALL)
+        self.p0list.SetImageList(self.imglist, wx.IMAGE_LIST_SMALL)
 
         self.populate_list()
 
         # Now that the list exists we can init the other base class,
         # see wx/lib/mixins/listctrl.py
-        ## self.itemDataMap = self.parent.data
+        print('setting up columnsorter')
+        print(self.parent.data.keys())
+        self.itemDataMap = self.parent.data
         listmix.ColumnSorterMixin.__init__(self, 6)
-        #self.SortListItems(0, True)
+        self.SortListItems(1) #, True)
 
         self.Bind(wx.EVT_LIST_ITEM_SELECTED, self.on_select_item, self.p0list)
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.on_activate_item, self.p0list)
@@ -415,37 +386,24 @@ class Page0(Page, listmix.ColumnSorterMixin):
         if self.parent.rereadlist:
             self.parent.data = {}
             select = self.sel_args.copy()
-            ## print select
             arch = ""
             if "arch" in select:
                 arch = select.pop("arch")
-            ## print arch, select
             try:
                 data = Acties(self.parent.fnaam, select, arch)
-                ## for x in h.lijst:
-                    ## print x
             except DataError as msg:
                 print "samenstellen lijst mislukt: " + str(msg)
             else:
-                ## for y in enumerate(h.lijst):
                 for idx, item in enumerate(data.lijst):
-                    ## print y
-                    ## x = y[1]
-                    ## print x
-                    ## if len(x) < 5:
-                        ## x.append('')
-                    # stat_title, stat_value, cat_title, cat_value
                     nummer, start, stat, cat, titel, gewijzigd = item
                     self.parent.data[idx] = (nummer, start, ".".join((cat[1], cat[0])), \
                         ".".join((stat[1], stat[0])), gewijzigd, titel)
-                    ## self.parent.data[y[0]] = (x[0],x[1],".".join((str(x[3][1]),x[3][0])),
-                        ## ".".join((str(x[2][1]),x[2][0])),x[5],x[4])
             self.populate_list()
-            #~ print len(self.parent.data),self.parent.current_item
             if self.parent.sorter is not None:
-                ## print "maar wel opnieuw sorteren"
                 self.p0list.SortItems(self.parent.sorter)
             self.parent.rereadlist = False
+        self.parent.parent.SetStatusText("{0} - {1} items".format(
+            self.parent.pagehelp[self.parent.current_tab], len(self.parent.data)))
         self.p0list.Select(self.parent.current_item)
         self.p0list.EnsureVisible(self.parent.current_item)
 
@@ -453,7 +411,7 @@ class Page0(Page, listmix.ColumnSorterMixin):
         "list control vullen"
         self.p0list.DeleteAllItems()
         self.p0list.DeleteAllColumns()
-        ## self.itemDataMap = self.parent.data
+        self.itemDataMap = self.parent.data
 
         # Adding columns with width and images on the column header
         info = wx.ListItem()
@@ -525,9 +483,7 @@ class Page0(Page, listmix.ColumnSorterMixin):
     def on_select_item(self, event):
         "callback voor selectie van item"
         self.parent.current_item = event.m_itemIndex
-        #~ print self.parent.current_item
         seli = self.p0list.GetItemData(self.parent.current_item)
-        ## print "Itemselected",seli,self.parent.data[seli][0]
         self.readp(self.parent.data[seli][0])
         hlp = "&Herleef" if self.parent.pagedata.arch else "&Archiveer"
         self.archive_button.SetLabel(hlp)
@@ -539,15 +495,13 @@ class Page0(Page, listmix.ColumnSorterMixin):
 
     def on_column_clicked(self, event):
         "callback voor klikken op column header"
-        ## print "on_column_clicked: %d\n" % event.GetColumn()
         self.parent.sorter = self.GetColumnSorter()
-        self.colorize()
+        self.colorize() # heeft niet zoveel zin want het sorteren komt hierna pas?
         event.Skip()
 
     def on_doubleclick(self, event):
         "callback voor dubbelklikken op item"
         self.goto_actie()
-        # self.log.WriteText("on_doubleclick item %s\n" % self.p0list.GetItemText(self.current_item))
         event.Skip()
 
     def select(self, evt = None):
@@ -575,7 +529,7 @@ class Page0(Page, listmix.ColumnSorterMixin):
         ## d = wx.MessageDialog( self, "Sorry, werkt nog niet", "Oeps", wx.OK)
         dlg = SortOptionsDialog(self)
         if dlg.ShowModal() == wx.ID_OK:
-            wx.MessageBox("Oeps", "Sorry, werkt nog niet", wx.OK)
+            wx.MessageBox("Sorry, werkt nog niet", "Oeps", wx.OK)
             # self.colorize() # formerly known as self.AfterSort()
         dlg.Destroy() # finally destroy it when finished.
         self.parent.parent.zetfocus(0)
@@ -689,6 +643,7 @@ class Page1(Page):
         """te tonen gegevens invullen in velden e.a. initialisaties
 
         methode aan te roepen voorafgaand aan het tonen van de pagina"""
+        print('Page1.vulp()')
         Page.vulp(self)
         self.initializing = True
         self.id_text.SetValue("")
@@ -792,11 +747,13 @@ class Page1(Page):
             self.parent.pagedata.write()
             self.parent.pagedata.read()
             self.parent.page0.p0list.SetStringItem(self.parent.current_item,
-                2, self.parent.p.getSoortText(self.parent.p.soort)[0][0].upper())
-            self.parent.page0.p0list.SetStringItem(self.parent.currentItem,
-                3, self.parent.p.getStatusText(self.parent.p.status)[0])
-            self.parent.page0.p0list.SetStringItem(self.parent.currentItem,
+                2, self.parent.pagedata.getSoortText(self.parent.pagedata.soort)[0][0].upper())
+            self.parent.page0.p0list.SetStringItem(self.parent.current_item,
+                3, self.parent.pagedata.getStatusText(self.parent.pagedata.status)[0])
+            self.parent.page0.p0list.SetStringItem(self.parent.current_item,
                 4, self.parent.pagedata.updated)
+            self.parent.page0.p0list.SetStringItem(self.parent.current_item,
+                5, self.parent.pagedata.titel)
             if self.parent.newitem:
                 #~ print len(self.parent.data)
                 self.parent.current_item = len(self.parent.data) # + 1
@@ -822,15 +779,9 @@ class Page1(Page):
         print '-- vulcombos --'
         self.stat_choice.Clear()
         self.cat_choice.Clear()
-        ## s = self.parent.cats.keys()
-        ## s.sort()
-        ## for key in s:
         for key in sorted(self.parent.cats.keys()):
             text, value = self.parent.cats[key]
             self.cat_choice.Append(text, value)
-        ## s = self.parent.stats.keys()
-        ## s.sort()
-        ## for key in s:
         for key in sorted(self.parent.stats.keys()):
             text, value = self.parent.stats[key]
             self.stat_choice.Append(text, value)
@@ -900,77 +851,84 @@ class Page6(Page):
         """te tonen gegevens invullen in velden e.a. initialisaties
 
         methode aan te roepen voorafgaand aan het tonen van de pagina"""
+        print "Page6.vulp"
         Page.vulp(self)
         self.initializing = True
         ## self.txtStat.Clear()
-        self.elijst = self.edata = self.olijst = self.odata = []
+        self.event_list = self.event_data = self.old_list = self.old_data = []
         self.progress_text.Clear()
         self.progress_text.SetEditable(False)
         if self.parent.pagedata is not None: # and not self.parent.newitem:
-            self.elijst = [x[0] for x in self.parent.pagedata.events]
-            self.elijst.reverse()
-            self.olijst = self.elijst[:]
-            self.edata = [x[1] for x in self.parent.pagedata.events]
-            self.edata.reverse()
-            self.odata = self.edata[:]
+            pprint.pprint(self.parent.pagedata.events)
+            self.event_list = [x[0] for x in self.parent.pagedata.events]
+            self.event_list.reverse()
+            self.old_list = self.event_list[:]
+            self.event_data = [x[1] for x in self.parent.pagedata.events]
+            self.event_data.reverse()
+            self.old_data = self.event_data[:]
             ## self.txtStat.SetValue(self.parent.pagedata.stand)
             self.progress_list.DeleteAllItems()
             y = '-- add new item --'
             index = self.progress_list.InsertStringItem(sys.maxint, y)
             self.progress_list.SetStringItem(index, 0, y)
             self.progress_list.SetItemData(index, -1)
-            for idx, datum in enumerate(self.elijst):
+            pprint.pprint(self.event_list)
+            for idx, datum in enumerate(self.event_list):
                 index = self.progress_list.InsertStringItem(sys.maxint, datum)
-                text = self.edata[idx].split("\n")[0]
+                text = self.event_data[idx].split("\n")[0]
                 text = text if len(text) < 80 else text[:80] + "..."
                 self.progress_list.SetStringItem(index, 0, "{} - {}".format(datum, text))
                 self.progress_list.SetItemData(index, idx)
-        ## self.oldbuf = (self.txtStat.GetValue(),self.olijst,self.odata)
-        self.oldbuf = (self.olijst, self.odata)
+        ## self.oldbuf = (self.txtStat.GetValue(),self.old_list,self.old_data)
+        self.oldbuf = (self.old_list, self.old_data)
         self.oldtext = ''
         self.initializing = False
-        ## print "klaar met vulp, edata is", self.edata
+        ## print "klaar met vulp, edata is", self.event_data
 
     def savep(self, evt=None):
         "opslaan van de paginagegevens"
+        print("Page6.savep, vóór bijwerken")
+        pprint.pprint(self.parent.pagedata.events)
         Page.savep(self)
         ## print "verder met eigen savep()"
         # voor het geval er na het aanpassen van een tekst direkt "sla op" gekozen is
-        # nog even kijken of de tekst al in self.edata is aangepast.
+        # nog even kijken of de tekst al in self.event_data is aangepast.
         idx = self.current_item
         hlp = self.progress_text.GetValue()
         if idx > 0:
             idx -= 1
-        ## print idx, self.elijst[idx]
-        if self.edata[idx] != hlp:
-            self.edata[idx] = hlp
+        ## print idx, self.event_list[idx]
+        if self.event_data[idx] != hlp:
+            self.event_data[idx] = hlp
             self.oldtext = hlp
             short_text = hlp.split("\n")[0]
             short_text = short_text if len(short_text) < 80 else short_text[:80] + "..."
             self.progress_list.SetStringItem(idx + 1, 0,
-                "{} - {}".format(self.elijst[idx], short_text))
+                "{} - {}".format(self.event_list[idx], short_text))
             self.progress_list.SetItemData(idx + 1, idx)
         ## s1 = self.txtStat.GetValue()
-        ## if s1 == "" and len(self.elijst) > 0:
+        ## if s1 == "" and len(self.event_list) > 0:
             ## wx.MessageBox("Stand van zaken moet worden ingevuld","Oeps")
             ## return False
         wijzig = False
         ## if s1 != self.parent.pagedata.stand:
             ## self.parent.pagedata.stand = s1
             ## wijzig = True
-        if self.elijst != self.olijst or self.edata != self.odata:
+        if self.event_list != self.old_list or self.event_data != self.old_data:
             wijzig = True
-            hlp = len(self.elijst) - 1
+            hlp = len(self.event_list) - 1
             for idx, data in enumerate(self.parent.pagedata.events):
-                ## print data
-                ## print self.elijst[hlp - ix], self.edata[hlp - ix]
-                ## print
-                if data != (self.elijst[hlp - idx], self.edata[hlp - idx]):
-                    self.parent.pagedata.events[idx] = (self.elijst[hlp - idx],
-                        self.edata[hlp - idx])
+                print data
+                print self.event_list[hlp - idx], self.event_data[hlp - idx]
+                print
+                if data != (self.event_list[hlp - idx], self.event_data[hlp - idx]):
+                    self.parent.pagedata.events[idx] = (self.event_list[hlp - idx],
+                        self.event_data[hlp - idx])
             for idx in range(len(self.parent.pagedata.events), hlp + 1):
-                self.parent.pagedata.events.append((self.elijst[hlp - idx],
-                    self.edata[hlp - idx]))
+                self.parent.pagedata.events.append((self.event_list[hlp - idx],
+                    self.event_data[hlp - idx]))
+        print("Page6.savep, na bijwerken")
+        pprint.pprint(self.parent.pagedata.events)
         if wijzig:
             #~ print "savep: schrijven"
             ## self.parent.pagedata.list() # NB element 0 is leeg
@@ -978,10 +936,12 @@ class Page6(Page):
             self.parent.pagedata.read()    # om "updated" attribuut op te halen
             self.parent.page0.p0list.SetStringItem(self.parent.current_item,
                 4, self.parent.pagedata.updated) # bijwerken in panel 0
-            self.olijst = self.elijst[:]
-            self.odata = self.edata[:]
-            ## self.oldbuf = (self.txtStat.GetValue(),self.olijst,self.odata)
-            self.oldbuf = (self.olijst, self.odata)
+            print("Page6.savep, na teruglezen")
+            pprint.pprint(self.parent.pagedata.events)
+            self.old_list = self.event_list[:]
+            self.old_data = self.event_data[:]
+            ## self.oldbuf = (self.txtStat.GetValue(),self.old_list,self.old_data)
+            self.oldbuf = (self.old_list, self.old_data)
         else:
             print "Leuk hoor, er was niks gewijzigd ! @#%&*Grrr"
         return True
@@ -1004,13 +964,13 @@ class Page6(Page):
             if self.current_item == 0:
                 hlp = get_dts()
                 self.progress_list.InsertStringItem(1, hlp)
-                self.elijst.insert(0, hlp)
-                self.edata.insert(0, "")
+                self.event_list.insert(0, hlp)
+                self.event_data.insert(0, "")
                 ## self.progress_list.Select(1)
                 self.oldtext = ""
         if self.current_item > 0:
-            ## print len(self.edata), self.edata
-            self.oldtext = self.edata[self.current_item - 1]
+            ## print len(self.event_data), self.event_data
+            self.oldtext = self.event_data[self.current_item - 1]
         ## if self.current_item == 0:
             ## self.progress_list.CloseEditor()
             ## index = self.progress_list.InsertStringItem(1,'')
@@ -1026,12 +986,12 @@ class Page6(Page):
         tekst = self.progress_text.GetValue() # self.progress_list.GetItemText(idx)
         ## print "deselected item",idx,tekst # item
         if tekst != self.oldtext:
-            self.edata[idx-1] = tekst
+            self.event_data[idx-1] = tekst
             self.oldtext = tekst
             short_text = tekst.split("\n")[0]
             short_text = short_text if len(short_text) < 80 else short_text[:80] + "..."
             self.progress_list.SetStringItem(idx, 0,
-                "{} - {}".format(self.elijst[idx - 1], short_text))
+                "{} - {}".format(self.event_list[idx - 1], short_text))
             self.progress_list.SetItemData(idx, idx - 1)
         evt.Skip()
 
@@ -1453,7 +1413,6 @@ class MainWindow(wx.Frame):
             elif ext != ".xml":
                 self.filepad = ""
         self.dirname, self.filename = os.path.split(self.filepad)
-        #~ print self.dirname,self.filename
         self.title = 'Actieregistratie'
         self.printer = EasyPrinter()
         self.pagedata = self.oldbuf = None
@@ -1461,12 +1420,15 @@ class MainWindow(wx.Frame):
         self.oldsort = -1
         self.idlist = self.actlist = self.alist = []
 
-        wide, high = 764, 720 if LIN else 588, 594
-        left, top = 2, 2 if LIN else 20, 32
+        if LIN:
+            wide, high, left, top = 764, 720, 2, 2
+        else:
+            wide, high, left, top = 588, 594, 20, 32
         wx.Frame.__init__(self, parent, id_, self.title, pos=(left, top),
                 size=(wide, high),
                 style=wx.DEFAULT_FRAME_STYLE|wx.NO_FULL_REPAINT_ON_RESIZE)
         sbar = self.CreateStatusBar()
+        ## self.SetStatusBar(sbar)
 
     # --- menu opbouwen -------------------------------------------------------------------------
         filemenu = wx.Menu()
@@ -1536,7 +1498,7 @@ class MainWindow(wx.Frame):
         self.SetIcon(images.gettaskIcon())
         #~ self.SetMinSize((476, 560))
         self.pnl = wx.Panel(self, -1)
-        self.book = wx.Notebook(self.pnl, -1)
+        self.book = wx.Notebook(self.pnl, -1, size=(300,300))
         self.book.parent = self
         self.book.fnaam = ""
         self.book.sorter = None
@@ -1547,7 +1509,7 @@ class MainWindow(wx.Frame):
         self.book.current_tab = 0
         self.book.newitem = False
         self.book.current_item = 0
-        self.book.p = None
+        self.book.pagedata = None
         #~ self.book.SetMinSize((486,496))
         self.book.page0 = Page0(self.book, -1)
         self.book.page1 = Page1(self.book, -1)
@@ -1582,6 +1544,7 @@ class MainWindow(wx.Frame):
         self.book.page5.doelayout()
         self.book.AddPage(self.book.page6, "&" + self.book.tabs[6])
         self.book.page6.doelayout()
+        print('ready adding pages')
         sizer1 = wx.BoxSizer(wx.HORIZONTAL)
         sizer1.Add(self.book, 1, wx.EXPAND)
         sizer0.Add(sizer1, 1, wx.EXPAND)
@@ -1598,6 +1561,7 @@ class MainWindow(wx.Frame):
         if self.filename == "":
             self.open_file(None)
         else:
+            print "starting file"
             self.startfile()
 
     def new_file(self, evt):
@@ -1628,7 +1592,7 @@ class MainWindow(wx.Frame):
     def print_scherm(self, evt = None):
         "Menukeuze: print dit scherm"
         self.text = []
-        self.hdr = ("Actie: %s %s" % (self.book.p.id, self.book.p.titel))
+        self.hdr = ("Actie: %s %s" % (self.book.pagedata.id, self.book.pagedata.titel))
         if self.book.current_tab == 0:
             self.hdr = "Overzicht acties uit " + self.filename
             self.text.append("<table>")
@@ -1648,12 +1612,12 @@ class MainWindow(wx.Frame):
             self.text.append("</table>")
         elif self.book.current_tab == 1:
             self.hdr = ("Informatie over actie {}: samenvatting".format(
-                self.book.page1.id_text.GetValue())) # self.book.p.id)
+                self.book.page1.id_text.GetValue()))
             self.text.append("<table>")
             self.text.append("<tr><td>Actie:</td><td>{}</td></tr>".format(
-                self.book.page1.id_text.GetValue())) # self.book.p.id)
+                self.book.page1.id_text.GetValue()))
             self.text.append("<tr><td>Gemeld op:</td><td>{}</td></tr>".format(
-                self.book.page1.date_text.GetValue())) # self.book.p.datum)
+                self.book.page1.date_text.GetValue()))
             self.text.append("<tr><td>Betreft:</td><td>{}</td></tr>".format(
                 self.book.page1.proc_entry.GetValue()))
             self.text.append("<tr><td>Melding:</td><td>{}</td></tr>".format(
@@ -1666,34 +1630,42 @@ class MainWindow(wx.Frame):
         elif self.book.current_tab == 2:
             text = self.book.page2.text1.GetValue()
             if text is not None:
-                self.text.append("<u>{}s</u><br>".format(self.book.tabs[2].split(None, 1)[1]))
-                self.text.append("<p>{}s</p>".format(self.book.p.melding.replace('\n', '<br>')))
+                self.text.append("<u>{}s</u><br>".format(
+                    self.book.tabs[2].split(None, 1)[1]))
+                self.text.append("<p>{}s</p>".format(
+                    self.book.pagedata.melding.replace('\n', '<br>')))
         elif self.book.current_tab == 3:
             text = self.book.page2.text1.GetValue()
             if text is not None:
-                self.text.append("<u>{}s</u><br>".format(self.book.tabs[3].split(None, 1)[1]))
-                self.text.append("<p>{}s</p>".format(self.book.p.oorzaak.replace('\n', '<br>')))
+                self.text.append("<u>{}s</u><br>".format(
+                    self.book.tabs[3].split(None, 1)[1]))
+                self.text.append("<p>{}s</p>".format(
+                    self.book.pagedata.oorzaak.replace('\n', '<br>')))
         elif self.book.current_tab == 4:
             text = self.book.page2.text1.GetValue()
             if text is not None:
-                self.text.append("<u>{}s</u><br>".format(self.book.tabs[4].split(None, 1)[1]))
-                self.text.append("<p>{}s</p>".format(self.book.p.oplossing.replace('\n', '<br>')))
+                self.text.append("<u>{}s</u><br>".format(
+                    self.book.tabs[4].split(None, 1)[1]))
+                self.text.append("<p>{}s</p>".format(
+                    self.book.pagedata.oplossing.replace('\n', '<br>')))
         elif self.book.current_tab == 5:
             text = self.book.page2.text1.GetValue()
             if text is not None:
-                self.text.append("<u>{}s</u><br>".format(self.book.tabs[5].split(None, 1)[1]))
-                self.text.append("<p>{}s</p>".format(self.book.p.vervolg.replace('\n', '<br>')))
+                self.text.append("<u>{}s</u><br>".format(
+                    self.book.tabs[5].split(None, 1)[1]))
+                self.text.append("<p>{}s</p>".format(
+                    self.book.pagedata.vervolg.replace('\n', '<br>')))
         elif self.book.current_tab == 6:
             print self.book.tabs
             self.text.append("<u>{}s</u><br>".format(self.book.tabs[6].split(None, 1)[1]))
             text = self.book.page6.txtStat.GetValue()
             if text is not None:
                 self.text.append("<p>{}s</p>".format(text.replace('\n', '<br>')))
-            if len(self.book.page6.elijst) > 0:
-                for idx, data in enumerate(self.book.page6.elijst):
+            if len(self.book.page6.event_list) > 0:
+                for idx, data in enumerate(self.book.page6.event_list):
                     self.text.append("<p><b>{}</b><br>{}</p>".format(
                         data.replace('\n', '<br>'),
-                        self.book.page6.edata[idx].replace('\n', '<br>')))
+                        self.book.page6.event_data[idx].replace('\n', '<br>')))
         self.afdrukken()
 
     def print_actie(self, evt = None):
@@ -1708,56 +1680,52 @@ class MainWindow(wx.Frame):
             dlg.ShowModal()
             dlg.Destroy()
             return
-        self.hdr = ("Actie: {} {}".format(self.book.p.id, self.book.p.titel))
+        self.hdr = ("Actie: {} {}".format(self.book.pagedata.id, self.book.pagedata.titel))
         self.text = ["<table>"]
-        self.text.append("<tr><td>Actie:</td><td>{}</td></tr>".format(self.book.p.id))
-        self.text.append("<tr><td>Gemeld op:</td><td>{}</td></tr>".format(self.book.p.datum))
-        oms, tekst = self.book.p.titel.split(" - ", 1)
+        self.text.append("<tr><td>Actie:</td><td>{}</td></tr>".format(self.book.pagedata.id))
+        self.text.append("<tr><td>Gemeld op:</td><td>{}</td></tr>".format(self.book.pagedata.datum))
+        oms, tekst = self.book.pagedata.titel.split(" - ", 1)
         self.text.append("<tr><td>Betreft:</td><td>{}</td></tr>".format(oms))
         self.text.append("<tr><td>Melding:</td><td>{}</td></tr>".format(tekst))
         srt = "(onbekende soort)"
         for oms, code in self.book.cats.values():
-            if code == self.book.p.soort:
+            if code == self.book.pagedata.soort:
                 srt = oms
                 break
         self.text.append("<tr><td>Soort actie:</td><td>{}</td></tr>".format(srt))
         stat = "(onbekende status)"
         for oms, code in self.book.stats.values():
-            if code == self.book.p.status:
+            if code == self.book.pagedata.status:
                 stat = oms
                 break
         self.text.append("<tr><td>Status:</td><td>{}</td></tr>".format(stat))
         self.text.append("</table>")
         self.text.append("<hr>")
         self.text.append("<b>{}</b><p>".format(self.book.tabs[2].split(None, 1)[1]))
-        if self.book.p.melding is not None:
-            self.text.append(self.book.p.melding.replace('\n', '<br>'))
+        if self.book.pagedata.melding is not None:
+            self.text.append(self.book.pagedata.melding.replace('\n', '<br>'))
         else:
             self.text.append("(nog niet beschreven)")
         self.text.append("</p><hr>")
         self.text.append("<b>{0}</b><p>".format(self.book.tabs[3].split(None, 1)[1]))
-        if self.book.p.oorzaak is not None:
-            self.text.append(self.book.p.oorzaak.replace('\n', '<br>'))
+        if self.book.pagedata.oorzaak is not None:
+            self.text.append(self.book.pagedata.oorzaak.replace('\n', '<br>'))
         else:
             self.text.append("(nog niet beschreven)")
         self.text.append("</p><hr>")
         self.text.append("<b>{0}</b><p>".format(self.book.tabs[4].split(None, 1)[1]))
-        if self.book.p.oplossing is not None:
-            self.text.append(self.book.p.oplossing.replace('\n', '<br>'))
+        if self.book.pagedata.oplossing is not None:
+            self.text.append(self.book.pagedata.oplossing.replace('\n', '<br>'))
         else:
             self.text.append("(nog niet beschreven)")
         self.text.append("</p>")
-        if self.book.p.vervolg is not None:
+        if self.book.pagedata.vervolg is not None:
             self.text.append("<hr>")
             self.text.append("<b>{0}</b><p>".format(self.book.tabs[5].split(None, 1)[1]))
-            self.text.append(self.book.p.vervolg.replace('\n', '<br>'))
+            self.text.append(self.book.pagedata.vervolg.replace('\n', '<br>'))
             self.text.append("</p>")
-        ## if self.book.p.stand is not None:
-            ## self.text.append("<hr>")
-            ## self.text.append("<b>%s</b><p>" % self.book.tabs[6].split(None,1)[1])
-            ## self.text.append(self.book.p.stand.replace('\n', '<br>'))
-        if len(self.book.p.events) > 0:
-            for date, tekst in self.book.p.events:
+        if len(self.book.pagedata.events) > 0:
+            for date, tekst in self.book.pagedata.events:
                 self.text.append("<br><br><b>{0}</b><br>{1}</p>".format(
                     date.replace('\n', '<br>'),tekst.replace('\n', '<br>')))
             self.text.append("</p>")
@@ -1894,7 +1862,6 @@ class MainWindow(wx.Frame):
 
     def lees_settings(self):
         """instellingen (tabnamen, actiesoorten en actiestatussen) inlezen"""
-        print('-- loadsettings --')
         try:
             data = Settings(self.book.fnaam)
         except DataError as err:
@@ -1928,26 +1895,18 @@ class MainWindow(wx.Frame):
         argumenten: soort, data
         data is een dictionary die in een van de dialogen TabOptions, CatOptions
         of StatOptions wordt opgebouwd"""
-        print('-- savesettings--')
         settings = Settings(self.book.fnaam)
         if srt == "tab":
             settings.kop = data
             settings.write()
             self.book.tabs = {}
-            ## for x in d.iterkeys():
-                ## self.book.tabs[x] = d[x]
-                ## self.book.SetPageText(int(x), " ".join((x, self.book.tabs[x])))
             for item_value, item_text in data.iteritems():
                 self.book.tabs[item_value] = item_text
                 self.book.SetPageText(int(item_value), " ".join((item_value, item_text)))
         elif srt == "stat":
             settings.stat = data
             settings.write()
-            ## self.book.stats = d
             self.book.page1.stat_choice.Clear()
-            ## for x in self.book.stats.keys():
-            ##    y = self.book.stats[x]
-            ##    self.book.page1.stat_choice.Append(y[0], y[1])
             for item_value, item in data.iteritems():
                 item_text, sortkey = item
                 self.book.stats[sortkey] = (item_text, item_value)
@@ -1955,11 +1914,7 @@ class MainWindow(wx.Frame):
         elif srt == "cat":
             settings.cat = data
             settings.write()
-            ## self.book.cats = d
             self.book.page1.cat_choice.Clear()
-            ## for x in self.book.cats.keys():
-                ## y = self.book.cats[x]
-                ## self.book.page1.cat_choice.Append(y[1], y[0])
             for item_value, item in data.iteritems():
                 item_text, sortkey = item
                 self.book.cats[sortkey] = (item_text, item_value)
@@ -1970,7 +1925,6 @@ class MainWindow(wx.Frame):
         met behulp van deze methode wordt vanaf globaal (applicatie) niveau dezelfde
         toetsenafhandelingsroutine aangeroepen als vanaf locaal (tab) niveau
         """
-        print "main.onkeypress"
         if self.book.current_tab == 0:
             self.book.page0.on_key(evt)
         elif self.book.current_tab == 1:
@@ -2012,7 +1966,8 @@ class MainWindow(wx.Frame):
             self.mag_weg = False
         if not self.mag_weg:
             if msg != "":
-                dlg = wx.MessageDialog(self, m, "Navigatie niet toegestaan", wx.ICON_ERROR)
+                dlg = wx.MessageDialog(self, msg, "Navigatie niet toegestaan",
+                    wx.ICON_ERROR)
                 dlg.ShowModal()
                 dlg.Destroy()
             self.book.SetSelection(old)
@@ -2054,6 +2009,7 @@ class MainWindow(wx.Frame):
         deze methode is bedoeld om te bepalen of er op een tab is geklikt en op
         welke, en om de "leave" methode van de betreffende tab aan te roepen.
         """
+        print('on left click (main)')
         self.x = event.GetX()
         self.y = event.GetY()
         item, flags = self.book.HitTest((self.x, self.y))
@@ -2085,9 +2041,11 @@ class MainWindow(wx.Frame):
         deze methode is bedoeld om te bepalen of er na het klikken op een tab
         ook weer is losgelaten en om de "focus" methode van de betreffende tab aan te roepen.
         """
+        print('after left click (main)')
         if self.mag_weg:
             self.zetfocus(self.book.current_tab)
         event.Skip()
+        print('end of method')
 
     def zetfocus(self, tabno):
         "focus geven aan de gekozen tab"
