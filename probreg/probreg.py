@@ -755,7 +755,7 @@ class Page1(Page):
                     self.id_text.GetValue())
                 self.parent.newitem = False
                 self.parent.rereadlist = True
-            else:
+            try:
                 self.parent.page0.p0list.SetStringItem(self.parent.current_item,
                     2, self.parent.pagedata.getSoortText(self.parent.pagedata.soort)[0][0].upper())
                 self.parent.page0.p0list.SetStringItem(self.parent.current_item,
@@ -764,6 +764,8 @@ class Page1(Page):
                     4, self.parent.pagedata.updated)
                 self.parent.page0.p0list.SetStringItem(self.parent.current_item,
                     5, self.parent.pagedata.titel)
+            except wx._core.PyAssertionError:
+                pass
             self.oldbuf = (self.proc_entry.GetValue(), self.desc_entry.GetValue(), \
                 self.stat_choice.GetSelection(), self.cat_choice.GetSelection())
         return True
