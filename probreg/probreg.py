@@ -176,8 +176,11 @@ class Page(wx.Panel):
             self.parent.pagedata.events.append((get_dts(),"Tekst vervolgactie aangepast"))
             self.parent.pagedata.write()
         self.parent.pagedata.read()    # om "updated" attribuut op te halen
-        self.parent.page0.p0list.SetStringItem(self.parent.current_item, 4,
-            self.parent.pagedata.updated) # bijwerken in panel 0
+        try:
+            self.parent.page0.p0list.SetStringItem(self.parent.current_item, 4,
+                self.parent.pagedata.updated) # bijwerken in panel 0
+        except wx._core.PyAssertionError:
+            pass
         return True
 
     def savepgo(self, evt = None):
@@ -307,7 +310,6 @@ class Page(wx.Panel):
 class Page0(Page, listmix.ColumnSorterMixin):
     "pagina 0: overzicht acties"
     def __init__(self, parent, id_):
-        print('init page 0')
         self.parent = parent
         Page.__init__(self, parent, id_, False)
         self.seltitel = 'alle meldingen'
@@ -332,8 +334,6 @@ class Page0(Page, listmix.ColumnSorterMixin):
 
         # Now that the list exists we can init the other base class,
         # see wx/lib/mixins/listctrl.py
-        print('setting up columnsorter')
-        print(self.parent.data.keys())
         self.itemDataMap = self.parent.data
         listmix.ColumnSorterMixin.__init__(self, 6)
         self.SortListItems(1) #, True)
@@ -444,6 +444,7 @@ class Page0(Page, listmix.ColumnSorterMixin):
         self.parent.rereadlist = False
         items = self.parent.data.items()
         if items is None or len(items) == 0:
+            print "no items to show?"
             return
 
         for key, data in items:
@@ -643,7 +644,6 @@ class Page1(Page):
         """te tonen gegevens invullen in velden e.a. initialisaties
 
         methode aan te roepen voorafgaand aan het tonen van de pagina"""
-        print('Page1.vulp()')
         Page.vulp(self)
         self.initializing = True
         self.id_text.SetValue("")
@@ -746,14 +746,6 @@ class Page1(Page):
             ## print "savep: schrijven",self.oldbuf
             self.parent.pagedata.write()
             self.parent.pagedata.read()
-            self.parent.page0.p0list.SetStringItem(self.parent.current_item,
-                2, self.parent.pagedata.getSoortText(self.parent.pagedata.soort)[0][0].upper())
-            self.parent.page0.p0list.SetStringItem(self.parent.current_item,
-                3, self.parent.pagedata.getStatusText(self.parent.pagedata.status)[0])
-            self.parent.page0.p0list.SetStringItem(self.parent.current_item,
-                4, self.parent.pagedata.updated)
-            self.parent.page0.p0list.SetStringItem(self.parent.current_item,
-                5, self.parent.pagedata.titel)
             if self.parent.newitem:
                 #~ print len(self.parent.data)
                 self.parent.current_item = len(self.parent.data) # + 1
@@ -762,6 +754,16 @@ class Page1(Page):
                     self.stat_choice.GetSelection(), self.cat_choice.GetSelection(), \
                     self.id_text.GetValue())
                 self.parent.newitem = False
+                self.parent.rereadlist = True
+            else:
+                self.parent.page0.p0list.SetStringItem(self.parent.current_item,
+                    2, self.parent.pagedata.getSoortText(self.parent.pagedata.soort)[0][0].upper())
+                self.parent.page0.p0list.SetStringItem(self.parent.current_item,
+                    3, self.parent.pagedata.getStatusText(self.parent.pagedata.status)[0])
+                self.parent.page0.p0list.SetStringItem(self.parent.current_item,
+                    4, self.parent.pagedata.updated)
+                self.parent.page0.p0list.SetStringItem(self.parent.current_item,
+                    5, self.parent.pagedata.titel)
             self.oldbuf = (self.proc_entry.GetValue(), self.desc_entry.GetValue(), \
                 self.stat_choice.GetSelection(), self.cat_choice.GetSelection())
         return True
@@ -859,7 +861,6 @@ class Page6(Page):
         self.progress_text.Clear()
         self.progress_text.SetEditable(False)
         if self.parent.pagedata is not None: # and not self.parent.newitem:
-            pprint.pprint(self.parent.pagedata.events)
             self.event_list = [x[0] for x in self.parent.pagedata.events]
             self.event_list.reverse()
             self.old_list = self.event_list[:]
@@ -872,7 +873,6 @@ class Page6(Page):
             index = self.progress_list.InsertStringItem(sys.maxint, y)
             self.progress_list.SetStringItem(index, 0, y)
             self.progress_list.SetItemData(index, -1)
-            pprint.pprint(self.event_list)
             for idx, datum in enumerate(self.event_list):
                 index = self.progress_list.InsertStringItem(sys.maxint, datum)
                 text = self.event_data[idx].split("\n")[0]
@@ -887,8 +887,6 @@ class Page6(Page):
 
     def savep(self, evt=None):
         "opslaan van de paginagegevens"
-        print("Page6.savep, vóór bijwerken")
-        pprint.pprint(self.parent.pagedata.events)
         Page.savep(self)
         ## print "verder met eigen savep()"
         # voor het geval er na het aanpassen van een tekst direkt "sla op" gekozen is
@@ -927,17 +925,16 @@ class Page6(Page):
             for idx in range(len(self.parent.pagedata.events), hlp + 1):
                 self.parent.pagedata.events.append((self.event_list[hlp - idx],
                     self.event_data[hlp - idx]))
-        print("Page6.savep, na bijwerken")
-        pprint.pprint(self.parent.pagedata.events)
         if wijzig:
             #~ print "savep: schrijven"
             ## self.parent.pagedata.list() # NB element 0 is leeg
             self.parent.pagedata.write()
             self.parent.pagedata.read()    # om "updated" attribuut op te halen
-            self.parent.page0.p0list.SetStringItem(self.parent.current_item,
-                4, self.parent.pagedata.updated) # bijwerken in panel 0
-            print("Page6.savep, na teruglezen")
-            pprint.pprint(self.parent.pagedata.events)
+            try:
+                self.parent.page0.p0list.SetStringItem(self.parent.current_item,
+                    4, self.parent.pagedata.updated) # bijwerken in panel 0
+            except wx._core.PyAssertionError:
+                pass
             self.old_list = self.event_list[:]
             self.old_data = self.event_data[:]
             ## self.oldbuf = (self.txtStat.GetValue(),self.old_list,self.old_data)
@@ -1544,7 +1541,6 @@ class MainWindow(wx.Frame):
         self.book.page5.doelayout()
         self.book.AddPage(self.book.page6, "&" + self.book.tabs[6])
         self.book.page6.doelayout()
-        print('ready adding pages')
         sizer1 = wx.BoxSizer(wx.HORIZONTAL)
         sizer1.Add(self.book, 1, wx.EXPAND)
         sizer0.Add(sizer1, 1, wx.EXPAND)
@@ -1733,7 +1729,6 @@ class MainWindow(wx.Frame):
 
     def exit_app(self, evt = None):
         "Menukeuze: exit applicatie"
-        print('exit_app op {}'.format(self.book.current_tab)) # item,flags
         self.exiting = True
         if self.book.current_tab == 0:
             self.book.page0.leavep()
@@ -1984,8 +1979,8 @@ class MainWindow(wx.Frame):
         new = self.book.current_tab = event.GetSelection()
         sel = self.book.GetSelection() # unused
         print ('on_page_changed,  old:%d, new:%d, sel:%d' % (old, new, sel))
-        if old == -1: # bij initilaisatie en bij afsluiten
-            return
+        ## if old == -1: # bij initilaisatie en bij afsluiten - op Windows is deze altijd -1?
+            ## return
         ## print len(self.book.data)
         ## print len(self.book.data.items())
         if new == 0:
@@ -2009,12 +2004,10 @@ class MainWindow(wx.Frame):
         deze methode is bedoeld om te bepalen of er op een tab is geklikt en op
         welke, en om de "leave" methode van de betreffende tab aan te roepen.
         """
-        print('on left click (main)')
         self.x = event.GetX()
         self.y = event.GetY()
         item, flags = self.book.HitTest((self.x, self.y))
         if flags != wx.NOT_FOUND:
-            print('LeftDown op {}'.format(self.book.current_tab)) # item,flags
             self.mag_weg = True
             if self.book.current_tab == 0:
                 self.mag_weg = self.book.page0.leavep()
@@ -2030,7 +2023,6 @@ class MainWindow(wx.Frame):
                 self.mag_weg = self.book.page5.leavep()
             elif self.book.current_tab == 6:
                 self.mag_weg = self.book.page6.leavep()
-            print("ok to leave: {}".format(self.mag_weg))
         ## if not self.mag_weg: wordt ook getest in self.on_page_changing
             ## event.Veto()
         ## print "einde on_left_click"
@@ -2041,11 +2033,9 @@ class MainWindow(wx.Frame):
         deze methode is bedoeld om te bepalen of er na het klikken op een tab
         ook weer is losgelaten en om de "focus" methode van de betreffende tab aan te roepen.
         """
-        print('after left click (main)')
         if self.mag_weg:
             self.zetfocus(self.book.current_tab)
         event.Skip()
-        print('end of method')
 
     def zetfocus(self, tabno):
         "focus geven aan de gekozen tab"
