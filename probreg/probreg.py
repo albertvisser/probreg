@@ -1561,6 +1561,7 @@ class MainWindow(wx.Frame):
         else:
             print "starting file"
             self.startfile()
+        self.zetfocus(0) # book.page0.SetFocus()
 
     def new_file(self, evt):
         "Menukeuze: nieuw file"
