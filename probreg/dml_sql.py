@@ -318,8 +318,7 @@ class Actie:
         self.nieuw_id = last["id"] + 1
         ## print(self.nieuw_id)
         jaar, volgnr = last["nummer"].split("-", 1)
-        nieuwnummer = int(volgnr) if int(jaar) == nw_date.year else 0
-        nieuwnummer += 1
+        nieuwnummer = int(volgnr) + 1 if int(jaar) == nw_date.year else 1
         self.id = "{0}-{1:04}".format(nw_date.year, nieuwnummer)
         self.datum = dt.datetime.today().isoformat(' ')[:19]
         self.events.append((self.datum, "Actie opgevoerd"))
@@ -343,8 +342,8 @@ class Actie:
             raise DataError(self.naam + " bestaat niet")
         for item in data:
             (actie, self.id, self.datum, self.over, self.titel, self.updated,
-            self.status, self.soort, self.arch, self.melding, self.oorzaak,
-            self.oplossing, self.vervolg) = item
+                self.status, self.soort, self.arch, self.melding, self.oorzaak,
+                self.oplossing, self.vervolg) = item
             self.titel = " - ".join((self.over, self.titel))
             print(self.status, self.soort, sep=" ")
         data = getsql(self.con, "select id, start, starter_id, text from"
@@ -403,6 +402,7 @@ class Actie:
             else:
                 raise DataError("Current record not found")
         else:
+            # FIXME: dit wordt niet altijd aangeroepen volgend op self.nieuw() waarin nieuw_id wordt ingesteld
             print("write: nieuwe actie {0}".format(self.id))
             actie_id = self.nieuw_id
             data = self.new_data
