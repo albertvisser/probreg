@@ -120,7 +120,7 @@ class Page(wx.Panel):
                 self.vulp() # om de velden leeg te maken
                 self.proc_entry.SetFocus()
             else:
-                self.goto_page(1)
+                self.goto_page(1, check=False)
         else:
             print "leavep() geeft False: nog niet klaar met huidige pagina"
 
@@ -153,7 +153,7 @@ class Page(wx.Panel):
             dlg.Destroy()
         return ok_to_leave
 
-    def savep(self, evt = None):
+    def savep(self, evt=None):
         "gegevens van een actie opslaan afhankelijk van pagina"
         self.enable_buttons(False)
         if self.parent.current_tab <= 1 or self.parent.current_tab == 6:
@@ -183,14 +183,14 @@ class Page(wx.Panel):
             pass
         return True
 
-    def savepgo(self, evt = None):
+    def savepgo(self, evt=None):
         "opslaan en naar de volgende pagina"
         if self.savep():
             self.goto_next()
         else:
             self.enable_buttons()
 
-    def restorep(self, evt = None):
+    def restorep(self, evt=None):
         "oorspronkelijke (laatst opgeslagen) inhoud van de pagina herstellen"
         self.vulp()
 
@@ -257,13 +257,13 @@ class Page(wx.Panel):
         "callback voor EVT_COMBOBOX"
         self.enable_buttons()
 
-    def enable_buttons(self, state = True):
+    def enable_buttons(self, state=True):
         "buttons wel of niet klikbaar maken"
         self.save_button.Enable(state)
         self.saveandgo_button.Enable(state)
         self.cancel_button.Enable(state)
 
-    def goto_actie(self, evt = None):
+    def goto_actie(self, evt=None):
         "naar startpagina actie gaan"
         self.goto_page(1)
 
@@ -286,9 +286,9 @@ class Page(wx.Panel):
             self.parent.AdvanceSelection(False)
             self.parent.parent.zetfocus(self.parent.current_tab)
 
-    def goto_page(self, page_num):
+    def goto_page(self, page_num, check=True):
         "naar de aangegeven pagina gaan"
-        if not self.leavep():
+        if check and not self.leavep():
             return
         if 0 <= page_num <= self.parent.pages:
             self.parent.SetSelection(page_num)
@@ -1982,8 +1982,8 @@ class MainWindow(wx.Frame):
         new = self.book.current_tab = event.GetSelection()
         sel = self.book.GetSelection() # unused
         print ('on_page_changed,  old:%d, new:%d, sel:%d' % (old, new, sel))
-        ## if old == -1: # bij initilaisatie en bij afsluiten - op Windows is deze altijd -1?
-            ## return
+        if LIN and old == -1: # bij initilaisatie en bij afsluiten - op Windows is deze altijd -1?
+            return
         ## print len(self.book.data)
         ## print len(self.book.data.items())
         if new == 0:
@@ -2055,8 +2055,8 @@ class MainWindow(wx.Frame):
             self.book.page4.text1.SetFocus()
         elif tabno == 5:
             self.book.page5.text1.SetFocus()
-        ## elif tabno == 6:
-            ## self.book.page6.txtStat.SetFocus()
+        elif tabno == 6:
+            self.book.page6.progress_list.SetFocus()
 
 
     def afdrukken(self):
