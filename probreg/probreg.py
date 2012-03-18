@@ -861,8 +861,8 @@ class Page6(Page):
         ## self.txtStat.Clear()
         self.event_list = self.event_data = self.old_list = self.old_data = []
         self.progress_text.Clear()
-        self.progress_text.SetEditable(False)
-        if self.parent.pagedata is not None: # and not self.parent.newitem:
+        self.progress_text.Enable(False) # SetEditable(False)
+        if self.parent.pagedata: # and not self.parent.newitem:
             self.event_list = [x[0] for x in self.parent.pagedata.events]
             self.event_list.reverse()
             self.old_list = self.event_list[:]
@@ -877,9 +877,12 @@ class Page6(Page):
             self.progress_list.SetItemData(index, -1)
             for idx, datum in enumerate(self.event_list):
                 index = self.progress_list.InsertStringItem(sys.maxint, datum)
-                text = self.event_data[idx].split("\n")[0]
+                try:
+                    text = self.event_data[idx].split("\n")[0]
+                except AttributeError:
+                    text = self.event_data[idx]
                 text = text if len(text) < 80 else text[:80] + "..."
-                self.progress_list.SetStringItem(index, 0, "{} - {}".format(datum, text))
+                self.progress_list.SetStringItem(index, 0, "{} - {}".format(datum, text.encode('latin-1')))
                 self.progress_list.SetItemData(index, idx)
         ## self.oldbuf = (self.txtStat.GetValue(),self.old_list,self.old_data)
         self.oldbuf = (self.old_list, self.old_data)
@@ -904,7 +907,7 @@ class Page6(Page):
             short_text = hlp.split("\n")[0]
             short_text = short_text if len(short_text) < 80 else short_text[:80] + "..."
             self.progress_list.SetStringItem(idx + 1, 0,
-                "{} - {}".format(self.event_list[idx], short_text))
+                "{} - {}".format(self.event_list[idx], short_text.encode('latin-1')))
             self.progress_list.SetItemData(idx + 1, idx)
         ## s1 = self.txtStat.GetValue()
         ## if s1 == "" and len(self.event_list) > 0:
@@ -918,9 +921,6 @@ class Page6(Page):
             wijzig = True
             hlp = len(self.event_list) - 1
             for idx, data in enumerate(self.parent.pagedata.events):
-                print data
-                print self.event_list[hlp - idx], self.event_data[hlp - idx]
-                print
                 if data != (self.event_list[hlp - idx], self.event_data[hlp - idx]):
                     self.parent.pagedata.events[idx] = (self.event_list[hlp - idx],
                         self.event_data[hlp - idx])
@@ -974,6 +974,7 @@ class Page6(Page):
             ## self.progress_list.CloseEditor()
             ## index = self.progress_list.InsertStringItem(1,'')
         self.progress_text.SetValue(self.oldtext)
+        self.progress_text.Enable(True)
         ## print "oldtext:",self.oldtext
         self.progress_text.SetFocus()
         #~ event.Skip()
