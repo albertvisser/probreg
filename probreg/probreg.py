@@ -73,12 +73,10 @@ class Page(wx.Panel):
         """te tonen gegevens invullen in velden e.a. initialisaties
 
         methode aan te roepen voorafgaand aan het tonen van de pagina"""
-        ## print "vulp: current_tab is ",self.parent.current_tab,self.__class__
         self.initializing = True
         self.enable_buttons(False)
         if self.parent.current_tab == 0:
             self.parent.parent.SetTitle(" | ".join((self.parent.parent.title, self.seltitel)))
-            ## print self.parent.parent
         else:
             self.parent.parent.SetTitle(" | ".join((self.parent.parent.title,
                 ' '.join((self.parent.pagedata.id, self.parent.pagedata.titel)))))
@@ -101,7 +99,7 @@ class Page(wx.Panel):
                     self.text1.SetEditable(True)
             self.text1.SetValue(self.oldbuf)
         self.initializing = False
-
+        self.parent.checked_for_leaving = False
 
     def readp(self, pid):
         "lezen van een actie"
@@ -111,9 +109,7 @@ class Page(wx.Panel):
 
     def nieuwp(self, evt = None):
         """voorbereiden opvoeren nieuwe actie"""
-        #~ print "nieuwp, eerst kijken of we wel klaar zijn"
         if self.leavep():
-            ## print self.parent.fnaam
             self.parent.pagedata = Actie(self.parent.fnaam, 0)
             self.parent.newitem = True
             if self.parent.current_tab == 1:
@@ -151,6 +147,7 @@ class Page(wx.Panel):
             elif retval == wx.ID_CANCEL:
                 ok_to_leave = False
             dlg.Destroy()
+        self.parent.checked_for_leaving = True
         return ok_to_leave
 
     def savep(self, evt=None):
@@ -217,6 +214,8 @@ class Page(wx.Panel):
                     self.goto_actie()
             elif keycode == 78: # Alt-N
                 self.nieuwp()
+            else:
+                evt.Skip()
         elif evt.GetModifiers() == wx.MOD_CONTROL: # evt.ControlDown()
             if keycode == 81: # Ctrl-Q
                 self.parent.parent.exit_app()
@@ -226,8 +225,9 @@ class Page(wx.Panel):
                 self.parent.parent.open_file(evt)
             elif keycode == 78: # Ctrl-N
                 self.parent.parent.new_file(evt)
-            elif keycode == 70: # Ctrl-H
-                self.parent.parent.hotkey_settings(evt)
+            elif keycode == 72: # Ctrl-H
+                self.parent.parent.hotkey_help(evt)
+                ## self.parent.parent.hotkey_settings(evt)
             elif keycode == 83: # Ctrl-S
                 if self.parent.current_tab > 0:
                     if self.save_button.IsEnabled():
@@ -240,10 +240,15 @@ class Page(wx.Panel):
                 if self.parent.current_tab > 0:
                     if self.cancel_button.IsEnabled():
                         self.restorep()
+            else:
+                evt.Skip()
         elif keycode == wx.WXK_RETURN or keycode == wx.WXK_NUMPAD_ENTER:# 13 or 372: # Enter
             if self.parent.current_tab == 0:
                 self.goto_next()
-        evt.Skip()
+            else:
+                evt.Skip()
+        else:
+            evt.Skip()
 
     def on_text(self, evt):
         """callback voor EVT_TEXT
@@ -273,10 +278,8 @@ class Page(wx.Panel):
             return
         if self.parent.current_tab < self.parent.pages:
             self.parent.AdvanceSelection()
-            self.parent.parent.zetfocus(self.parent.current_tab)
         else:
-            self.parent.SetSelection(1)
-            self.parent.parent.zetfocus(self.parent.current_tab)
+            self.parent.SetSelection(0)
 
     def goto_prev(self):
         "naar de vorige pagina gaan"
@@ -284,7 +287,8 @@ class Page(wx.Panel):
             return
         if self.parent.current_tab > 0:
             self.parent.AdvanceSelection(False)
-            self.parent.parent.zetfocus(self.parent.current_tab)
+        else:
+            self.parent.SetSelection(6)
 
     def goto_page(self, page_num, check=True):
         "naar de aangegeven pagina gaan"
@@ -292,7 +296,6 @@ class Page(wx.Panel):
             return
         if 0 <= page_num <= self.parent.pages:
             self.parent.SetSelection(page_num)
-            self.parent.parent.zetfocus(self.parent.current_tab)
 
     def print_(self, evt):
         """callback voor ctrl-P(rint)
@@ -512,7 +515,6 @@ class Page0(Page, listmix.ColumnSorterMixin):
         dlg = SelectOptionsDialog(self, self.sel_args)
         if dlg.ShowModal() == wx.ID_OK: # Shows it
             self.sel_args = dlg.set_options()
-            ## print self.parent.fnaam,self.sel
             self.parent.rereadlist = True
             self.vulp()
             ## e = wx.MessageDialog( self, "Sorry, werkt nog niet", "Oeps", wx.OK)
@@ -675,7 +677,6 @@ class Page1(Page):
                     break
         self.oldbuf = (self.proc_entry.GetValue(), self.desc_entry.GetValue(),
             self.stat_choice.GetSelection(), self.cat_choice.GetSelection())
-        print
         ## self.initializing = False # gebeurt al in Page.vulp()?
         if self.parch:
             aanuit = False
@@ -696,7 +697,6 @@ class Page1(Page):
         else:
             self.archive_button.Enable(True)
         self.initializing = False
-        ## print "klaar met vulp"
 
     def savep(self, evt=None):
         "opslaan van de paginagegevens"
@@ -743,11 +743,9 @@ class Page1(Page):
                 (get_dts(), "Actie {0}".format(hlp)))
             wijzig = True
         if wijzig:
-            ## print "savep: schrijven",self.oldbuf
             self.parent.pagedata.write()
             self.parent.pagedata.read()
             if self.parent.newitem:
-                #~ print len(self.parent.data)
                 self.parent.current_item = len(self.parent.data) # + 1
                 self.parent.data[self.parent.current_item] = (self.date_text.GetValue(), \
                     " - ".join((self.proc_entry.GetValue(), self.desc_entry.GetValue())), \
@@ -780,7 +778,6 @@ class Page1(Page):
 
     def vul_combos(self):
         "vullen comboboxen"
-        print '-- vulcombos --'
         self.stat_choice.Clear()
         self.cat_choice.Clear()
         for key in sorted(self.parent.cats.keys()):
@@ -814,9 +811,10 @@ class Page6(Page):
             | wx.TE_RICH2
             | wx.TE_WORDWRAP
             )
-        self.progress_text.Bind(wx.EVT_KEY_DOWN, self.on_key)
+        self.progress_list.Bind(wx.EVT_KEY_DOWN, self.on_key)
         self.progress_list.Bind(wx.EVT_LIST_ITEM_SELECTED, self.on_select_item)
         self.progress_list.Bind(wx.EVT_LIST_ITEM_DESELECTED, self.on_deselect_item)
+        self.progress_text.Bind(wx.EVT_KEY_DOWN, self.on_key)
         self.progress_text.Bind(wx.EVT_TEXT, self.on_text)
 
         self.save_button = wx.Button(self, -1, 'Sla wijzigingen op (Ctrl-S)')
@@ -855,7 +853,6 @@ class Page6(Page):
         """te tonen gegevens invullen in velden e.a. initialisaties
 
         methode aan te roepen voorafgaand aan het tonen van de pagina"""
-        print "Page6.vulp"
         Page.vulp(self)
         self.initializing = True
         ## self.txtStat.Clear()
@@ -888,19 +885,16 @@ class Page6(Page):
         self.oldbuf = (self.old_list, self.old_data)
         self.oldtext = ''
         self.initializing = False
-        ## print "klaar met vulp, edata is", self.event_data
 
     def savep(self, evt=None):
         "opslaan van de paginagegevens"
         Page.savep(self)
-        ## print "verder met eigen savep()"
         # voor het geval er na het aanpassen van een tekst direkt "sla op" gekozen is
         # nog even kijken of de tekst al in self.event_data is aangepast.
         idx = self.current_item
         hlp = self.progress_text.GetValue()
         if idx > 0:
             idx -= 1
-        ## print idx, self.event_list[idx]
         if self.event_data[idx] != hlp:
             self.event_data[idx] = hlp
             self.oldtext = hlp
@@ -928,7 +922,6 @@ class Page6(Page):
                 self.parent.pagedata.events.append((self.event_list[hlp - idx],
                     self.event_data[hlp - idx]))
         if wijzig:
-            #~ print "savep: schrijven"
             ## self.parent.pagedata.list() # NB element 0 is leeg
             self.parent.pagedata.write()
             self.parent.pagedata.read()    # om "updated" attribuut op te halen
@@ -953,10 +946,8 @@ class Page6(Page):
         dat vragen moet ook in de situatie dat je op een geactiveerde knop klikt,
         het panel wilt verlaten of afsluiten
         de knoppen onderaan doen de hele lijst bijwerken in self.parent.book.p"""
-        ## print "onitemselected"
         self.current_item = event.m_itemIndex # - 1
         tekst = self.progress_list.GetItemText(self.current_item) # niet gebruikt
-        ## print "Selected Item", self.current_item,tekst
         self.progress_text.SetEditable(False)
         if not self.parent.pagedata.arch:
             self.progress_text.SetEditable(True)
@@ -968,14 +959,12 @@ class Page6(Page):
                 ## self.progress_list.Select(1)
                 self.oldtext = ""
         if self.current_item > 0:
-            ## print len(self.event_data), self.event_data
             self.oldtext = self.event_data[self.current_item - 1]
         ## if self.current_item == 0:
             ## self.progress_list.CloseEditor()
             ## index = self.progress_list.InsertStringItem(1,'')
         self.progress_text.SetValue(self.oldtext)
         self.progress_text.Enable(True)
-        ## print "oldtext:",self.oldtext
         self.progress_text.SetFocus()
         #~ event.Skip()
 
@@ -984,7 +973,6 @@ class Page6(Page):
         item = evt.GetItem()  # niet gebruikt
         idx = evt.m_itemIndex
         tekst = self.progress_text.GetValue() # self.progress_list.GetItemText(idx)
-        ## print "deselected item",idx,tekst # item
         if tekst != self.oldtext:
             self.event_data[idx-1] = tekst
             self.oldtext = tekst
@@ -1000,7 +988,6 @@ class Page6(Page):
         ## idx = self.current_item # self.progress_list.Selection # niet gebruikt
         tekst = self.progress_text.GetValue() # self.progress_list.GetItemText(ix)
         if tekst != self.oldtext:
-            ## print "ok, enabling buttons"
             self.enable_buttons()
         evt.Skip()
 
@@ -1013,7 +1000,6 @@ class EasyPrinter(html.HtmlEasyPrinting):
         "het daadwerkelijke printen"
         self.SetHeader(doc_name)
         self.PreviewText(text)
-        #~ self.PrintText(text,doc_name)
 
 class SortOptionsDialog(wx.Dialog):
     "dialoog om de sorteer opties in te stellen"
@@ -1025,9 +1011,12 @@ class SortOptionsDialog(wx.Dialog):
                 lijst.append("Soort")
             else:
                 lijst.append(text)
-
+        wid = 600 # if LIN else 450
+        hig = 600 # if LIN else 450
         wx.Dialog.__init__(self, parent, -1, title="Sorteren op meer dan 1 kolom",
-            size=(450, 450), pos=wx.DefaultPosition, style=wx.DEFAULT_DIALOG_STYLE)
+            size=(wid, hig),
+            pos=wx.DefaultPosition,
+            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
         txt1 = wx.StaticText(self, -1, "  1.", size=(20, -1))
         cmb1 = wx.ComboBox(self, -1, value="(geen)", size=(80, -1),
             choices=lijst, style=wx.CB_DROPDOWN) #|wxTE_PROCESS_ENTER    )
@@ -1085,7 +1074,7 @@ class SelectOptionsDialog(wx.Dialog):
         self.parent = parent
         wx.Dialog.__init__(self, parent, -1, title="Selecteren",
             ## size=(250,  250),  pos=wx.DefaultPosition,
-            style=wx.DEFAULT_DIALOG_STYLE)
+            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
         self.cb1 = wx.CheckBox(self, -1, parent.parent.ctitels[0].join((" ", " -")))
         label_gt = wx.StaticText(self, -1, "groter dan:", size=(90, -1)) # was 70
         self.t1a = wx.TextCtrl(self, pr.ID_T1A, "", size=(153, -1))
@@ -1219,7 +1208,6 @@ class SelectOptionsDialog(wx.Dialog):
             obj2 = self.cb2
         if idee == pr.ID_CL3:
             obj2 = self.cb3
-        ## print it.GetString(index)
         oneormore = False
         for x in range(obj.GetCount()):
             if obj.IsChecked(x):
@@ -1479,17 +1467,17 @@ class MainWindow(wx.Frame):
             "Keyboard shortcuts:",
             "    Alt left/right: verder - terug",
             "    Alt-0 t/m Alt-5: naar betreffende pagina",
-            "    Alt-S op tab 1: Sorteren",
-            "    Alt-F op tab 1: Filteren",
+            "    Alt-O op tab 1: S_o_rteren",
+            "    Alt-I op tab 1: F_i_lteren",
             "    Alt-G of Enter op tab 1: Ga naar aangegeven actie",
-            "    Alt-N op elke tab: Nieuwe actie opvoeren",
-            "    Ctrl-O: open een (ander) actiebestand",
-            "    Ctrl-N: maak een nieuw actiebestand",
-            "    Ctrl-P: printen (scherm of actie)",
-            "    Ctrl-Q: quit actiebox",
-            "    Ctrl-H: help (dit scherm)",
-            "    Ctrl-S: gegevens in het scherm opslaan",
-            "    Ctrl-G: oplaan en door naar volgende tab",
+            "    Alt-N op elke tab: _N_ieuwe actie opvoeren",
+            "    Ctrl-O: _o_pen een (ander) actiebestand",
+            "    Ctrl-N: maak een _n_ieuw actiebestand",
+            "    Ctrl-P: _p_rinten (scherm of actie)",
+            "    Ctrl-Q: _q_uit actiebox",
+            "    Ctrl-H: _h_elp (dit scherm)",
+            "    Ctrl-S: gegevens in het scherm op_s_laan",
+            "    Ctrl-G: oplaan en _g_a door naar volgende tab",
             "    Ctrl-Z: wijzigingen ongedaan maken"]
         self.helptext = "\n".join(self.help)
     # --- schermen opbouwen: controls plaatsen ------------------------------------------------
@@ -1518,13 +1506,14 @@ class MainWindow(wx.Frame):
         self.book.page4 = Page(self.book, -1)
         self.book.page5 = Page(self.book, -1)
         self.book.page6 = Page6(self.book, -1)
-        self.book.pages = 6
+        self.book.pages = 7
+        self.book.checked_for_leaving = False
         self.exit_button = wx.Button(self.pnl, id=wx.ID_EXIT)
         self.Bind(wx.EVT_BUTTON, self.exit_app , self.exit_button)
         self.book.Bind(wx.EVT_KEY_DOWN, self.on_key)
         self.Bind(wx.EVT_KEY_DOWN, self.on_key)
-        self.book.Bind(wx.EVT_LEFT_UP, self.on_left_release)
-        self.book.Bind(wx.EVT_LEFT_DOWN, self.on_left_click)
+        ## self.book.Bind(wx.EVT_LEFT_UP, self.on_left_release)
+        ## self.book.Bind(wx.EVT_LEFT_DOWN, self.on_left_click)
         self.book.Bind(wx.EVT_NOTEBOOK_PAGE_CHANGED, self.on_page_changed)
         self.book.Bind(wx.EVT_NOTEBOOK_PAGE_CHANGING, self.on_page_changing)
 
@@ -1560,7 +1549,6 @@ class MainWindow(wx.Frame):
         if self.filename == "":
             self.open_file(None)
         else:
-            print "starting file"
             self.startfile()
         self.zetfocus(0) # book.page0.SetFocus()
 
@@ -1656,7 +1644,6 @@ class MainWindow(wx.Frame):
                 self.text.append("<p>{}s</p>".format(
                     self.book.pagedata.vervolg.replace('\n', '<br>')))
         elif self.book.current_tab == 6:
-            print self.book.tabs
             self.text.append("<u>{}s</u><br>".format(self.book.tabs[6].split(None, 1)[1]))
             text = self.book.page6.txtStat.GetValue()
             if text is not None:
@@ -1858,6 +1845,7 @@ class MainWindow(wx.Frame):
             self.book.page0.vulp()
         else:
             self.book.SetSelection(0)
+        self.book.checked_for_leaving = False
 
     def lees_settings(self):
         """instellingen (tabnamen, actiesoorten en actiestatussen) inlezen"""
@@ -1951,6 +1939,8 @@ class MainWindow(wx.Frame):
         sel = self.book.GetSelection() # unused
         print ('on_page_changing, old:%d, new:%d, sel:%d' % (old, new, sel))
         print "on pagechanging, check self.mag_weg", self.mag_weg
+        print "on pagechanging, check self.book.checked_for_leaving {}".format(
+            self.book.checked_for_leaving)
         msg = ""
         if old == -1:
             pass
@@ -1963,6 +1953,22 @@ class MainWindow(wx.Frame):
         elif self.book.current_item == -1 and not self.book.newitem:
             msg = "Selecteer eerst een actie"
             self.mag_weg = False
+        if not self.book.checked_for_leaving:
+            self.mag_weg = True
+            if self.book.current_tab == 0:
+                self.mag_weg = self.book.page0.leavep()
+            elif self.book.current_tab == 1:
+                self.mag_weg = self.book.page1.leavep()
+            elif self.book.current_tab == 2:
+                self.mag_weg = self.book.page2.leavep()
+            elif self.book.current_tab == 3:
+                self.mag_weg = self.book.page3.leavep()
+            elif self.book.current_tab == 4:
+                self.mag_weg = self.book.page4.leavep()
+            elif self.book.current_tab == 5:
+                self.mag_weg = self.book.page5.leavep()
+            elif self.book.current_tab == 6:
+                self.mag_weg = self.book.page6.leavep()
         if not self.mag_weg:
             if msg != "":
                 dlg = wx.MessageDialog(self, msg, "Navigatie niet toegestaan",
@@ -1983,10 +1989,8 @@ class MainWindow(wx.Frame):
         new = self.book.current_tab = event.GetSelection()
         sel = self.book.GetSelection() # unused
         print ('on_page_changed,  old:%d, new:%d, sel:%d' % (old, new, sel))
-        if LIN and old == -1: # bij initilaisatie en bij afsluiten - op Windows is deze altijd -1?
+        if LIN and old == -1: # bij initialisatie en bij afsluiten - op Windows is deze altijd -1?
             return
-        ## print len(self.book.data)
-        ## print len(self.book.data.items())
         if new == 0:
             self.book.page0.vulp()
         elif new == 1:
@@ -2001,45 +2005,8 @@ class MainWindow(wx.Frame):
             self.book.page5.vulp()
         elif new == 6:
             self.book.page6.vulp()
-        event.Skip()
-
-    def on_left_click(self, event):
-        """
-        deze methode is bedoeld om te bepalen of er op een tab is geklikt en op
-        welke, en om de "leave" methode van de betreffende tab aan te roepen.
-        """
-        self.x = event.GetX()
-        self.y = event.GetY()
-        item, flags = self.book.HitTest((self.x, self.y))
-        if flags != wx.NOT_FOUND:
-            self.mag_weg = True
-            if self.book.current_tab == 0:
-                self.mag_weg = self.book.page0.leavep()
-            elif self.book.current_tab == 1:
-                self.mag_weg = self.book.page1.leavep()
-            elif self.book.current_tab == 2:
-                self.mag_weg = self.book.page2.leavep()
-            elif self.book.current_tab == 3:
-                self.mag_weg = self.book.page3.leavep()
-            elif self.book.current_tab == 4:
-                self.mag_weg = self.book.page4.leavep()
-            elif self.book.current_tab == 5:
-                self.mag_weg = self.book.page5.leavep()
-            elif self.book.current_tab == 6:
-                self.mag_weg = self.book.page6.leavep()
-        ## if not self.mag_weg: wordt ook getest in self.on_page_changing
-            ## event.Veto()
-        ## print "einde on_left_click"
-        event.Skip()
-
-    def on_left_release(self, event):
-        """
-        deze methode is bedoeld om te bepalen of er na het klikken op een tab
-        ook weer is losgelaten en om de "focus" methode van de betreffende tab aan te roepen.
-        """
-        if self.mag_weg:
-            self.zetfocus(self.book.current_tab)
-        event.Skip()
+        self.zetfocus(self.book.current_tab)
+        ## event.Skip()
 
     def zetfocus(self, tabno):
         "focus geven aan de gekozen tab"

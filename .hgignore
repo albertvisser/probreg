@@ -7,7 +7,8 @@ syntax: glob
 *log
 *xml
 *xml.old
-afrift*.ini
+*ini
 pylint*
 *txt
 *zip
+probreg/oud*
