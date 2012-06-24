@@ -804,11 +804,14 @@ class Page6(Page):
         ## self.txtStat.Bind(wx.EVT_KEY_DOWN, self.on_key)
         ## self.txtStat.Bind(wx.EVT_TEXT, self.on_text,))
         high = 200 if LIN else 280
-        self.progress_list = MyListCtrl(self, -1, size=(500, high),
+        self.pnl = wx.SplitterWindow(self, -1, style = wx.SP_LIVE_UPDATE)
+
+        self.progress_list = MyListCtrl(self.pnl, -1, size=(500, -1), #high),
             style=wx.LC_REPORT | wx.LC_HRULES | wx.LC_VRULES | wx.LC_SINGLE_SEL)
         self.progress_list.InsertColumn(0,'Momenten')
         high = 100 if LIN else 110
-        self.progress_text = wx.TextCtrl(self, -1, size=(500, high), style=wx.TE_MULTILINE
+        self.progress_text = wx.TextCtrl(self.pnl, -1, size=(500, -1), # high),
+            style=wx.TE_MULTILINE
             ## | wx.TE_PROCESS_TAB
             | wx.TE_RICH2
             | wx.TE_WORDWRAP
@@ -818,6 +821,7 @@ class Page6(Page):
         self.progress_list.Bind(wx.EVT_LIST_ITEM_DESELECTED, self.on_deselect_item)
         self.progress_text.Bind(wx.EVT_KEY_DOWN, self.on_key)
         self.progress_text.Bind(wx.EVT_TEXT, self.on_text)
+        self.pnl.SplitHorizontally(self.progress_list, self.progress_text)
 
         self.save_button = wx.Button(self, -1, 'Sla wijzigingen op (Ctrl-S)')
         self.Bind(wx.EVT_BUTTON, self.savep, self.save_button)
@@ -831,15 +835,9 @@ class Page6(Page):
         "layout page"
         sizer0 = wx.BoxSizer(wx.VERTICAL)
         sizer1 = wx.BoxSizer(wx.VERTICAL)
-        ## sizer1.Add(wx.StaticText(self,  -1,  "Korte omschrijving stand van zaken:"), 0,
-            ## wx.EXPAND | wx.EAST | wx.WEST, 6)
-        ## sizer1.Add(self.txtStat, 0, wx.EXPAND | wx.ALL, 4)
-        ## sizer1.Add(wx.StaticText(self, -1, "Momenten:"), (2, 0),
-            ## flag = wx.ALL | wx.ALIGN_TOP, border = 4)
-        sizer1.Add(self.progress_list, 1, wx.EXPAND | wx.ALL, 4)
-        ## sizer1.Add(wx.StaticText(self, -1, "Beschrijving moment:"), (4, 0),
-            ## flag = wx.ALL | wx.ALIGN_TOP, border = 4)
-        sizer1.Add(self.progress_text, 1, wx.EXPAND | wx.ALL, 4)
+        sizer1.Add(self.pnl, 1, wx.EXPAND | wx.ALL, 4)
+        ## sizer1.Add(self.progress_list, 1, wx.EXPAND | wx.ALL, 4)
+        ## sizer1.Add(self.progress_text, 1, wx.EXPAND | wx.ALL, 4)
         sizer2 = wx.BoxSizer(wx.HORIZONTAL)
         sizer0.Add(sizer1, 1, wx.EXPAND | wx.ALL, 8)
         sizer2.Add(self.save_button, 0, wx.ALL, 3)
