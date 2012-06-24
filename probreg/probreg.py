@@ -99,7 +99,7 @@ class Page(wx.Panel):
                     self.text1.SetEditable(True)
             self.text1.SetValue(self.oldbuf)
         self.initializing = False
-        self.parent.checked_for_leaving = False
+        self.parent.checked_for_leaving = True
 
     def readp(self, pid):
         "lezen van een actie"
@@ -264,6 +264,8 @@ class Page(wx.Panel):
 
     def enable_buttons(self, state=True):
         "buttons wel of niet klikbaar maken"
+        if state:
+            self.parent.checked_for_leaving = False
         self.save_button.Enable(state)
         self.saveandgo_button.Enable(state)
         self.cancel_button.Enable(state)
@@ -1332,9 +1334,6 @@ class StatOptions(OptionsDialog):
         "aanvullende initialisatie"
         self.titel = "Status codes en waarden"
         self.data = []
-        ## h = self.parent.book.stats.keys()
-        ## h.sort()
-        ## for key in h:
         for key in sorted(self.parent.book.stats.keys()):
             item_text, item_value = self.parent.book.stats[key]
             self.data.append(": ".join((item_value, item_text)))
@@ -1355,7 +1354,7 @@ class StatOptions(OptionsDialog):
         self.newstats = {}
         for sortkey, item in enumerate(self.elb.GetStrings()):
             value, text = item.split(": ")
-            self.newstats[value] = (item, str(sortkey))
+            self.newstats[value] = (text, sortkey)
 
 class CatOptions(OptionsDialog):
     "dialoog voor de mogelijke categorieen"
@@ -1363,10 +1362,7 @@ class CatOptions(OptionsDialog):
         "aanvullende initialisatie"
         self.titel = "Soort codes en waarden"
         self.data = []
-        ## h = self.parent.book.cats.keys()
-        ## h.sort()
-        ## for key in h:
-        for key in (self.parent.book.cats.keys()):
+        for key in sorted(self.parent.book.cats.keys()):
             item_value, item_text = self.parent.book.cats[key]
             self.data.append(": ".join((item_text, item_value)))
         self.tekst = ["De waarden voor de soorten worden getoond in",
@@ -1385,7 +1381,7 @@ class CatOptions(OptionsDialog):
         self.newcats = {}
         for sortkey, data in enumerate(self.elb.GetStrings()):
             value, text = data.split(": ")
-            self.newcats[value] = (text, str(sortkey))
+            self.newcats[value] = (text, sortkey)
 
 class MainWindow(wx.Frame):
     """Hoofdscherm met menu, statusbalk, notebook en een "quit" button"""
@@ -1507,13 +1503,12 @@ class MainWindow(wx.Frame):
         self.book.page5 = Page(self.book, -1)
         self.book.page6 = Page6(self.book, -1)
         self.book.pages = 7
-        self.book.checked_for_leaving = False
+        self.book.checked_for_leaving = True
         self.exit_button = wx.Button(self.pnl, id=wx.ID_EXIT)
         self.Bind(wx.EVT_BUTTON, self.exit_app , self.exit_button)
         self.book.Bind(wx.EVT_KEY_DOWN, self.on_key)
         self.Bind(wx.EVT_KEY_DOWN, self.on_key)
-        ## self.book.Bind(wx.EVT_LEFT_UP, self.on_left_release)
-        ## self.book.Bind(wx.EVT_LEFT_DOWN, self.on_left_click)
+        ## self.Bind(wx.EVT_CLOSE, self.exit_app)
         self.book.Bind(wx.EVT_NOTEBOOK_PAGE_CHANGED, self.on_page_changed)
         self.book.Bind(wx.EVT_NOTEBOOK_PAGE_CHANGING, self.on_page_changing)
 
@@ -1722,20 +1717,21 @@ class MainWindow(wx.Frame):
         "Menukeuze: exit applicatie"
         self.exiting = True
         if self.book.current_tab == 0:
-            self.book.page0.leavep()
+            ok_to_leave = self.book.page0.leavep()
         elif self.book.current_tab == 1:
-            self.book.page1.leavep()
+            ok_to_leave = self.book.page1.leavep()
         elif self.book.current_tab == 2:
-            self.book.page2.leavep()
+            ok_to_leave = self.book.page2.leavep()
         elif self.book.current_tab == 3:
-            self.book.page3.leavep()
+            ok_to_leave = self.book.page3.leavep()
         elif self.book.current_tab == 4:
-            self.book.page4.leavep()
+            ok_to_leave = self.book.page4.leavep()
         elif self.book.current_tab == 5:
-            self.book.page5.leavep()
+            ok_to_leave = self.book.page5.leavep()
         elif self.book.current_tab == 6:
-            self.book.page6.leavep()
-        self.Close(True)
+            ok_to_leave = self.book.page6.leavep()
+        if ok_to_leave:
+            self.Close(True)
 
     def tab_settings(self, evt):
         "Menukeuze: settings - data - tab titels"
@@ -1845,7 +1841,7 @@ class MainWindow(wx.Frame):
             self.book.page0.vulp()
         else:
             self.book.SetSelection(0)
-        self.book.checked_for_leaving = False
+        self.book.checked_for_leaving = True
 
     def lees_settings(self):
         """instellingen (tabnamen, actiesoorten en actiestatussen) inlezen"""
@@ -1866,15 +1862,12 @@ class MainWindow(wx.Frame):
         "Overzicht stand van zaken"]
         for item_value, item in data.stat.iteritems():
             item_text, sortkey = item
-            self.book.stats[sortkey] = (item_text, item_value)
+            self.book.stats[int(sortkey)] = (item_text, item_value)
         for item_value, item in data.cat.iteritems():
             item_text, sortkey = item
-            self.book.cats[sortkey] = (item_text, item_value)
+            self.book.cats[int(sortkey)] = (item_text, item_value)
         for tab_num, tab_text in data.kop.iteritems():
             self.book.tabs[int(tab_num)] = " ".join((tab_num, tab_text))
-        ## if 6 not in self.book.tabs:
-            ## h.kop["6"] = "Voortgang"
-            ## self.book.tabs[6] = "6 Voortgang"
 
     def save_settings(self, srt, data):
         """instellingen (tabnamen, actiesoorten of actiestatussen) terugschrijven
@@ -1893,19 +1886,21 @@ class MainWindow(wx.Frame):
         elif srt == "stat":
             settings.stat = data
             settings.write()
-            self.book.page1.stat_choice.Clear()
+            self.book.stats = {}
             for item_value, item in data.iteritems():
                 item_text, sortkey = item
                 self.book.stats[sortkey] = (item_text, item_value)
-                self.book.page1.stat_choice.Append(item_text, item_value)
         elif srt == "cat":
             settings.cat = data
             settings.write()
-            self.book.page1.cat_choice.Clear()
+            self.book.cats = {}
             for item_value, item in data.iteritems():
                 item_text, sortkey = item
                 self.book.cats[sortkey] = (item_text, item_value)
-                self.book.page1.cat_choice.Append(item_text, item_value)
+        print 'na schrijven en opnieuw instellen settings'
+        pprint.pprint(self.book.cats)
+        pprint.pprint(self.book.stats)
+        self.book.page1.vul_combos()
 
     def on_key(self, evt):
         """
@@ -1938,9 +1933,10 @@ class MainWindow(wx.Frame):
         new = event.GetSelection() # unused
         sel = self.book.GetSelection() # unused
         print ('on_page_changing, old:%d, new:%d, sel:%d' % (old, new, sel))
-        print "on pagechanging, check self.mag_weg", self.mag_weg
-        print "on pagechanging, check self.book.checked_for_leaving {}".format(
-            self.book.checked_for_leaving)
+        print('on_page_changing , current tab is {}'.format(self.book.current_tab))
+        print("on page_changing, check self.mag_weg is {}".format(self.mag_weg))
+        print("on page_changing, check self.book.checked_for_leaving {}".format(
+            self.book.checked_for_leaving))
         msg = ""
         if old == -1:
             pass
@@ -1969,13 +1965,14 @@ class MainWindow(wx.Frame):
                 self.mag_weg = self.book.page5.leavep()
             elif self.book.current_tab == 6:
                 self.mag_weg = self.book.page6.leavep()
+        print('na eventuele leavep controle: mag weg is {}'.format(self.mag_weg))
         if not self.mag_weg:
             if msg != "":
                 dlg = wx.MessageDialog(self, msg, "Navigatie niet toegestaan",
                     wx.ICON_ERROR)
                 dlg.ShowModal()
                 dlg.Destroy()
-            self.book.SetSelection(old)
+            self.book.SetSelection(self.book.current_tab)
             event.Veto()
         else:
             event.Skip()
