@@ -5,10 +5,12 @@ syntax: glob
 *~
 *pyc
 *log
+*log,*
 *xml
 *xml.old
 *ini
 pylint*
 *txt
 *zip
-probreg/oud*
+oud/*
+logs/*

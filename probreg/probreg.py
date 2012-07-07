@@ -317,7 +317,7 @@ class Page0(Page, listmix.ColumnSorterMixin):
     def __init__(self, parent, id_):
         self.parent = parent
         Page.__init__(self, parent, id_, False)
-        self.seltitel = 'alle meldingen'
+        self.seltitel = 'alle meldingen excl.gearchiveerde'
         self.sel_args = {}
         self.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_BTNFACE))
 
@@ -397,7 +397,8 @@ class Page0(Page, listmix.ColumnSorterMixin):
             try:
                 data = Acties(self.parent.fnaam, select, arch)
             except DataError as msg:
-                print "samenstellen lijst mislukt: " + str(msg)
+                ## print "samenstellen lijst mislukt: " + str(msg)
+                raise(msg)
             else:
                 for idx, item in enumerate(data.lijst):
                     nummer, start, stat, cat, titel, gewijzigd = item
@@ -514,14 +515,22 @@ class Page0(Page, listmix.ColumnSorterMixin):
         """tonen van de selectie dialoog
 
         niet alleen selecteren op tekst(deel) maar ook op status, soort etc"""
-        dlg = SelectOptionsDialog(self, self.sel_args)
-        if dlg.ShowModal() == wx.ID_OK: # Shows it
+        while True:
+            dlg = SelectOptionsDialog(self, self.sel_args)
+            test = dlg.ShowModal()
+            if test != wx.ID_OK: # Shows it
+                break
             self.sel_args = dlg.set_options()
             self.parent.rereadlist = True
-            self.vulp()
-            ## e = wx.MessageDialog( self, "Sorry, werkt nog niet", "Oeps", wx.OK)
-            ## e.ShowModal() # Shows it
-            ## e.Destroy() # finally destroy it when finished.
+            try:
+                self.vulp()
+            except DataError as msg:
+                self.parent.rereadlist = False
+                e = wx.MessageDialog(self, str(msg), "Oeps", wx.OK)
+                e.ShowModal()
+                e.Destroy()
+            else:
+                break
         dlg.Destroy() # finally destroy it when finished.
         self.parent.parent.zetfocus(0)
 
@@ -776,7 +785,7 @@ class Page1(Page):
         self.savep()
         self.parent.rereadlist = True
         self.vulp()
-        ## self.goto_prev() # waarom?
+        ## self.goto_prev() # waarom? oorspronkelijk zou ik in dit geval terug naar de lijst
 
     def vul_combos(self):
         "vullen comboboxen"
@@ -956,7 +965,7 @@ class Page6(Page):
                 self.progress_list.InsertStringItem(1, hlp)
                 self.event_list.insert(0, hlp)
                 self.event_data.insert(0, "")
-                ## self.progress_list.Select(1)
+                self.progress_list.Select(1)
                 self.oldtext = ""
         if self.current_item > 0:
             self.oldtext = self.event_data[self.current_item - 1]
@@ -1227,34 +1236,45 @@ class SelectOptionsDialog(wx.Dialog):
 
     def set_options(self, evt=None):
         "aangegeven opties verwerken in sel_args dictionary"
+        selection = 'excl.gearchiveerde'
         sel_args = {}
         if self.cb1.IsChecked(): #  checkbox voor "id"
-            if self.t1a.GetValue() != "": #  textctrl voor groter dan
-                sel_args["idgt"] = self.t1a.GetValue()
-            if self.t1b.GetValue() != "": #  textctrl voor kleiner dan
-                sel_args["idlt"] = self.t1b.GetValue()
+            selection = '(gefilterd)'
+            id_gt, id_lt = self.t1a.GetValue(), self.t1b.GetValue()
+            if id_gt:
+                sel_args["idgt"] = id_gt
+            if id_lt:
+                sel_args["idlt"] = id_lt
             if self.rb1a.GetValue():
                 sel_args["id"] = "and"
             if self.rb1b.GetValue():
                 sel_args["id"] = "or"
         if self.cb2.IsChecked(): #  checkbox voor "soort"
+            selection = '(gefilterd)'
             lst = [self.parent.parent.cats[str(x)][1] for x in range(
                     len(self.parent.parent.cats.keys())) if self.cl2.IsChecked(x)]
             if len(lst) > 0:
                 sel_args["soort"] = lst
         if self.cb3.IsChecked(): #  checkbox voor "status"
+            selection = '(gefilterd)'
             lst = [self.parent.parent.stats[str(x)][1] for x in range(
                     len(self.parent.parent.stats.keys())) if self.cl3.IsChecked(x)]
             if len(lst) > 0:
                 sel_args["status"] = lst
         if self.cb4.IsChecked(): # checkbox voor "titel bevat"
+            selection = '(gefilterd)'
             txt = self.txt4.GetValue()
             sel_args["titel"] = txt
         if self.cb5.IsChecked(): # checkbox voor "titel bevat"
             if self.rb5a.GetValue():
                 sel_args["arch"] = "arch"
+                if selection != '(gefilterd)':
+                    selection = '(gearchiveerd)'
             if self.rb5b.GetValue():
                 sel_args["arch"] = "alles"
+                if selection != '(gefilterd)':
+                    selection = ''
+        self.parent.seltitel = 'alle meldingen ' + selection
         return sel_args
 
 class OptionsDialog(wx.Dialog):
@@ -1463,7 +1483,7 @@ class MainWindow(wx.Frame):
             "    Alt-0 t/m Alt-5: naar betreffende pagina",
             "    Alt-O op tab 1: S_o_rteren",
             "    Alt-I op tab 1: F_i_lteren",
-            "    Alt-G of Enter op tab 1: Ga naar aangegeven actie",
+            "    Alt-G of Enter op tab 1: _G_a naar aangegeven actie",
             "    Alt-N op elke tab: _N_ieuwe actie opvoeren",
             "    Ctrl-O: _o_pen een (ander) actiebestand",
             "    Ctrl-N: maak een _n_ieuw actiebestand",
@@ -1895,9 +1915,6 @@ class MainWindow(wx.Frame):
             for item_value, item in data.iteritems():
                 item_text, sortkey = item
                 self.book.cats[sortkey] = (item_text, item_value)
-        print 'na schrijven en opnieuw instellen settings'
-        pprint.pprint(self.book.cats)
-        pprint.pprint(self.book.stats)
         self.book.page1.vul_combos()
 
     def on_key(self, evt):
@@ -1963,7 +1980,6 @@ class MainWindow(wx.Frame):
                 self.mag_weg = self.book.page5.leavep()
             elif self.book.current_tab == 6:
                 self.mag_weg = self.book.page6.leavep()
-        print('na eventuele leavep controle: mag weg is {}'.format(self.mag_weg))
         if not self.mag_weg:
             if msg != "":
                 dlg = wx.MessageDialog(self, msg, "Navigatie niet toegestaan",
@@ -2020,7 +2036,6 @@ class MainWindow(wx.Frame):
             self.book.page5.text1.SetFocus()
         elif tabno == 6:
             self.book.page6.progress_list.SetFocus()
-
 
     def afdrukken(self):
         "wordt aangeroepen door de menuprint methodes"
