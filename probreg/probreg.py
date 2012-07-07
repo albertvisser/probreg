@@ -1527,6 +1527,7 @@ class MainWindow(wx.Frame):
         self.book.Bind(wx.EVT_KEY_DOWN, self.on_key)
         self.Bind(wx.EVT_KEY_DOWN, self.on_key)
         ## self.Bind(wx.EVT_CLOSE, self.exit_app)
+        self.book.Bind(wx.EVT_LEFT_UP, self.on_left_release)
         self.book.Bind(wx.EVT_NOTEBOOK_PAGE_CHANGED, self.on_page_changed)
         self.book.Bind(wx.EVT_NOTEBOOK_PAGE_CHANGING, self.on_page_changing)
 
@@ -2018,6 +2019,10 @@ class MainWindow(wx.Frame):
             self.book.page6.vulp()
         self.zetfocus(self.book.current_tab)
         ## event.Skip()
+
+    def on_left_release(self, evt=None):
+        self.zetfocus(self.book.current_tab)
+        evt.Skip()
 
     def zetfocus(self, tabno):
         "focus geven aan de gekozen tab"
