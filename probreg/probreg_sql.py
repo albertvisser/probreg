@@ -1101,7 +1101,7 @@ class SelectOptionsDialog(wx.Dialog):
         self.t1a = wx.TextCtrl(self, pr.ID_T1A, "", size=(153, -1))
         self.Bind(wx.EVT_TEXT, self.on_text, self.t1a)
         spacer_1 = wx.StaticText(self, -1, "", size=(70, -1))
-        self.rb1a = wx.RadioButton(self, -1, "en")
+        self.rb1a = wx.RadioButton(self, -1, "en", style=wx.RB_GROUP)
         self.rb1b = wx.RadioButton(self, -1, "of")
         label_lt = wx.StaticText(self, -1, "kleiner dan:", size=(90, -1)) # was 70
         self.t1b = wx.TextCtrl(self, pr.ID_T1B, "", size=(153, -1))
@@ -1120,12 +1120,12 @@ class SelectOptionsDialog(wx.Dialog):
         ## h = self.parent.parent.cats.keys()
         ## h.sort()
         self.cl2 = wx.CheckListBox(self, pr.ID_CL2,
+            size=(-1,120),
             ## choices=[x[0] for x in [self.parent.parent.cats[y] for y in h]])
             choices = [x[0] for x in [self.parent.parent.cats[y] for y in sorted(
                 self.parent.parent.cats.keys())]])
         self.Bind(wx.EVT_CHECKLISTBOX, self.on_checked, self.cl2)
         if "soort" in sel_args:
-            pprint.pprint(sel_args['soort'])
             for x in self.parent.parent.cats.keys():
                 if self.parent.parent.cats[x][2] in sel_args["soort"]:
                     self.cl2.Check(int(x))
@@ -1136,6 +1136,7 @@ class SelectOptionsDialog(wx.Dialog):
         ## h = self.parent.parent.stats.keys()
         ## h.sort()
         self.cl3 = wx.CheckListBox(self, pr.ID_CL3,
+            size=(-1,120),
             ## choices=[x[0] for x in [self.parent.parent.stats[y] for y in h]])
             choices = [x[0] for x in [self.parent.parent.stats[y] for y in sorted(
                 self.parent.parent.stats.keys())]])
@@ -1154,7 +1155,8 @@ class SelectOptionsDialog(wx.Dialog):
             self.txt4.SetValue(sel_args["titel"])
             self.cb4.SetValue(True)
         self.cb5 = wx.CheckBox(self, -1, "Archief")
-        self.rb5a = wx.RadioButton(self, pr.ID_RB5A, "Alleen gearchiveerd")
+        self.rb5a = wx.RadioButton(self, pr.ID_RB5A, "Alleen gearchiveerd",
+            style=wx.RB_GROUP)
         self.Bind(wx.EVT_RADIOBUTTON, self.on_rightclick, self.rb5a)
         self.rb5b = wx.RadioButton(self, pr.ID_RB5B, "gearchiveerd en lopend")
         self.Bind(wx.EVT_RADIOBUTTON, self.on_rightclick, self.rb5b)
@@ -1186,11 +1188,12 @@ class SelectOptionsDialog(wx.Dialog):
         sz5.Add(self.rb5b, 0, wx.ALIGN_CENTER_HORIZONTAL|wx.TOP, 10)
 
         fgs = wx.FlexGridSizer(5, 2, 2, 2)  # rows, cols, hgap, vgap
-        fgs.AddMany([(self.cb1, 0, wx.TOP, 10), (sz1, 0, wx.EXPAND),
-                     (self.cb2, 0, wx.TOP, 5),  (sz2, 0, wx.EXPAND),
-                     (self.cb3, 0, wx.TOP, 5),  (sz3, 0, wx.EXPAND),
-                     (self.cb4, 0, wx.TOP, 10), (sz4, 0, wx.EXPAND),
-                     (self.cb5, 0, wx.TOP, 10), (sz5, 0, wx.EXPAND)])
+        fgs.AddMany([(self.cb1, 0, wx.TOP, 10), (sz1, 0, wx.EXPAND|wx.TOP, 3),
+                     (self.cb2, 0, wx.TOP, 5),  (sz2, 0, wx.EXPAND|wx.TOP, 3),
+                     (self.cb3, 0, wx.TOP, 5),  (sz3, 0, wx.EXPAND|wx.TOP, 3),
+                     (self.cb4, 0, wx.TOP, 10), (sz4, 0, wx.EXPAND|wx.TOP, 3),
+                     (self.cb5, 0, wx.TOP, 10), (sz5, 0, wx.EXPAND)
+                     ])
         fgs.AddGrowableCol(1)
         sizer.Add(fgs, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5)
 
