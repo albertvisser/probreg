@@ -884,7 +884,8 @@ class Page6(Page):
             for idx, datum in enumerate(self.event_list):
                 index = self.progress_list.InsertStringItem(sys.maxint, datum)
                 try:
-                    text = self.event_data[idx].split("\n")[0]
+                    text = self.event_data[idx].split("\n")[0].strip()
+
                 except AttributeError:
                     text = self.event_data[idx]
                 text = text if len(text) < 80 else text[:80] + "..."
