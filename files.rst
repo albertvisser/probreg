@@ -2,7 +2,13 @@ Files in this directory
 =======================
 
 pr_start.pyw
-    starter voor file(s) in package "probreg":
+    starter voor file(s) in package "probreg" (the subdirectory)
+prsql_start.pyw
+    starter voor de sql versie
+readme.rst
+    description and usage notes
+files.rst
+    this file
 
 package directory
 -----------------
@@ -38,5 +44,6 @@ probreg_sql.py
 templates.py
     printopmaak via templates in plaats van hard geprogrammeerde html
     gebruikt jinja
+    niet compleet (mist templates), niet af
 task.ico
     applicatie-icon voor probreg

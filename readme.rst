@@ -21,5 +21,10 @@ switching from XML to SQL.
 Since I still use the XML version for my personal task management at work, it
 survived the makeover so this repository now contains both versions
 
+Requirements
+------------
 
+Python (including ElementTree, Sqlite for the sql version)
+wxPython
+PocketPyGUI for a PocketPC version
 
