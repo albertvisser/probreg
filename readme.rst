@@ -24,7 +24,7 @@ survived the makeover so this repository now contains both versions
 Requirements
 ------------
 
-Python (including ElementTree, Sqlite for the sql version)
-wxPython
-PocketPyGUI for a PocketPC version
+- Python (including ElementTree, and Sqlite for the sql version)
+- wxPython
+- PocketPyGUI for a PocketPC version
 
