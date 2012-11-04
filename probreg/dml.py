@@ -8,35 +8,9 @@ import pprint
 import datetime as dt
 from shutil import copyfile
 from xml.etree.ElementTree import ElementTree, Element, SubElement
-# 18-11-2007: statdict en catdict uit Settings class overgenomen, aanmaken nieuw bestand toegevoegd
-# 18-06-2008: rename i.p.v. copyfile
+from config import kopdict, statdict, catdict
 
 datapad = os.getcwd()
-kopdict = {
-    "0": "Lijst",
-    "1": "Titel/Status",
-    "2": "Probleem/Wens",
-    "3": "Oorzaak/Analyse",
-    "4": "Oplossing",
-    "5": "Vervolgactie",
-    "6": "Voortgang"
-}
-statdict = {
-    "0": ("gemeld", 0),
-    "1": ("in behandeling", 1),
-    "2": ("oplossing controleren",2),
-    "3": ("nog niet opgelost",3),
-    "4": ("afgehandeld", 4),
-    "5": ("afgehandeld - vervolg",5)
-}
-catdict = {
-    "P": ("probleem",1),
-    "W": ("wens",2),
-    "": ("onbekend",0),
-    "V": ("vraag",3),
-    "I": ("idee",4),
-    "F": ("div. informatie",5)
-}
 
 def checkfile(fn, new=False):
     "controleer of projectbestand bestaat, maak indien aangegeven nieuwe aan"
@@ -70,30 +44,28 @@ class DataError(Exception):
     "algemene exception"
     pass
 
-class LaatsteActie:
+def get_nieuwetitel(fnaam, jaar=None):
     "bepaal nieuw uit te geven actienummer"
-    def __init__(self, fnaam, jaar=None):
-        if os.path.exists(fnaam):
-            dnaam = fnaam
-        elif os.path.exists(os.path.join(datapad, fnaam)):
-            dnaam = os.path.join(datapad, fnaam)
-        else:
-            raise DataError("datafile bestaat niet")
-        if jaar == None:
-            jaar = str(dt.date.today().year)
-        tree = ElementTree(file=dnaam)
-        nummer = 0
-        rt = tree.getroot()
-        for x in rt.findall("actie"):
-            t = x.get("id").split("-")
-            if t[0] != jaar:
-                continue
-            if int(t[1]) > nummer:
-                nummer = int(t[1])
-        self.nieuwnummer = nummer + 1
-        self.nieuwetitel = ("%s-%04i" % (jaar, self.nieuwnummer))
+    if os.path.exists(fnaam):
+        dnaam = fnaam
+    elif os.path.exists(os.path.join(datapad, fnaam)):
+        dnaam = os.path.join(datapad, fnaam)
+    else:
+        raise DataError("datafile bestaat niet")
+    if jaar is None:
+        jaar = str(dt.date.today().year)
+    tree = ElementTree(file=dnaam)
+    nummer = 0
+    rt = tree.getroot()
+    for x in rt.findall("actie"):
+        t = x.get("id").split("-")
+        if t[0] != jaar:
+            continue
+        if int(t[1]) > nummer:
+            nummer = int(t[1])
+    return "%s-%04i" % (jaar, nummer + 1)
 
-class Acties:
+def get_acties(fnaam, select=None, arch=""):
     """
     lijst alle items van een bepaald soort
     selectie meegeven mogelijk maken
@@ -109,89 +81,88 @@ class Acties:
         als de string niet eindigt met een * dan moet de titel ermee eindigen
         als er een * in zitmoet wat ervoor zit en erna komt in de titel zitten
      """
-    def __init__(self, fnaam, select=None, arch=""):
-        if select is None:
-            select = {}
-            if not arch:
-                return
-        if len(select) > 0:
-            keyfout = False
-            for x in list(select.keys()):
-                if x not in ("idlt", "id", "idgt", "soort", "status", "titel"):
-                    keyfout = True
-                    break
-            if keyfout:
-                raise DataError("Foutief selectie-argument opgegeven")
-            if "id" in select:
-                if "idlt" not in select and "idgt" not in select:
-                    raise DataError("Foutieve combinatie van selectie-argumenten opgegeven")
-        if arch not in ("", "arch", "alles"):
-            raise DataError("Foutieve waarde voor archief opgegeven " \
-                "(moet niks, 'arch'  of 'alles' zijn)")
-        sett = Settings(fnaam)
-        self.meld = ''
-        self.lijst = []
-        if os.path.exists(fnaam):
-            dnaam = fnaam
-        elif os.path.exists(os.path.join(datapad, fnaam)):
-            dnaam = os.path.join(datapad, fnaam)
+    if select is None:
+        select = {}
+        if not arch:
+            return []
+    lijst = []
+    if len(select) > 0:
+        keyfout = False
+        for x in list(select.keys()):
+            if x not in ("idlt", "id", "idgt", "soort", "status", "titel"):
+                keyfout = True
+                break
+        if keyfout:
+            raise DataError("Foutief selectie-argument opgegeven")
+        if "id" in select:
+            if "idlt" not in select and "idgt" not in select:
+                raise DataError("Foutieve combinatie van selectie-argumenten opgegeven")
+    if arch not in ("", "arch", "alles"):
+        raise DataError("Foutieve waarde voor archief opgegeven " \
+            "(moet niks, 'arch'  of 'alles' zijn)")
+    sett = Settings(fnaam)
+    if os.path.exists(fnaam):
+        dnaam = fnaam
+    elif os.path.exists(os.path.join(datapad, fnaam)):
+        dnaam = os.path.join(datapad, fnaam)
+    else:
+        raise DataError("datafile bestaat niet")
+    tree = ElementTree(file=dnaam)
+    rt = tree.getroot()
+    for x in rt.findall("actie"):
+        a = x.get("arch")
+        if a is None:
+            if arch == "arch":
+                continue
         else:
-            raise DataError("datafile bestaat niet")
-        tree = ElementTree(file=dnaam)
-        rt = tree.getroot()
-        for x in rt.findall("actie"):
-            a = x.get("arch")
-            if a is None:
-                if arch == "arch":
-                    continue
-            else:
-                if (a == "arch" and arch == "") or (a != "arch" and arch == "arch"):
-                    continue
-            nr = x.get("id")
-            if "id" in select and select["id"] == "or":
-                if nr <= select["idgt"] and nr >= select["idlt"]:
-                    continue
-            else:
-                if ("idgt" in select and nr <= select["idgt"]) \
-                    or ("idlt" in select and nr >= select["idlt"]):
-                    continue
-            ## alternatief en meer overeenkomend met de sql versie
-            ## if 'id' in select:
-                ## select_gt = select_lt = True
-                ## if 'idgt' in select and nr <= select['idgt']:
-                    ## select_gt = False
-                ## if 'idlt' in select and nr >= select['idlt']:
-                    ## select_lt = False
-                ## if select['id'] == 'and' and (select_gt == False or select_lt == False):
-                    ## continue
-                ## if select['id'] == 'or' and select_gt == False and select_lt == False:
-                    ## continue
-            dd = x.get("datum")
-            if dd is None:
-                dd = ''
-            lu = x.get("updated")
-            if lu is None:
-                lu = ""
-            h = x.get("status")
-            if "status" in select and h not in select["status"]:
+            if (a == "arch" and arch == "") or (a != "arch" and arch == "arch"):
                 continue
-            st = ''
-            if h in list(sett.stat.keys()):
-                st = sett.stat[h]
-            h = x.get("soort")
-            if h is None:
-                h = ""
-            if "soort" in select and h not in select["soort"]:
+        nr = x.get("id")
+        if "id" in select and select["id"] == "or":
+            if nr <= select["idgt"] and nr >= select["idlt"]:
                 continue
-            ct = ''
-            if h in list(sett.cat.keys()):
-                ct = sett.cat[h]
-            tl = x.find("titel").text
-            if tl == None:
-                tl = ""
-            if "titel" in select and select["titel"].upper() not in tl.upper():
+        else:
+            if ("idgt" in select and nr <= select["idgt"]) \
+                or ("idlt" in select and nr >= select["idlt"]):
                 continue
-            self.lijst.append((nr, dd, st, ct, tl, lu))
+        ## alternatief en meer overeenkomend met de sql versie
+        ## if 'id' in select:
+            ## select_gt = select_lt = True
+            ## if 'idgt' in select and nr <= select['idgt']:
+                ## select_gt = False
+            ## if 'idlt' in select and nr >= select['idlt']:
+                ## select_lt = False
+            ## if select['id'] == 'and' and (select_gt == False or select_lt == False):
+                ## continue
+            ## if select['id'] == 'or' and select_gt == False and select_lt == False:
+                ## continue
+        dd = x.get("datum")
+        if dd is None:
+            dd = ''
+        lu = x.get("updated")
+        if lu is None:
+            lu = ""
+        h = x.get("status")
+        if "status" in select and h not in select["status"]:
+            continue
+        st = ''
+        if h in list(sett.stat.keys()):
+            st = sett.stat[h]
+        h = x.get("soort")
+        if h is None:
+            h = ""
+        if "soort" in select and h not in select["soort"]:
+            continue
+        ct = ''
+        if h in list(sett.cat.keys()):
+            ct = sett.cat[h]
+        tl = x.find("titel").text
+        if tl == None:
+            tl = ""
+        if "titel" in select and select["titel"].upper() not in tl.upper():
+            continue
+        lijst.append((nr, dd, st, ct, tl, lu))
+    return lijst
 
 class Settings:
     """
@@ -394,7 +365,7 @@ class Actie:
 
     def nieuw(self):
         "nieuwe actie initialiseren"
-        self.id = LaatsteActie(self.fn).nieuwetitel
+        self.id = get_nieuwetitel(self.fn)
         self.datum = dt.datetime.today().isoformat(' ')[:19]
 
     def nieuwfile(self):

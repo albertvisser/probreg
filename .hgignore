@@ -5,7 +5,7 @@ syntax: glob
 *~
 *pyc
 *log
-*log,*
+*log.*
 *xml
 *xml.old
 *ini
@@ -14,3 +14,4 @@ pylint*
 *zip
 oud/*
 logs/*
+*rst

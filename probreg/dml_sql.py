@@ -9,7 +9,7 @@ from __future__ import print_function
 import pprint as pp
 import datetime as dt
 import sqlite3 as sql
-from config import DBLOC, USER, kopdict, statdict, catdict
+from config_sql import DBLOC, USER, kopdict, statdict, catdict
 
 class DataError(Exception):
     "Eigen all-purpose exception - maakt resultaat testen van getsql eenvoudiger"

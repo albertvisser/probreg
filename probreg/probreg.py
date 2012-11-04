@@ -13,7 +13,7 @@ import wx.lib.mixins.listctrl  as  listmix
 import wx.gizmos   as  gizmos
 import images
 import pr_globals as pr
-from dml import DataError, checkfile, Acties, Actie, Settings
+from dml import DataError, checkfile, get_acties, Actie, Settings
 
 def get_dts():
     "routine om een geformatteerd date/time stamp te verkrijgen"
@@ -106,6 +106,7 @@ class Page(wx.Panel):
         self.parent.pagedata = Actie(self.parent.fnaam, pid)
         self.parent.old_id = self.parent.pagedata.id
         self.parent.newitem = False
+        print self.parent.pagedata.events
 
     def nieuwp(self, evt = None):
         """voorbereiden opvoeren nieuwe actie"""
@@ -395,12 +396,12 @@ class Page0(Page, listmix.ColumnSorterMixin):
             if "arch" in select:
                 arch = select.pop("arch")
             try:
-                data = Acties(self.parent.fnaam, select, arch)
+                data = get_acties(self.parent.fnaam, select, arch)
             except DataError as msg:
                 ## print "samenstellen lijst mislukt: " + str(msg)
                 raise(msg)
             else:
-                for idx, item in enumerate(data.lijst):
+                for idx, item in enumerate(data):
                     nummer, start, stat, cat, titel, gewijzigd = item
                     self.parent.data[idx] = (nummer, start, ".".join((cat[1], cat[0])), \
                         ".".join((stat[1], stat[0])), gewijzigd, titel)
@@ -864,6 +865,7 @@ class Page6(Page):
         """te tonen gegevens invullen in velden e.a. initialisaties
 
         methode aan te roepen voorafgaand aan het tonen van de pagina"""
+        print "--- Page6.vulp ---"
         Page.vulp(self)
         self.initializing = True
         ## self.txtStat.Clear()
@@ -876,6 +878,7 @@ class Page6(Page):
             self.old_list = self.event_list[:]
             self.event_data = [x[1] for x in self.parent.pagedata.events]
             self.event_data.reverse()
+            print self.event_data
             self.old_data = self.event_data[:]
             ## self.txtStat.SetValue(self.parent.pagedata.stand)
             self.progress_list.DeleteAllItems()
@@ -888,7 +891,7 @@ class Page6(Page):
                 try:
                     text = self.event_data[idx].split("\n")[0].strip()
                 except AttributeError:
-                    text = self.event_data[idx]
+                    text = self.event_data[idx] or ""
                 text = text if len(text) < 80 else text[:80] + "..."
                 self.progress_list.SetStringItem(index, 0, "{} - {}".format(datum, text.encode('latin-1')))
                 self.progress_list.SetItemData(index, idx)
@@ -994,7 +997,7 @@ class Page6(Page):
         idx = evt.m_itemIndex
         tekst = self.progress_text.GetValue() # self.progress_list.GetItemText(idx)
         if tekst != self.oldtext:
-            self.event_data[idx-1] = tekst
+            self.event_data[idx - 1] = tekst
             self.oldtext = tekst
             short_text = tekst.split("\n")[0]
             short_text = short_text if len(short_text) < 80 else short_text[:80] + "..."

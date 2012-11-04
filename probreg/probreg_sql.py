@@ -14,7 +14,7 @@ import wx.gizmos   as  gizmos
 import images
 import pr_globals as pr
 from dml_sql import DataError, get_acties, Actie, Settings
-from config import APPS
+from config_sql import APPS
 
 def get_dts():
     "routine om een geformatteerd date/time stamp te verkrijgen"
@@ -655,7 +655,7 @@ class Page1(Page):
             border = 5)
         sizer1.Add((-1, 186), (9, 0))
         sizer1.AddGrowableRow(8)
-        sizer1.AddGrowableCol(2)
+        sizer1.AddGrowableCol(1)
         sizer2 = wx.BoxSizer(wx.HORIZONTAL)
         sizer0.Add(sizer1, 1, wx.EXPAND | wx.ALL, 8)
         sizer2.Add(self.save_button, 0, wx.ALL, 3)
@@ -841,11 +841,13 @@ class Page6(Page):
             | wx.TE_WORDWRAP
             )
         self.progress_list.Bind(wx.EVT_KEY_DOWN, self.on_key)
+        self.progress_list.Bind(wx.EVT_LEFT_UP, self.on_left_release)
         self.progress_list.Bind(wx.EVT_LIST_ITEM_SELECTED, self.on_select_item)
         self.progress_list.Bind(wx.EVT_LIST_ITEM_DESELECTED, self.on_deselect_item)
         self.progress_text.Bind(wx.EVT_KEY_DOWN, self.on_key)
         self.progress_text.Bind(wx.EVT_TEXT, self.on_text)
         self.pnl.SplitHorizontally(self.progress_list, self.progress_text)
+        self.pnl.SetSashPosition(250)
 
         self.save_button = wx.Button(self, -1, 'Sla wijzigingen op (Ctrl-S)')
         self.Bind(wx.EVT_BUTTON, self.savep, self.save_button)
@@ -890,7 +892,7 @@ class Page6(Page):
             self.event_data.reverse()
             self.old_data = self.event_data[:]
             self.progress_list.DeleteAllItems()
-            y = '-- add new item --'
+            y = '-- (double)click to add new item --'
             index = self.progress_list.InsertStringItem(sys.maxint, y)
             self.progress_list.SetStringItem(index, 0, y)
             self.progress_list.SetItemData(index, -1)
@@ -898,10 +900,9 @@ class Page6(Page):
                 index = self.progress_list.InsertStringItem(sys.maxint, datum)
                 try:
                     text = self.event_data[idx].split("\n")[0].strip()
-                except ValueError:
+                except AttributeError:
                     text = self.event_data[idx]
                 text = text if len(text) < 80 else text[:80] + "..."
-                print text
                 self.progress_list.SetStringItem(index, 0, "{} - {}".format(datum[:19], text))
                 self.progress_list.SetItemData(index, idx)
         ## self.oldbuf = (self.txtStat.GetValue(),self.old_list,self.old_data)
@@ -959,6 +960,23 @@ class Page6(Page):
             print "Leuk hoor, er was niks gewijzigd ! @#%&*Grrr"
         return True
 
+    def on_left_release(self, event):
+        x = event.GetX()
+        y = event.GetY()
+        item, flags = self.progress_list.HitTest((x, y))
+        tekst = self.progress_list.GetItemText(item) # niet gebruikt
+        print "on left release:", item, tekst
+        if item == 0:
+            hlp = get_dts()
+            self.progress_list.InsertStringItem(1, hlp)
+            self.event_list.insert(0, hlp)
+            self.event_data.insert(0, "")
+            self.progress_list.Select(1)
+            self.oldtext = ""
+            self.progress_text.SetValue(self.oldtext)
+            self.progress_text.Enable(True)
+            self.progress_text.SetFocus()
+
     def on_select_item(self, event):
         """callback voor het selecteren van een item
 
@@ -970,20 +988,10 @@ class Page6(Page):
         self.current_item = event.m_itemIndex # - 1
         tekst = self.progress_list.GetItemText(self.current_item) # niet gebruikt
         self.progress_text.SetEditable(False)
-        if not self.parent.pagedata.arch:
-            self.progress_text.SetEditable(True)
-            if self.current_item == 0:
-                hlp = get_dts()
-                self.progress_list.InsertStringItem(1, hlp)
-                self.event_list.insert(0, hlp)
-                self.event_data.insert(0, "")
-                self.progress_list.Select(1)
-                self.oldtext = ""
-        if self.current_item > 0:
+        if self.current_item == 0:
+            self.oldtext = ""
+        else:
             self.oldtext = self.event_data[self.current_item - 1]
-        ## if self.current_item == 0:
-            ## self.progress_list.CloseEditor()
-            ## index = self.progress_list.InsertStringItem(1,'')
         self.progress_text.SetValue(self.oldtext)
         self.progress_text.Enable(True)
         self.progress_text.SetFocus()
@@ -2008,11 +2016,6 @@ class MainWindow(wx.Frame):
         old = event.GetOldSelection()
         new = event.GetSelection() # unused
         sel = self.book.GetSelection() # unused
-        print ('on_page_changing, old:%d, new:%d, sel:%d' % (old, new, sel))
-        print('on_page_changing , current tab is {}'.format(self.book.current_tab))
-        print("on page_changing, check self.mag_weg is {}".format(self.mag_weg))
-        print("on page_changing, check self.book.checked_for_leaving {}".format(
-            self.book.checked_for_leaving))
         msg = ""
         if old == -1:
             pass
@@ -2060,7 +2063,6 @@ class MainWindow(wx.Frame):
         old = event.GetOldSelection() # unused
         new = self.book.current_tab = event.GetSelection()
         sel = self.book.GetSelection() # unused
-        print ('on_page_changed,  old:%d, new:%d, sel:%d' % (old, new, sel))
         if LIN and old == -1: # bij initialisatie en bij afsluiten - op Windows is deze altijd -1?
             return
         if new == 0:
