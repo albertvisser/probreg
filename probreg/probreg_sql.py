@@ -74,8 +74,6 @@ class Page(wx.Panel):
         """te tonen gegevens invullen in velden e.a. initialisaties
 
         methode aan te roepen voorafgaand aan het tonen van de pagina"""
-        ## if 1 < self.parent.current_tab < 6:
-            ## self.seltitel = self.parent.tabs[self.parent.current_tab].split(None,1)
         self.initializing = True
         self.enable_buttons(False)
         if self.parent.current_tab == 0:
@@ -161,6 +159,7 @@ class Page(wx.Panel):
         self.enable_buttons(False)
         if self.parent.current_tab <= 1 or self.parent.current_tab == 6:
             return
+        wijzig = False
         text = self.text1.GetValue()
         if self.parent.current_tab == 2 and text != self.parent.pagedata.melding:
             self.oldbuf = self.parent.pagedata.melding = text
@@ -330,8 +329,8 @@ class Page0(Page, listmix.ColumnSorterMixin):
     "pagina 0: overzicht acties"
     def __init__(self, parent, id_):
         self.parent = parent
-        self.selection = 'excl. gearchiveerde'
         Page.__init__(self, parent, id_, False)
+        self.selection = 'excl. gearchiveerde'
         self.sel_args = {}
         self.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_BTNFACE))
 
@@ -413,6 +412,7 @@ class Page0(Page, listmix.ColumnSorterMixin):
                 data = get_acties(self.parent.fnaam, select, arch)
             except DataError as msg:
                 print "samenstellen lijst mislukt: " + str(msg)
+                ## raise(msg)
             else:
                 for idx, item in enumerate(data):
                     nummer, start, stat_title, stat_value, cat_title, cat_value, \
@@ -535,14 +535,20 @@ class Page0(Page, listmix.ColumnSorterMixin):
         """tonen van de selectie dialoog
 
         niet alleen selecteren op tekst(deel) maar ook op status, soort etc"""
-        dlg = SelectOptionsDialog(self, self.sel_args)
-        if dlg.ShowModal() == wx.ID_OK: # Shows it
+        while True:
+            dlg = SelectOptionsDialog(self, self.sel_args)
+            test = dlg.ShowModal()
+            if test != wx.ID_OK: # Shows it
+                break
             self.sel_args = dlg.set_options()
             self.parent.rereadlist = True
-            self.vulp()
-            ## e = wx.MessageDialog( self, "Sorry, werkt nog niet", "Oeps", wx.OK)
-            ## e.ShowModal() # Shows it
-            ## e.Destroy() # finally destroy it when finished.
+            try:
+                self.vulp()
+            except DataError as msg:
+                self.parent.rereadlist = False
+                wx.MessageBox(str(msg), "Oeps", wx.OK, parent=self)
+            else:
+                break
         dlg.Destroy() # finally destroy it when finished.
         self.parent.parent.zetfocus(0)
 
@@ -901,7 +907,7 @@ class Page6(Page):
                 try:
                     text = self.event_data[idx].split("\n")[0].strip()
                 except AttributeError:
-                    text = self.event_data[idx]
+                    text = self.event_data[idx] or ""
                 text = text if len(text) < 80 else text[:80] + "..."
                 self.progress_list.SetStringItem(index, 0, "{} - {}".format(datum[:19], text))
                 self.progress_list.SetItemData(index, idx)
@@ -943,8 +949,9 @@ class Page6(Page):
                     self.parent.pagedata.events[idx] = (self.event_list[hlp - idx],
                         self.event_data[hlp - idx])
             for idx in range(len(self.parent.pagedata.events), hlp + 1):
-                self.parent.pagedata.events.append((self.event_list[hlp - idx],
-                    self.event_data[hlp - idx]))
+                if self.event_data[hlp - idx]:
+                    self.parent.pagedata.events.append((self.event_list[hlp - idx],
+                        self.event_data[hlp - idx]))
         if wijzig:
             self.update_actie()
             try:
@@ -1420,7 +1427,7 @@ class CatOptions(OptionsDialog):
         self.data = []
         for key in sorted(self.parent.book.cats.keys()):
             item_value, item_text, row_id = self.parent.book.cats[key]
-            self.data.append(": ".join((item_text, item_value, row_id)))
+            self.data.append(": ".join((item_text, item_value, str(row_id))))
         self.tekst = ["De waarden voor de soorten worden getoond in",
             "dezelfde volgorde als waarin ze in de combobox",
             "staan.",
@@ -1822,7 +1829,8 @@ class MainWindow(wx.Frame):
             try:
                 dlg.leesuit()
             except ValueError:
-                wx.MessageDialog('Foutieve waarde: bevat geen dubbele punt')
+                wx.MessageBox('Foutieve waarde: bevat geen dubbele punt', 'Probreg',
+                    parent=dlg)
             else:
                 self.save_settings("stat", dlg.newstats)
                 break
@@ -1839,7 +1847,8 @@ class MainWindow(wx.Frame):
             try:
                 dlg.leesuit()
             except ValueError:
-                wx.MessageDialog('Foutieve waarde: bevat geen dubbele punt')
+                wx.MessageBox('Foutieve waarde: bevat geen dubbele punt', 'Probreg',
+                    parent=dlg)
             else:
                 self.save_settings("cat", dlg.newcats)
                 break

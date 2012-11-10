@@ -69,6 +69,100 @@ def complete_ids(dic):
         last_id += 1
         dic[key] = (dic[key][0], dic[key][1], last_id)
 
+def get_acties(naam, select=None, arch=""):
+    """selecteer acties; geef het resultaat terug of throw an exception
+
+    selectie mogelijk op id (groter dan / kleiner dan), soort, status, (deel van) titel
+    een selecteer-key mag een van de volgejde waarden zijn:
+    "idlt" - in dat geval moet de waarde een string zijn waarmee vergeleken wordt,
+    "idgt" - in dat geval moet de waarde een string zijn waarmee vergeleken wordt,
+    "soort" - in dat geval moet de waarde een list zijn van mogelijke soorten,
+    "status" - in dat geval moet de waarde een list zijn van mogelijke statussen,
+    "titel" - in dat geval moet de waarde een string zijn die in de titel moet voorkomen
+    eventueel wildcards:
+        als de string niet begint met een * dan moet de titel ermee beginnen
+        als de string niet eindigt met een * dan moet de titel ermee eindigen
+        als er een * in zit moet wat ervoor zit en erna komt in de titel zitten
+    """
+    if select is None:
+        select = {}
+        if not arch:
+            return
+    if "id" in select:
+        if "idlt" not in select and "idgt" not in select:
+            raise DataError("Foutieve combinatie van selectie-argumenten opgegeven")
+    sel = [""]
+    args = []
+    item_lt = select.pop("idlt","")
+    enof = select.pop("id","")
+    item_gt = select.pop("idgt","")
+    if item_gt:
+        sel[0] += "nummer > ?"
+        if item_lt:
+            sel[0] = "({} {} ".format(sel[0], enof)
+        args.append(item_gt)
+    if item_lt:
+        sel[0] += "nummer < ?"
+        args.append(item_lt)
+        if item_gt:
+            sel[0] += ")"
+    if sel == [""]:
+        sel = []
+    item = select.pop("soort","")
+    if item:
+        print(item)
+        if len(item) == 1:
+            sel.append("soort_id = ?")
+            args.append(item[0])
+        else:
+            append_to_sel = "soort_id in ("
+            for value in item[:-1]:
+                append_to_sel += "?,"
+                args.append(value)
+            sel.append(append_to_sel + '?)')
+            args.append(item[-1])
+    item = select.pop("status" ,"")
+    if item:
+        print(item)
+        if len(item) == 1:
+            sel.append("status_id = ?")
+            args.append(item[0])
+        else:
+            append_to_sel = "status_id in ("
+            for value in item[:-1]:
+                append_to_sel += "?,"
+                args.append(value)
+            sel.append(append_to_sel + '?)')
+            args.append(item[-1])
+    item = select.pop("titel" ,"")
+    if item:
+        sel.append("(about like ? or {0}_actie.title like ?)".format(naam))
+        args.append("%{0}%".format(item))
+        args.append("%{0}%".format(item))
+    if select:
+        raise DataError("Foutief selectie-argument opgegeven")
+    if arch == "":
+        sel.append("arch = 0")
+    elif arch == "arch":
+        sel.append("arch = 1")
+    elif arch != "alles":
+        raise DataError("Foutieve waarde voor archief opgegeven " \
+            "(moet niks, 'arch'  of 'alles' zijn)")
+    con = sql.connect(DBLOC)
+    ## print "dml_sql.get_acties.sel:",sel
+    ## print "dml_sql.get_acties.args:",args
+    cmd = "select nummer, start, {0}_status.title, {0}_status.value, {0}_soort.title, " \
+        "{0}_soort.value, about, {0}_actie.title, gewijzigd from {0}_actie " \
+        "join {0}_soort on {0}_soort.id = {0}_actie.soort_id " \
+        "join {0}_status on {0}_status.id = {0}_actie.status_id ".format(naam)
+    if sel:
+        cmd += "where {0}".format(" and ".join(sel))
+    data = getsql(con, cmd, args)
+    if data or len(data) == 0:
+        return data
+    else:
+        raise DataError(naam + " bestaat niet")
+
 class Settings:
     """instellingen voor project
 
@@ -234,100 +328,6 @@ class Settings:
                 return text
         raise DataError("Geen omschrijving gevonden bij soortcode of -id '{}'".format(
             waarde))
-
-def get_acties(naam, select=None, arch=""):
-    """selecteer acties; geef het resultaat terug of throw an exception
-
-    selectie mogelijk op id (groter dan / kleiner dan), soort, status, (deel van) titel
-    een selecteer-key mag een van de volgejde waarden zijn:
-    "idlt" - in dat geval moet de waarde een string zijn waarmee vergeleken wordt,
-    "idgt" - in dat geval moet de waarde een string zijn waarmee vergeleken wordt,
-    "soort" - in dat geval moet de waarde een list zijn van mogelijke soorten,
-    "status" - in dat geval moet de waarde een list zijn van mogelijke statussen,
-    "titel" - in dat geval moet de waarde een string zijn die in de titel moet voorkomen
-    eventueel wildcards:
-        als de string niet begint met een * dan moet de titel ermee beginnen
-        als de string niet eindigt met een * dan moet de titel ermee eindigen
-        als er een * in zit moet wat ervoor zit en erna komt in de titel zitten
-    """
-    if select is None:
-        select = {}
-        if not arch:
-            return
-    if "id" in select:
-        if "idlt" not in select and "idgt" not in select:
-            raise DataError("Foutieve combinatie van selectie-argumenten opgegeven")
-    sel = [""]
-    args = []
-    item_lt = select.pop("idlt","")
-    enof = select.pop("id","")
-    item_gt = select.pop("idgt","")
-    if item_gt:
-        sel[0] += "nummer > ?"
-        if item_lt:
-            sel[0] = "({} {} ".format(sel[0], enof)
-        args.append(item_gt)
-    if item_lt:
-        sel[0] += "nummer < ?"
-        args.append(item_lt)
-        if item_gt:
-            sel[0] += ")"
-    if sel == [""]:
-        sel = []
-    item = select.pop("soort","")
-    if item:
-        print(item)
-        if len(item) == 1:
-            sel.append("soort_id = ?")
-            args.append(item[0])
-        else:
-            append_to_sel = "soort_id in ("
-            for value in item[:-1]:
-                append_to_sel += "?,"
-                args.append(value)
-            sel.append(append_to_sel + '?)')
-            args.append(item[-1])
-    item = select.pop("status" ,"")
-    if item:
-        print(item)
-        if len(item) == 1:
-            sel.append("status_id = ?")
-            args.append(item[0])
-        else:
-            append_to_sel = "status_id in ("
-            for value in item[:-1]:
-                append_to_sel += "?,"
-                args.append(value)
-            sel.append(append_to_sel + '?)')
-            args.append(item[-1])
-    item = select.pop("titel" ,"")
-    if item:
-        sel.append("(about like ? or {0}_actie.title like ?)".format(naam))
-        args.append("%{0}%".format(item))
-        args.append("%{0}%".format(item))
-    if select:
-        raise DataError("Foutief selectie-argument opgegeven")
-    if arch == "":
-        sel.append("arch = 0")
-    elif arch == "arch":
-        sel.append("arch = 1")
-    elif arch != "alles":
-        raise DataError("Foutieve waarde voor archief opgegeven " \
-            "(moet niks, 'arch'  of 'alles' zijn)")
-    con = sql.connect(DBLOC)
-    ## print "dml_sql.get_acties.sel:",sel
-    ## print "dml_sql.get_acties.args:",args
-    cmd = "select nummer, start, {0}_status.title, {0}_status.value, {0}_soort.title, " \
-        "{0}_soort.value, about, {0}_actie.title, gewijzigd from {0}_actie " \
-        "join {0}_soort on {0}_soort.id = {0}_actie.soort_id " \
-        "join {0}_status on {0}_status.id = {0}_actie.status_id ".format(naam)
-    if sel:
-        cmd += "where {0}".format(" and ".join(sel))
-    data = getsql(con, cmd, args)
-    if data or len(data) == 0:
-        return data
-    else:
-        raise DataError(naam + " bestaat niet")
 
 class Actie:
     """lijst alle gegevens van een bepaald item"""

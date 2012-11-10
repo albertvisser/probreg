@@ -4,7 +4,7 @@ from logbook import Logger, FileHandler
 logger = Logger('dmlsql')
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dml import DataError, get_nieuwetitel, get_acties, Actie, Settings
-xmlfile = "/home/albert/probreg/todo.xml"
+xmlfile = "/home/albert/probreg/jvs.xml" # todo.xml"
 
 def test_laatste():
     try:

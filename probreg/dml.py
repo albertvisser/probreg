@@ -12,6 +12,10 @@ from config import kopdict, statdict, catdict
 
 datapad = os.getcwd()
 
+class DataError(Exception):
+    "Eigen all-purpose exception - maakt resultaat testen eenvoudiger"
+    pass
+
 def checkfile(fn, new=False):
     "controleer of projectbestand bestaat, maak indien aangegeven nieuwe aan"
     r = ''
@@ -39,10 +43,6 @@ def checkfile(fn, new=False):
             if tree.getroot().tag != "acties":
                 r = fn + " is geen bruikbaar xml bestand"
     return r
-
-class DataError(Exception):
-    "algemene exception"
-    pass
 
 def get_nieuwetitel(fnaam, jaar=None):
     "bepaal nieuw uit te geven actienummer"
@@ -426,7 +426,7 @@ class Actie:
                         self.events.append((z.get("id"), z.text))
             self.exists = True
 
-    def getStatusText(self, waarde):
+    def get_statustext(self, waarde):
         "geef tekst bij statuscode"
         ## if str(waarde) in statdict:
         try:
@@ -435,7 +435,7 @@ class Actie:
         except KeyError:
             raise DataError("Geen tekst gevonden bij statuscode {}".format(waarde))
 
-    def getSoortText(self, waarde):
+    def get_soortText(self, waarde):
         "geef tekst bij soortcode"
         ## if waarde in catdict:
         try:
@@ -444,7 +444,7 @@ class Actie:
         except KeyError:
             raise DataError("Geen tekst gevonden bij soortcode {}".format(waarde))
 
-    def setStatus(self, waarde):
+    def set_status(self, waarde):
         "stel status in (code of tekst)"
         if type(waarde) is int:
             if str(waarde) in statdict:
@@ -463,7 +463,7 @@ class Actie:
         else:
             raise DataError("Foutief datatype voor status")
 
-    def setSoort(self, waarde):
+    def set_soort(self, waarde):
         "stel soort in (code of tekst)"
         print(waarde)
         if type(waarde) is str:
@@ -482,7 +482,7 @@ class Actie:
         else:
             raise DataError("Foutief datatype voor categorie")
 
-    def setArch(self, waarde):
+    def set_arch(self, waarde):
         "stel archiefstatus in"
         if type(waarde) is bool:
             self.arch = waarde
