@@ -884,7 +884,7 @@ class Page6(Page):
         Page.vulp(self)
         self.initializing = True
         ## self.txtStat.Clear()
-        self.event_list = self.event_data = self.old_list = self.old_data = []
+        self.event_list, self.event_data, self.old_list, self.old_data = [], [], [], []
         self.progress_text.Clear()
         self.progress_text.Enable(False) # SetEditable(False)
         if self.parent.pagedata: # and not self.parent.newitem:
@@ -1023,12 +1023,18 @@ class Page6(Page):
         evt.Skip()
 
     def on_text(self, evt):
-        "callback voor EVT_TEXT"
-        ## idx = self.current_item # self.progress_list.Selection # niet gebruikt
-        tekst = self.progress_text.GetValue() # self.progress_list.GetItemText(ix)
-        if tekst != self.oldtext:
-            self.enable_buttons()
-        evt.Skip()
+        """callback voor EVT_TEXT
+
+        de initializing flag wordt uitgevraagd omdat deze event ook tijdens vulp()
+        plaatsvindt"""
+        if not self.initializing:
+            ## idx = self.current_item # self.progress_list.Selection # niet gebruikt
+            tekst = self.progress_text.GetValue() # self.progress_list.GetItemText(ix)
+            if tekst != self.oldtext:
+                self.enable_buttons()
+                if self.current_item > 0:
+                    self.event_data[self.current_item - 1] = tekst
+            evt.Skip()
 
 class EasyPrinter(html.HtmlEasyPrinting):
     "class om printen via html layout mogelijk te maken"
@@ -2045,7 +2051,7 @@ class MainWindow(wx.Frame):
 
     def on_page_changed(self, event):
         """
-        deze methode is bedoeld om bij het wisselen van pagina het veld / de velden
+        deze methode is bedoeld om na het wisselen van pagina het veld / de velden
         van de nieuwe pagina een waarde te geven met behulp van de vulp methode
         """
         old = event.GetOldSelection() # unused
