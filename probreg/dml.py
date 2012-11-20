@@ -220,7 +220,7 @@ class Settings:
                 for y in h.findall("kop"):
                     self.kop[y.get("value")] = y.text
 
-    def write(self):
+    def write(self, srt=None): # extra argument ivm compat sql-versie
         "settings terugschrijven"
         if not self.exists:
             f = open(self.fn, "w")
@@ -426,20 +426,22 @@ class Actie:
                         self.events.append((z.get("id"), z.text))
             self.exists = True
 
-    def get_statustext(self, waarde):
+    def get_statustext(self):
         "geef tekst bij statuscode"
+        waarde = self.status[0]
         ## if str(waarde) in statdict:
         try:
-            return self.settings.stat[str(waarde)]
+            return self.settings.stat[str(waarde)][0]
         ## else:
         except KeyError:
             raise DataError("Geen tekst gevonden bij statuscode {}".format(waarde))
 
-    def get_soortText(self, waarde):
+    def get_soorttext(self):
         "geef tekst bij soortcode"
+        waarde = self.soort
         ## if waarde in catdict:
         try:
-            return self.settings.cat[waarde]
+            return self.settings.cat[waarde][0]
         ## else:
         except KeyError:
             raise DataError("Geen tekst gevonden bij soortcode {}".format(waarde))

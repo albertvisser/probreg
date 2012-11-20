@@ -3,7 +3,7 @@
 
 importeert module probreg uit package probreg
 roept de main routine daarin aan met als sys.argv[1] als argument
-indien deze niet aanwezig is gaat er geen argument mee
+indien deze niet aanwezig is gaat er een leeg argument mee
 waardoor de gui wordt opgestart met een file chooser dialoog
 """
 
