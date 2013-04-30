@@ -19,12 +19,17 @@ Shortly after that I decided to modify the standalone version to be able to
 communicate with the Django version, which meant some changes in the GUI and
 switching from XML to SQL.
 Since I still use the XML version for my personal task management at work, it
-survived the makeover so this repository now contains both versions
+survived the makeover so this repository now contains both versions.
+
+Lately I decided to combine the two versions into one codebase.
+Starting the application with or without an argument determines which version
+is used, but both versions have a startup script.
+
 
 Requirements
 ------------
 
 - Python (including ElementTree, and Sqlite for the sql version)
 - wxPython
-- PocketPyGUI for a PocketPC version
+- PocketPyGUI for a PocketPC version.
 
