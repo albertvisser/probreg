@@ -2302,7 +2302,3 @@ def main(arg=None):
     print('\n** {} **\n'.format(get_dts()))
     frame = MainWindow(None, -1, arg)
     app.MainLoop()
-
-if __name__ == '__main__':
-    main() # sql versie
-    ## main('todo.xml') # xml versie
