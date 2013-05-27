@@ -8,7 +8,7 @@ import pprint
 import datetime as dt
 from shutil import copyfile
 from xml.etree.ElementTree import ElementTree, Element, SubElement
-from config import kopdict, statdict, catdict
+from config_xml import kopdict, statdict, catdict
 
 datapad = os.getcwd()
 

@@ -16,7 +16,7 @@ import datetime as dt
 import shutil
 from xml.etree.ElementTree import ElementTree, Element, SubElement
 import sqlite3 as sql
-import config_single_codebase as config
+import config
 
 datapad = os.getcwd()
 
