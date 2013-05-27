@@ -5,7 +5,10 @@ logger = Logger('dmlsql')
 import pprint as pp
 import datetime as dt
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from dml_sql import get_acties, Settings, Actie
+## from dml_sql import get_acties, Settings, Actie
+from dml_single_codebase import get_nieuwetitel, get_config_objects
+for key, value in get_config_objects(sql=True).items():
+    globals()[key] = value
 
 def list(self):
     "uitlijsten gegevens van actie object"
@@ -70,7 +73,7 @@ def test_wijzigsettings(item, soort, key, tekst, waarde, data=None,
         h.kop[key] = (tekst, waarde)
     test_settings(obj=h)
     if update:
-        h.write()
+        h.write(soort)
     return h
 
 def test_actie(fnaam="", id='', obj=None):
@@ -119,48 +122,48 @@ def test_wijzig_actie(obj, soort, data, update=False):
 
 if __name__ == "__main__":
     fnm = "afrift"
-    log_handler = FileHandler('get_acties_sql.log', mode='w')
+    log_handler = FileHandler('get_acties_sql_1.log', mode='w')
     with log_handler.applicationbound():
-        ## test_get_acties(fnm, {}, "")
-        ## test_get_acties(fnm, {"idlt": "2010", }, "")
-        ## test_get_acties(fnm, {"idlt": "2010",  "id": "and",  "idgt": "2007-0003"}, "")
-        ## test_get_acties(fnm, {"idgt": "2010",  "id": "or",  "idlt": "2007-0003"}, "")
-        ## test_get_acties(fnm, {"idgt": "2007-0003",}, "")
+        test_get_acties(fnm, {}, "")
+        test_get_acties(fnm, {"idlt": "2010", }, "")
+        test_get_acties(fnm, {"idlt": "2010",  "id": "and",  "idgt": "2007-0003"}, "")
+        test_get_acties(fnm, {"idgt": "2010",  "id": "or",  "idlt": "2007-0003"}, "")
+        test_get_acties(fnm, {"idgt": "2007-0003",}, "")
         test_get_acties(fnm, {"status": ["1"]}, "")
         test_get_acties(fnm, {"status": ["1", "2"]}, "")
         test_get_acties(fnm, {"soort" : ["4"]}, '')
         test_get_acties(fnm, {"soort" : ["4", "2"]}, '')
-        ## test_get_acties(fnm, {"titel": "en"}, "")
-        ## test_get_acties(fnm, {}, "arch")
-        ## test_get_acties(fnm, {}, "alles")
+        test_get_acties(fnm, {"titel": "en"}, "")
+        test_get_acties(fnm, {}, "arch")
+        test_get_acties(fnm, {}, "alles")
     fnm = "_basic"
-    ## log_handler = FileHandler('settings_sql.log', mode='w')
-    ## with log_handler.applicationbound():
-        ## h = test_settings()
-        ## h = test_settings(fnaam='bestaatniet')
-        ## h = test_settings(fnaam=fnm)
-        ## h = test_wijzigsettings(h, 'stat', '7', "Gloekgloekgloe", 15, -1)
-        ## h = test_wijzigsettings(h, 'cat', "X", "Willen we niet weten", 6, -1)
-        ## h = test_wijzigsettings(h, 'kop', '4', "Gargl", "opl")
-        ## h = test_settings(obj=h)
-        ## h = test_wijzigsettings(h, 'stat','7', "Gloekgloekgloe", 7, -1)
-        ## h = test_wijzigsettings(h, 'cat', "X", "Ahum ahum", 7, -1)
+    log_handler = FileHandler('settings_sql_1.log', mode='w')
+    with log_handler.applicationbound():
+        h = test_settings()
+        h = test_settings(fnaam='bestaatniet')
+        h = test_settings(fnaam=fnm)
+        h = test_wijzigsettings(h, 'stat', '7', "Gloekgloekgloe", 15, -1)
+        h = test_wijzigsettings(h, 'cat', "X", "Willen we niet weten", 6, -1)
+        h = test_wijzigsettings(h, 'kop', '4', "Gargl", "opl")
+        h = test_settings(obj=h)
+        h = test_wijzigsettings(h, 'stat','7', "Gloekgloekgloe", 7, -1)
+        h = test_wijzigsettings(h, 'cat', "X", "Ahum ahum", 7, -1)
         ## h = test_wijzigsettings(h, 'kop','4', "Oplossing/SvZ", "opl", update = True)
         ## h = test_settings(fnaam=fnm)
-    ## log_handler = FileHandler('actie_sql.log', mode='w')
-    ## with log_handler.applicationbound():
-        ## p = test_actie(fnm, "2009-0002")
-        ## p = test_actie(fnm, "2011-0002")
-        ## p = test_actie(fnm, '0')
-        ## p = test_wijzig_actie(p, 'over', "test")
-        ## p = test_wijzig_actie(p, 'titel', "nieuwe actie")
-        ## p = test_wijzig_actie(p, 'soort', "probleem")
-        ## p = test_wijzig_actie(p, 'status', "in behandeling")
-        ## p = test_actie(obj=p)
-        ## p = test_wijzig_actie(p, 'melding', "Het is niet gebeurd")
-        ## p = test_wijzig_actie(p, 'oorzaak', "Het leek maar alsof")
-        ## p = test_wijzig_actie(p, 'oplossing', "Dus hebben we teruggedraaid wat we er aan gedaan hebben")
-        ## p = test_wijzig_actie(p, 'event', "Beschrijving oplossing aangepast")
-        ## p = test_wijzig_actie(p, 'statuscode', 2)
+    log_handler = FileHandler('actie_sql_1.log', mode='w')
+    with log_handler.applicationbound():
+        p = test_actie(fnm, "2009-0002")
+        p = test_actie(fnm, "2011-0002")
+        p = test_actie(fnm, '0')
+        p = test_wijzig_actie(p, 'over', "test")
+        p = test_wijzig_actie(p, 'titel', "nieuwe actie")
+        p = test_wijzig_actie(p, 'soort', "probleem")
+        p = test_wijzig_actie(p, 'status', "in behandeling")
+        p = test_actie(obj=p)
+        p = test_wijzig_actie(p, 'melding', "Het is niet gebeurd")
+        p = test_wijzig_actie(p, 'oorzaak', "Het leek maar alsof")
+        p = test_wijzig_actie(p, 'oplossing', "Dus hebben we teruggedraaid wat we er aan gedaan hebben")
+        p = test_wijzig_actie(p, 'event', "Beschrijving oplossing aangepast")
+        p = test_wijzig_actie(p, 'statuscode', 2)
         ## p = test_wijzig_actie(p, 'arch', True, update=True)
         ## p = test_actie(fnm, p.nummer)

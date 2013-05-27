@@ -1,6 +1,10 @@
-import probreg
+## from probreg import main
+from probreg_qt import main
 
 if __name__ == '__main__':
-    ## probreg.main() # sql versie
-    ## probreg.main('') # xml versie
-    probreg.main('todo.xml') # xml versie
+    ## main() # sql versie
+    ## main(None, log=True) # sql versie met logging (qt versie)
+    ## main('') # xml versie
+    ## main('todo.xml', log=True) # xml versie met logging (qt versie)
+    main('todo.xml') # xml versie
+    ## main('todo.xml', log=True) # xml versie met logging (qt versie)

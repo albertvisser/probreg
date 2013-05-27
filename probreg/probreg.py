@@ -13,6 +13,7 @@ import wx.lib.mixins.listctrl  as  listmix
 import wx.gizmos   as  gizmos
 import images
 import pr_globals as pr
+from dml import get_config_objects
 XML_VERSION = SQL_VERSION = False
 
 def get_dts():
@@ -2120,11 +2121,6 @@ class MainWindow(wx.Frame):
             settings.write()
             self.book.tabs = {}
             for item_value, item_text in data.iteritems():
-                if XML_VERSION:
-                    self.book.tabs[item_value] = item_text
-                    self.book.SetPageText(int(item_value), " ".join(
-                        (item_value, item_text)))
-                elif SQL_VERSION:
                     item = " ".join((item_value, item_text))
                     self.book.tabs[int(item_value)] = item
                     self.book.SetPageText(int(item_value), item)
@@ -2287,17 +2283,12 @@ def main(arg=None):
     "opstart routine"
     if arg is None:
         globals()["SQL_VERSION"] = True
-        from dml_sql import DataError, get_acties, Actie, Settings
-        from config_sql import APPS
-        globals()["APPS"] = APPS
+        sql = True
     else:
         globals()["XML_VERSION"] = True
-        from dml import DataError, checkfile, get_acties, Actie, Settings
-        globals()["checkfile"] = checkfile
-    globals()["DataError"] = DataError
-    globals()["get_acties"] = get_acties
-    globals()["Actie"] = Actie
-    globals()["Settings"] = Settings
+        sql = False
+    for key, value in get_config_objects(sql).items():
+        globals()[key] = value
     app = wx.App(redirect=True, filename="probreg.log")
     print('\n** {} **\n'.format(get_dts()))
     frame = MainWindow(None, -1, arg)

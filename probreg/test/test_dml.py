@@ -1,14 +1,18 @@
 import os
 import sys
 from logbook import Logger, FileHandler
-logger = Logger('dmlsql')
+logger = Logger('dmlxml')
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from dml import DataError, get_nieuwetitel, get_acties, Actie, Settings
+## from dml import DataError, get_nieuwetitel, get_acties, Actie, Settings
+from dml_single_codebase import get_nieuwetitel, get_config_objects
+for key, value in get_config_objects(sql=False).items():
+    globals()[key] = value
+
 xmlfile = "/home/albert/probreg/jvs.xml" # todo.xml"
 
 def test_laatste():
     try:
-        h = get_nieuwetitel(fn)
+        h = get_nieuwetitel(xmlfile)
     except DataError as meld:
         logger.info(meld)
     else:
@@ -34,7 +38,7 @@ def test_acties(arch=None, select=None):
 
 def test_actie(sleutel=None):
     if sleutel is None:
-        h = Actie(fn, 0)
+        h = Actie(xmlfile, 0)
         logger.info("na init")
         h.list()
         h.titel = "er ging nog iets mis"
@@ -47,7 +51,7 @@ def test_actie(sleutel=None):
         h.list()
         h.write()
         return h.id
-    h = Actie(fn, sleutel)
+    h = Actie(xmlfile, sleutel)
     logger.info(h.meld)
     if h.exists:
         h.list()
@@ -57,9 +61,9 @@ def test_actie(sleutel=None):
         #~ logger.info "na init"
         #~ h.list()
         #~ h.setStatus(2)
-        h.setStatus("in behandeling")
+        h.set_status("in behandeling")
         #~ h.setSoort("P")
-        h.setSoort("wens")
+        h.set_soort("wens")
         #~ h.titel = "er ging iets mis"
         #~ h.probleem = "dit is het probleem"
         #~ h.oorzaak = "het kwam hierdoor"
@@ -69,7 +73,7 @@ def test_actie(sleutel=None):
         #~ h.write()
 
 def test_settings():
-    h = Settings(fn)
+    h = Settings(xmlfile)
     logger.info("-- na init ----------------")
     for x in list(h.__dict__.items()):
         logger.info(x)
@@ -143,7 +147,7 @@ def test_settings():
     h.write()
 
 def test_archiveren():
-    h = Actie(fn, "2006-0001")
+    h = Actie(xmlfile, "2006-0001")
     logger.info(h.meld)
     if h.exists:
         h.list()
@@ -153,7 +157,7 @@ def test_archiveren():
         h.list()
 
 if __name__ == "__main__":
-    log_handler = FileHandler('get_acties.log', mode='w')
+    log_handler = FileHandler('get_acties_xml_1.log', mode='w')
     with log_handler.applicationbound():
         test_acties(arch='')
         test_acties(select={"idgt": "2006-0010"})
@@ -164,10 +168,10 @@ if __name__ == "__main__":
         test_acties(select={"status": ("0", "1", "3")})
         test_acties(select={"soort": ("W", "P")})
         test_acties(select={"titel": ("tekst")})
-    ## log_handler = FileHandler('settings.log', mode='w')
+    ## log_handler = FileHandler('settings_xml_1.log', mode='w')
     ## with log_handler.applicationbound():
         ## test_settings()
-    ## log_handler = FileHandler('actie.log', mode='w')
+    ## log_handler = FileHandler('actie_xml_1.log', mode='w')
     ## with log_handler.applicationbound():
         ## test_laatste()
         ## test_actie("2007-0001")
