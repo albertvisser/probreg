@@ -1141,5 +1141,5 @@ def get_config_objects(sql=True):
         retval["get_acties"] = get_acties_xml
         retval["Settings"] = XmlSettings
         retval["Actie"] = XmlActie
-        globals()["checkfile"] = checkfile
+        retval["checkfile"] = checkfile
     return retval

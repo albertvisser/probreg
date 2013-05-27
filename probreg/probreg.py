@@ -1744,8 +1744,8 @@ class MainWindow(wx.Frame):
         dlg = wx.FileDialog(self, self.title + " - kies een gegevensbestand",
             self.dirname, "", "XML files|*.xml", wx.OPEN)
         if dlg.ShowModal() == wx.ID_OK:
-            self.filename = dlg.GetFilename()
-            self.dirname = dlg.GetDirectory()
+            self.dirname, self.filename = os.path.split(dlg.GetPath())
+            print self.dirname, self.filename
             self.startfile()
         dlg.Destroy()
 
@@ -2050,10 +2050,12 @@ class MainWindow(wx.Frame):
         "initialisatie t.b.v. nieuw bestand"
         if XML_VERSION:
             fullname = os.path.join(self.dirname, self.filename)
+            print(fullname)
             retval = checkfile(fullname, self.newfile)
             if retval != '':
                 wx.MessageBox(retval, "Oeps")
                 return
+            print('hmf')
             self.book.fnaam = fullname
             self.title = self.filename
         elif SQL_VERSION:
