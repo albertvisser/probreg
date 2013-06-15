@@ -379,6 +379,7 @@ class Actie:
         tree = ElementTree(file=self.fn)
         rt = tree.getroot()
         found = False
+        print(self.id, type(self.id))
         for x in rt.findall("actie"):
             if x.get("id") == self.id:
                 found = True
@@ -561,12 +562,20 @@ class Actie:
 
     def list(self):
         "actie uitlijsten naar print"
-        print("%s %s gemeld op %s status %s %s" % (
-            self.get_soorttext(),
+        try:
+            soort = self.get_soorttext()
+        except DataError:
+            soort = self.soort
+        status = self.status
+        try:
+            status = status + ' ' + self.get_statustext()
+        except DataError:
+            pass
+        print("%s %s gemeld op %s status %s" % (
+            soort,
             self.id,
             self.datum,
-            self.status,
-            self.get_statustext()
+            status
             ))
         print("Titel:", self.titel, sep=" ")
         print("Melding:", self.melding, sep=" ")
