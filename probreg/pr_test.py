@@ -1,3 +1,5 @@
+#! /usr/bin/env python
+
 ## from probreg import main
 from probreg_qt import main
 
