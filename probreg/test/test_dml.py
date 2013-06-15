@@ -3,10 +3,10 @@ import sys
 from logbook import Logger, FileHandler
 logger = Logger('dmlxml')
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-## from dml import DataError, get_nieuwetitel, get_acties, Actie, Settings
-from dml_single_codebase import get_nieuwetitel, get_config_objects
-for key, value in get_config_objects(sql=False).items():
-    globals()[key] = value
+from dml_xml import DataError, get_nieuwetitel, get_acties, Actie, Settings
+## from dml import get_nieuwetitel, get_config_objects
+## for key, value in get_config_objects(sql=False).items():
+    ## globals()[key] = value
 
 xmlfile = "/home/albert/probreg/jvs.xml" # todo.xml"
 
@@ -54,7 +54,7 @@ def test_actie(sleutel=None):
     h = Actie(xmlfile, sleutel)
     logger.info(h.meld)
     if h.exists:
-        h.list()
+        h.list() # 'actie_xml.log')
     else:
         logger.info("geen item met deze sleutel bekend")
         #~ h = Actie(fn,0)
@@ -157,23 +157,23 @@ def test_archiveren():
         h.list()
 
 if __name__ == "__main__":
-    log_handler = FileHandler('get_acties_xml_1.log', mode='w')
-    with log_handler.applicationbound():
-        test_acties(arch='')
-        test_acties(select={"idgt": "2006-0010"})
-        test_acties(select={"idlt":  "2005-0019"})
-        test_acties(select={"idgt": "2005-0019" , "idlt": "2006-0010"})
-        test_acties(select={"idgt": "2005-0019" , "idlt": "2006-0010",  "id": "and" })
-        test_acties(select={"idgt": "2006-0010" , "idlt": "2005-0019",  "id": "or" })
-        test_acties(select={"status": ("0", "1", "3")})
-        test_acties(select={"soort": ("W", "P")})
-        test_acties(select={"titel": ("tekst")})
+    ## log_handler = FileHandler('get_acties_xml_1.log', mode='w')
+    ## with log_handler.applicationbound():
+        ## test_acties(arch='')
+        ## test_acties(select={"idgt": "2006-0010"})
+        ## test_acties(select={"idlt":  "2005-0019"})
+        ## test_acties(select={"idgt": "2005-0019" , "idlt": "2006-0010"})
+        ## test_acties(select={"idgt": "2005-0019" , "idlt": "2006-0010",  "id": "and" })
+        ## test_acties(select={"idgt": "2006-0010" , "idlt": "2005-0019",  "id": "or" })
+        ## test_acties(select={"status": ("0", "1", "3")})
+        ## test_acties(select={"soort": ("W", "P")})
+        ## test_acties(select={"titel": ("tekst")})
     ## log_handler = FileHandler('settings_xml_1.log', mode='w')
     ## with log_handler.applicationbound():
         ## test_settings()
-    ## log_handler = FileHandler('actie_xml_1.log', mode='w')
-    ## with log_handler.applicationbound():
-        ## test_laatste()
-        ## test_actie("2007-0001")
-        ## test_actie("1")
+    log_handler = FileHandler('actie_xml.log', mode='w')
+    with log_handler.applicationbound():
+        test_laatste()
+        test_actie("2007-0001")
+        test_actie("1")
         ## test_archiveren()
