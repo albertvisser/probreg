@@ -8,9 +8,11 @@ kopdict - dictionary van tabs in de vorm                 volgorde: (tab titel,  
 statdict: dictionary van mogelijke statussen in de vorm  volgorde: (omschrijving, code, id in tabel)
 catdict: dictionary van mogelijke soorten in de vorm     volgorde: (omschrijving, code, id in tabel)
 """
-DBLOC = "/home/albert/www/django/actiereg/actiereg.db"
+import os
+root = "/home/albert/www/django/actiereg/actiereg"
+DBLOC = os.path.join(root, "actiereg.db")
 USER = 2
-APPS = "/home/albert/www/django/actiereg/apps.dat"
+APPS = os.path.join(root, "apps.dat")
 
 kopdict = {
     "0": ("Lijst", 'index'),
