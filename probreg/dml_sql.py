@@ -9,7 +9,7 @@ from __future__ import print_function
 import pprint as pp
 import datetime as dt
 import sqlite3 as sql
-from config_sql import DBLOC, USER, kopdict, statdict, catdict
+from probreg.config_sql import DBLOC, USER, kopdict, statdict, catdict
 
 class DataError(Exception):
     "Eigen all-purpose exception - maakt resultaat testen van getsql eenvoudiger"
@@ -334,12 +334,13 @@ class Actie:
     def __init__(self, naam, id_):
         self.meld = ''
         self.naam = naam
+        ## if naam == 'Demo':
+            ## naam = '_basic'
         self.settings = Settings(naam)
         self.id = id_
         new_data = ['', '', '', 1, 1, False, '', '', '', '']
         (self.over, self.titel, self.gewijzigd, self.status, self.soort, self.arch,
             self.melding, self.oorzaak, self.oplossing, self.vervolg) = new_data
-        self.events = []
         self.exists = False
         self.con = sql.connect(DBLOC)
         self.con.row_factory = sql.Row
@@ -366,7 +367,7 @@ class Actie:
         self.id = "{0}-{1:04}".format(nw_date.year, nieuwnummer)
         self.status = self.soort = 1
         self.datum = dt.datetime.today().isoformat(' ') # [:19]
-        self.events.append((self.datum, "Actie opgevoerd"))
+        self.events = [(self.datum, "Actie opgevoerd")]
 
     def read(self):
         "gegevens lezen van een bepaalde actie"
@@ -395,8 +396,7 @@ class Actie:
             ## self.titel = " - ".join((self.over, self.titel))
         data = getsql(self.con, "select id, start, starter_id, text from"
             " {0}_event where actie_id = ?".format(self.naam), (actie,))
-        for item in data:
-            self.events.append((item[1], item[3]))
+        self.events = [(item[1], item[3]) for item in data]
         self.exists = True
 
     def get_statustext(self):
@@ -522,9 +522,12 @@ class Actie:
             ## raise DataError("Problem getting events")
         current_events = [x for x in data] if data else []
         last_id = 0
-        data = getsql(self.con, "select id from {0}_event ".format(self.naam))
+        data = getsql(self.con, "select id from {0}_event order by id desc".format(self.naam))
         for item in data:
             last_id = item[0]
+            break
+            ## print(last_id, end=",")
+        ## last_id = data[0][1]
         for idx, item in enumerate(self.events):
             start, text = item
             if idx >= len(current_events):

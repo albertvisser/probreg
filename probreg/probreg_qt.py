@@ -8,19 +8,33 @@ import sys, os
 LIN = True if os.name == 'posix' else False
 from datetime import datetime
 import pprint
-import images
+#import images
 import PyQt4.QtGui as gui
 import PyQt4.QtCore as core
 import logging
 import functools
 from mako.template import Template
-import pr_globals as pr
+import probreg.pr_globals as pr
 XML_VERSION = SQL_VERSION = False
 sortorder = {"A": core.Qt.AscendingOrder, "D": core.Qt.DescendingOrder}
 
 def get_dts():
     "routine om een geformatteerd date/time stamp te verkrijgen"
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+def data2str(data):
+    "compatibility Python 2 / 3: turn PyQt data object into Python string"
+    if sys.version < "3":
+        return str(data.toPyObject())
+    else:
+        return str(data)
+
+def data2int(data):
+    "compatibility Python 2 / 3: turn PyQt data object into Python integer"
+    if sys.version < "3":
+        return int(data.toPyObject())
+    else:
+        return int(data)
 
 class Page(gui.QFrame):
     "base class for notebook page"
@@ -66,10 +80,10 @@ class Page(gui.QFrame):
 
         methode aan te roepen voorafgaand aan het tonen van de pagina"""
         self.initializing = True
-        self.enable_buttons(False)
         if self.parent.current_tab == 0:
             text = self.seltitel
         else:
+            self.enable_buttons(False)
             text = self.parent.tabs[self.parent.current_tab].split(None,1)
             if self.parent.pagedata:
                 text = str(self.parent.pagedata.id) + ' ' + self.parent.pagedata.titel
@@ -105,115 +119,37 @@ class Page(gui.QFrame):
 
     def nieuwp(self, evt=None): # Done, seems to work
         """voorbereiden opvoeren nieuwe actie"""
+        print('opvoeren nieuwe actie')
+        self.parent.newitem = True
         if self.leavep():
+            if self.parent.current_tab == 0:
+                for i in range(1, self.parent.count()):
+                    self.parent.setTabEnabled(i, True)
             self.parent.pagedata = Actie(self.parent.fnaam, 0)
-            self.parent.newitem = True
             if self.parent.current_tab == 1:
                 self.vulp() # om de velden leeg te maken
                 self.proc_entry.setFocus()
             else:
                 self.goto_page(1, check=False)
         else:
+            self.parent.newitem = False
             print("leavep() geeft False: nog niet klaar met huidige pagina")
-
-    def hideEvent(self, event):
-        if self.parent.current_tab != -1:
-            print('deciding to ignore hideEvent', event.type())
-            if not self.parent.parent.mag_weg:
-                print('ignoring...')
-                event.ignore()
-                ## return False
-        self.hide_show_event(event)
-        return gui.QFrame.hideEvent(self, event)
-        return True
-
-    def showEvent(self, event):
-        if self.parent.current_tab != -1:
-            print('deciding to ignore showEvent', event.type())
-            if not self.parent.parent.mag_weg:
-                print('ignoring...')
-                event.ignore()
-                ## return False
-        return gui.QFrame.showEvent(self, event)
-        return True
-
-    ## def event(self, event):
-    def hide_show_event(self, event):
-        ## print("in {}.event: {}".format(self.__class__, event.type()))
-        ## test = event.type()
-        ## if test in (core.QEvent.HideToParent, core.QEvent.ShowToParent,
-                ## core.QEvent.Show) and self.parent.current_tab != -1:
-            ## print('deciding to ignore event', test)
-            ## if not self.parent.parent.mag_weg:
-                ## print('ignoring...')
-                ## core.QEvent.ignore(event)
-                ## return False
-        ## elif test != core.QEvent.Hide:
-            ## gui.QFrame.event(self, event)
-            ## return True
-        msg = ""
-        print("in hideEvent for tab", self.parent.current_tab)
-        if self.parent.current_tab == -1 or self.parent.parent.initializing:
-            pass
-        elif self.parent.fnaam == "":
-            if XML_VERSION:
-                wat = 'bestand'
-            elif SQL_VERSION:
-                wat = 'project'
-            msg = "Kies eerst een {} om mee te werken".format(wat)
-            self.parent.parent.mag_weg = False
-        elif len(self.parent.data) == 0 and not self.parent.book.newitem:
-            msg = "Voer eerst één of meer acties op"
-            self.parent.parent.mag_weg = False
-        elif self.parent.current_item == -1 and not self.parent.book.newitem:
-            msg = "Selecteer eerst een actie"
-            self.parent.parent.mag_weg = False
-        print('going to check for leaving', self.parent.checked_for_leaving)
-        if not self.parent.checked_for_leaving:
-            self.parent.parent.mag_weg = True
-            if self.parent.current_tab == 0:
-                self.parent.parent.mag_weg = self.parent.page0.leavep()
-            elif self.parent.current_tab == 1:
-                self.parent.parent.mag_weg = self.parent.page1.leavep()
-            elif self.parent.current_tab == 2:
-                self.parent.parent.mag_weg = self.parent.page2.leavep()
-            elif self.parent.current_tab == 3:
-                self.parent.parent.mag_weg = self.parent.page3.leavep()
-            elif self.parent.current_tab == 4:
-                self.parent.parent.mag_weg = self.parent.page4.leavep()
-            elif self.parent.current_tab == 5:
-                self.parent.parent.mag_weg = self.parent.page5.leavep()
-            elif self.parent.current_tab == 6:
-                self.parent.mag_weg = self.parent.page6.leavep()
-        print('determined if we can leave', self.parent.parent.mag_weg)
-        if not self.parent.parent.mag_weg:
-            if msg != "":
-                gui.QMessageBox.information(self, "Navigatie niet toegestaan", msg)
-                ## self.book.setCurrent(self.book.current_tab)
-            event.ignore()
-            ## return False
-        ## else:
-            ## gui.QFrame.event(self, event)
-        return self.parent.parent.mag_weg
 
     def leavep(self): # Done, untested
         "afsluitende acties uit te voeren alvorens de pagina te verlaten"
         print('leavep for page', self.parent.current_tab)
-        if self.parent.current_tab == 1:
-            newbuf = (str(self.proc_entry.text()), str(self.desc_entry.text()),
-                int(self.stat_choice.currentIndex()),
-                int(self.cat_choice.currentIndex()))
-            if self.parent.newitem and newbuf[0] == "" and newbuf[1] == "" \
-                    and not self.parent.parent.exiting:
-                self.parent.newitem = False
-                self.parent.pagedata = Actie(self.parent.fnaam, self.parent.old_id)
-        elif self.parent.current_tab == 6:
-            newbuf = (self.event_list, self.event_data)
-        elif self.parent.current_tab > 1:
-            newbuf = self.text1.toPlainText()
+        newbuf = self.build_newbuf()
+        if (self.parent.current_tab == 1 and self.parent.newitem and newbuf[0] == ""
+                and newbuf[1] == "" and not self.parent.parent.exiting):
+            self.parent.newitem = False
+            self.parent.pagedata = Actie(self.parent.fnaam, self.parent.old_id)
         ok_to_leave = True
         self.parent.checked_for_leaving = True
-        if self.parent.current_tab > 0 and newbuf != self.oldbuf:
+        if self.parent.current_tab == 0:
+            print(self.parent.parent.mag_weg, self.parent.newitem)
+            if not self.parent.parent.mag_weg and not self.parent.newitem:
+                ok_to_leave = False #
+        elif newbuf != self.oldbuf:
             retval = gui.QMessageBox.question(self, self.parent.parent.title,
                 "\n".join(("De gegevens op de pagina zijn gewijzigd, ",
                 "wilt u de wijzigingen opslaan voordat u verder gaat?")),
@@ -223,6 +159,10 @@ class Page(gui.QFrame):
                 ok_to_leave = self.savep()
             elif retval == gui.QMessageBox.Cancel:
                 self.parent.checked_for_leaving = ok_to_leave = False
+            if retval != gui.QMessageBox.Cancel:
+                for i in range(self.parent.count()):
+                    if i != self.parent.current_tab:
+                        self.parent.setTabEnabled(i, True)
         return ok_to_leave
 
     def savep(self, evt=None): # Done
@@ -260,6 +200,7 @@ class Page(gui.QFrame):
             self.goto_next()
         else:
             self.enable_buttons()
+
     def savepfromkey(self):
         if self.save_button.isEnabled():
             self.savep()
@@ -278,15 +219,21 @@ class Page(gui.QFrame):
         de initializing flag wordt uitgevraagd omdat deze event ook tijdens vulp()
         en tijdens vul_combos plaatsvindt"""
         if not self.initializing:
-            if self.parent.current_tab == 1:
-                newbuf = (str(self.proc_entry.text()), str(self.desc_entry.text()),
-                    int(self.stat_choice.currentIndex()),
-                    int(self.cat_choice.currentIndex()))
-            elif 1 < self.parent.current_tab < 6:
-                newbuf = self.text1.toPlainText()
-            elif self.parent.current_tab == 6:
-                newbuf = (self.event_list, self.event_data)
-            self.enable_buttons(newbuf != self.oldbuf)
+            newbuf = self.build_newbuf()
+            changed = newbuf != self.oldbuf
+            self.enable_buttons(changed)
+
+    def build_newbuf(self):
+        newbuf = None
+        if self.parent.current_tab == 1:
+            newbuf = (str(self.proc_entry.text()), str(self.desc_entry.text()),
+                int(self.stat_choice.currentIndex()),
+                int(self.cat_choice.currentIndex()))
+        elif 1 < self.parent.current_tab < 6:
+            newbuf = self.text1.toPlainText()
+        elif self.parent.current_tab == 6:
+            newbuf = (self.event_list, self.event_data)
+        return newbuf
 
     def on_choice(self, evt): # Done, untested
         "callback voor combobox"
@@ -300,13 +247,18 @@ class Page(gui.QFrame):
         self.parent.pagedata.read()    # om "updated" attribuut op te halen
 
     def enable_buttons(self, state=True): # Done, works
-        "buttons wel of niet klikbaar maken"
+        "buttons wel of niet bruikbaar maken"
+        print(state)
         if state:
             self.parent.checked_for_leaving = False
         self.save_button.setEnabled(state)
         if self.parent.current_tab < 6:
             self.saveandgo_button.setEnabled(state)
         self.cancel_button.setEnabled(state)
+        if self.parent.current_tab > 0:
+            for i in range(self.parent.count()):
+                if i != self.parent.current_tab:
+                    self.parent.setTabEnabled(i, not state)
 
     def goto_actie(self, evt=None): # Done
         "naar startpagina actie gaan"
@@ -343,6 +295,7 @@ class Page0(Page):
         Page.__init__(self, parent, standard=False)
         self.selection = 'excl. gearchiveerde'
         self.sel_args = {}
+        self.sorted = (0, "A")
 
         widths = [94, 24, 146, 90, 400] if LIN else [64, 24, 114, 72, 292]
         ## if XML_VERSION:
@@ -353,7 +306,13 @@ class Page0(Page):
             extra = 310 if LIN else 220
             widths.append(extra)
         self.p0list = gui.QTreeWidget(self)
+        self.sort_button = gui.QPushButton('S&Orteer', self)
+        self.filter_button = gui.QPushButton('F&Ilter', self)
+        self.go_button = gui.QPushButton('&Ga naar melding', self)
+        self.archive_button = gui.QPushButton('&Archiveer', self)
+        self.new_button = gui.QPushButton('Voer &Nieuwe melding op', self)
         ## high = 400 if LIN else 444
+
         ## self.p0list.SetMinSize((440,high))
         self.p0list.setSortingEnabled(True)
         self.p0list.setHeaderLabels(self.parent.ctitels)
@@ -363,24 +322,16 @@ class Page0(Page):
         for indx, wid in enumerate(widths):
             self.p0hdr.resizeSection(indx, wid)
         self.p0hdr.setStretchLastSection(True)
-
-        self.populate_list()
-
-        self.sorted = (0, "A")
-
+        ## self.populate_list()
         self.p0list.itemActivated.connect(self.on_activate_item)
         self.p0list.currentItemChanged.connect(self.on_change_selected)
 
-        self.sort_button = gui.QPushButton('S&Orteer', self)
-        self.filter_button = gui.QPushButton('F&Ilter', self)
-        self.go_button = gui.QPushButton('&Ga naar melding', self)
-        self.archive_button = gui.QPushButton('&Archiveer', self)
-        self.new_button = gui.QPushButton('Voer &Nieuwe melding op', self)
         self.sort_button.clicked.connect(self.sort_items)
         self.filter_button.clicked.connect(self.select_items)
         self.go_button.clicked.connect(self.goto_actie)
         self.archive_button.clicked.connect(self.archiveer)
         self.new_button.clicked.connect(self.nieuwp)
+        self.enable_buttons(False, all=True)
 
     def doelayout(self): # Done
         "layout page"
@@ -403,7 +354,7 @@ class Page0(Page):
         ## "afsluitende acties uit te voeren alvorens de pagina te verlaten"
         ## return True # niks doen, doorgaan
 
-    def vulp(self, evt = None): # Done
+    def vulp(self, evt=None): # Done
         """te tonen gegevens invullen in velden e.a. initialisaties
 
         methode aan te roepen voorafgaand aan het tonen van de pagina"""
@@ -412,7 +363,7 @@ class Page0(Page):
         if self.parent.rereadlist:
             self.parent.data = {}
             select = self.sel_args.copy()
-            arch = ""
+            arch = "" # "alles"
             if "arch" in select:
                 arch = select.pop("arch")
             try:
@@ -451,23 +402,28 @@ class Page0(Page):
             self.p0list.setCurrentItem(self.parent.current_item)
         self.p0list.scrollToItem(self.parent.current_item)
 
-    def hideEvent(self, event):
-        return Page.hideEvent(self, event)
-    def showEvent(self, event):
-        return Page.showEvent(self, event)
-
     def populate_list(self): # Done
         "list control vullen"
-        ## self.p0list.blockSignals(True)
         self.p0list.clear()
-        ## self.p0list.blockSignals(False)
+        for i in range(1, self.parent.count()):
+            self.parent.setTabEnabled(i, False)
+        self.filter_button.setEnabled(True)
+        self.new_button.setEnabled(True)
+        self.enable_buttons(False)
 
         self.parent.rereadlist = False
         items = self.parent.data.items()
-        if items is None or len(items) == 0:
-            print('list is empty')
+        if items is None:
+            self.parent.parent.sbar.showMessage('No selection?')
+            return
+        if len(items) == 0:
+            self.parent.parent.sbar.showMessage('Selection is empty, '
+                'try adjusting the filter')
             return
 
+        for i in range(1, self.parent.count()):
+            self.parent.setTabEnabled(i, True)
+        self.enable_buttons(True)
         for key, data in items:
             if XML_VERSION:
                 actie, _, soort, status, l_wijz, titel = data
@@ -477,8 +433,7 @@ class Page0(Page):
             ## idx = self.p0list.InsertStringItem(sys.maxint, actie)
             new_item = gui.QTreeWidgetItem()
             new_item.setText(0, actie)
-            new_item.setData(0, core.Qt.UserRole, actie if XML_VERSION else
-                key if SQL_VERSION else '')
+            new_item.setData(0, core.Qt.UserRole, actie)
             pos = soort.index(".") + 1
             new_item.setText(1, soort[pos:pos+1].upper())
             pos = status.index(".") + 1
@@ -508,17 +463,12 @@ class Page0(Page):
     def on_change_selected(self, item_n, item_o): # Done
         """callback voor wijzigen geselecteerd item, o.a. door verplaatsen van de
         cursor of door klikken"""
-        print('selected item')
-        print(item_n)
-        print(self.p0list.currentItem())
         if item_n is None: # o.a. self.p0list.clear() veroorzaakt dit
             return
         self.parent.current_item = item_n # self.p0list.currentItem()
-        ## for row in range(self.p0list.topLevelItemCount()):
-            ## if self.p0list.topLevelItem(row) ==
-        selindx = self.parent.current_item.data(0, core.Qt.UserRole).toPyObject()
-        selindx = str(selindx) if XML_VERSION else int(selindx)
-        self.readp(selindx)
+        if not self.parent.newitem:
+            selindx = data2str(self.parent.current_item.data(0, core.Qt.UserRole))
+            self.readp(selindx)
         hlp = "&Herleef" if self.parent.pagedata.arch else "&Archiveer"
         self.archive_button.setText(hlp)
 
@@ -560,7 +510,7 @@ class Page0(Page):
         self.colorize()
         print('ready')
 
-    def select_items(self, evt = None): # Done, untested
+    def select_items(self, evt=None): # Done, untested
         """tonen van de selectie dialoog
 
         niet alleen selecteren op tekst(deel) maar ook op status, soort etc"""
@@ -578,7 +528,7 @@ class Page0(Page):
                 break
         ## self.parent.parent.zetfocus(0)
 
-    def sort_items(self, evt = None): # Done
+    def sort_items(self, evt=None): # Done
         """tonen van de sorteer-opties dialoog
 
         sortering mogelijk op datum/tijd, soort, titel, status via schermpje met
@@ -590,10 +540,10 @@ class Page0(Page):
             # self.colorize() # formerly known as self.AfterSort()
         ## self.parent.parent.zetfocus(0)
 
-    def archiveer(self, evt = None): # Done, untested
+    def archiveer(self, evt=None): # Done, untested
         "archiveren of herleven van het geselecteerde item"
-        selindx = self.parent.current_item.data(0, core.Qt.UserRole).toPyObject()
-        selindx = str(selindx) if XML_VERSION else int(selindx)
+        selindx = self.parent.current_item.data(0, core.Qt.UserRole)
+        selindx = data2str(selindx) if XML_VERSION else data2int(selindx)
         self.readp(selindx)
         if XML_VERSION:
             self.parent.pagedata.arch = not self.parent.pagedata.arch
@@ -611,9 +561,15 @@ class Page0(Page):
             hlp = "&Herleef" if self.parent.pagedata.arch else "&Archiveer"
             self.archive_button.setText(hlp)
 
-    def enable_buttons(self, state = True): # Done
-        "zorgen dat de gelijknamige methode van de base class niet wordt geactiveerd"
-        pass
+    def enable_buttons(self, state=True, all=False): # Done
+        "buttons wel of niet bruikbaar maken"
+        self.sort_button.setEnabled(state)
+        self.go_button.setEnabled(state)
+        self.archive_button.setEnabled(state)
+        if all:
+            self.filter_button.setEnabled(state)
+            self.new_button.setEnabled(state)
+
 
 class Page1(Page):
     "pagina 1: startscherm actie"
@@ -728,14 +684,6 @@ class Page1(Page):
 
         self.setLayout(sizer0)
 
-    ## def event(self, event):
-        ## print("in {}.event: {}".format(self.__class__, event.type()))
-        ## return Page.event(self, event)
-    def hideEvent(self, event):
-        return Page.hideEvent(self, event)
-    def showEvent(self, event):
-        return Page.showEvent(self, event)
-
     def vulp(self, evt=None): # Done, untested
         """te tonen gegevens invullen in velden e.a. initialisaties
 
@@ -769,14 +717,14 @@ class Page1(Page):
                 self.desc_entry.setText(self.parent.pagedata.titel)
             ## print(self.parent.pagedata.status)
             for x in range(len(self.parent.stats)):
-                y = str(self.stat_choice.itemData(x).toPyObject())
+                y = data2str(self.stat_choice.itemData(x))
                 ## print(x, y)
                 if y == self.parent.pagedata.status:
                     self.stat_choice.setCurrentIndex(x)
                     break
             ## print(self.parent.pagedata.soort)
             for x in range(len(self.parent.cats)):
-                y = str(self.cat_choice.itemData(x).toPyObject())
+                y = data2str(self.cat_choice.itemData(x))
                 ## print(x, y)
                 if y == self.parent.pagedata.soort:
                     self.cat_choice.setCurrentIndex(x)
@@ -792,6 +740,7 @@ class Page1(Page):
             aanuit = True
             self.archive_text.setText("")
             self.archive_button.setText("Archiveren")
+        print('velden aktiveren:', aanuit, self.parch)
         self.id_text.setEnabled(False)
         self.date_text.setEnabled(False)
         self.proc_entry.setEnabled(aanuit)
@@ -820,9 +769,9 @@ class Page1(Page):
                 "Beide tekstrubrieken moeten worden ingevuld")
             return False
         wijzig = False
-        if self.parent.newitem:
-            self.parent.pagedata.events.append(
-                (get_dts(), "Actie opgevoerd"))
+        ## if self.parent.newitem:
+            ## self.parent.pagedata.events.append(
+                ## (get_dts(), "Actie opgevoerd"))
         procdesc = " - ".join((proc, desc))
         if procdesc != self.parent.pagedata.titel:
             if XML_VERSION:
@@ -834,7 +783,7 @@ class Page1(Page):
                 (get_dts(), 'Titel gewijzigd in "{0}"'.format(procdesc)))
             wijzig = True
         idx = self.stat_choice.currentIndex()
-        newstat = str(self.stat_choice.itemData(idx).toPyObject())
+        newstat = data2str(self.stat_choice.itemData(idx))
         if newstat != self.parent.pagedata.status:
             self.parent.pagedata.status = newstat
             sel = str(self.stat_choice.currentText())
@@ -842,7 +791,7 @@ class Page1(Page):
                 (get_dts(), 'Status gewijzigd in "{0}"'.format(sel)))
             wijzig = True
         idx = self.cat_choice.currentIndex()
-        newcat = str(self.cat_choice.itemData(idx).toPyObject())
+        newcat = data2str(self.cat_choice.itemData(idx))
         if newcat != self.parent.pagedata.soort:
             self.parent.pagedata.soort = newcat
             sel = str(self.cat_choice.currentText())
@@ -855,9 +804,13 @@ class Page1(Page):
             self.parent.pagedata.events.append(
                 (get_dts(), "Actie {0}".format(hlp)))
             wijzig = True
+        print('Page 1 middenin', self.parent.pagedata.__dict__['events'])
         if wijzig:
+            # wijzigen/toevoegen in de database
             self.update_actie()
+            print('na updaten database', self.parent.pagedata.__dict__['events'])
             if self.parent.newitem:
+                # nieuwe entry maken in de tabel voor panel 0
                 self.parent.current_item = len(self.parent.data) # + 1
                 self.parent.data[self.parent.current_item] = (
                     str(self.date_text.text()),
@@ -866,19 +819,33 @@ class Page1(Page):
                     int(self.stat_choice.currentIndex()),
                     int(self.cat_choice.currentIndex()),
                     str(self.id_text.text()))
+                # ook nieuwe entry maken in de visuele tree
+                new_item = gui.QTreeWidgetItem()
+                new_item.setData(0, self.parent.current_item, core.Qt.UserRole)
+                self.parent.page0.p0list.addTopLevelItem(new_item)
+                self.parent.page0.p0list.setCurrentItem(new_item)
                 self.parent.newitem = False
                 self.parent.rereadlist = True
+                self.parent.page0.enable_buttons(True)
+            # teksten op panel 0 bijwerken
             self.parent.page0.p0list.currentItem().setText(1,
                 self.parent.pagedata.get_soorttext()[0].upper()) # self.parent.pagedata.soort)[0][0].upper())
             self.parent.page0.p0list.currentItem().setText(2,
                 self.parent.pagedata.get_statustext()) # self.parent.pagedata.status)[0])
             self.parent.page0.p0list.currentItem().setText(3,
                 self.parent.pagedata.updated)
-            self.parent.page0.p0list.currentItem().setText(4,
-                self.parent.pagedata.titel)
+            if XML_VERSION:
+                self.parent.page0.p0list.currentItem().setText(4,
+                    self.parent.pagedata.titel)
+            elif SQL_VERSION:
+                self.parent.page0.p0list.currentItem().setText(4,
+                    self.parent.pagedata.over)
+                self.parent.page0.p0list.currentItem().setText(5,
+                    self.parent.pagedata.titel)
             self.oldbuf = (str(self.proc_entry.text()), str(self.desc_entry.text()),
                 int(self.stat_choice.currentIndex()),
                 int(self.cat_choice.currentIndex()))
+        print("Eind page 1 savep", self.parent.pagedata.__dict__['events'])
         return True
 
     def archiveer(self, evt=None): # Done, untested
@@ -955,27 +922,15 @@ class Page6(Page):
         sizer0.addLayout(sizer2)
         self.setLayout(sizer0)
 
-    ## def event(self, event):
-        ## print("in {}.event: {}".format(self.__class__, event.type()))
-        ## return Page.event(self, event)
-    def hideEvent(self, event):
-        return Page.hideEvent(self, event)
-    def showEvent(self, event):
-        return Page.showEvent(self, event)
-
     def vulp(self, evt=None):  # Done, untested
         """te tonen gegevens invullen in velden e.a. initialisaties
 
         methode aan te roepen voorafgaand aan het tonen van de pagina"""
-        print('\nvulp Page 6', file=self._out)
         Page.vulp(self)
         self.initializing = True
         self.event_list, self.event_data, self.old_list, self.old_data = [], [], [], []
         self.progress_text.clear()
         self.progress_text.setReadOnly(True)
-        # om te zien of de volgende if nodig is
-        if self.parent.newitem:
-            print('bij nieuw item:', self.parent.pagedata)
         if self.parent.pagedata: # and not self.parent.newitem:
             self.event_list = [x[0] for x in self.parent.pagedata.events]
             self.event_list.reverse()
@@ -1072,7 +1027,7 @@ class Page6(Page):
             print('supposedly Shift-Ctrl-N was pressed')
         if self.initializing:
             return
-        if item is None or int(item.data(core.Qt.UserRole).toPyObject()) == -1:
+        if item is None or data2int(item.data(core.Qt.UserRole)) == -1:
             print("adding new item", file = self._out)
             datum, self.oldtext = get_dts(), ''
             newitem = gui.QListWidgetItem('{} - {}'.format(datum, self.oldtext))
@@ -1107,7 +1062,7 @@ class Page6(Page):
             ## # de event_data tabel, zie opmerking aldaar)
             ## print('bijwerken vorig item in interne tabel')
             ## text = item_o.text()
-            ## indx = int(item_o.data(core.Qt.UserRole).toPyObject())
+            ## indx = data2int(item_o.data(core.Qt.UserRole)
             ## if indx > -1:
                 ## datum = text.split(' - ')[0]
                 ## tekst = str(self.progress_text.toPlainText()) # self.progress_list.GetItemText(idx)
@@ -1120,7 +1075,7 @@ class Page6(Page):
                     ## self.progress_list.SetItemData(indx, indx - 1)
         if item_n is None:
             return
-        text, indx = item_n.text(), int(item_n.data(core.Qt.UserRole).toPyObject())
+        text, indx = item_n.text(), data2int(item_n.data(core.Qt.UserRole))
         print('ophalen data huidige item', indx, file=self._out)
         self.current_item = self.progress_list.currentRow() # item_n # self.currentItem()
         if indx == -1:
@@ -1737,7 +1692,7 @@ class MainWindow(gui.QMainWindow):
                     self.filepad = ""
             self.dirname, self.filename = os.path.split(self.filepad)
         elif SQL_VERSION:
-            self.filename = ""
+            self.filename = "" # fnaam werkt niet omdat ...?
 
         if LIN:
             wide, high, left, top = 864, 720, 2, 2
@@ -1760,13 +1715,15 @@ class MainWindow(gui.QMainWindow):
         self.exit_button.clicked.connect(self.exit_app)
         self.doelayout(pnl)
         self.book.page6._out = open("probreg_page6.log", "w")
+        if self.filename:
+            test = self.startfile()
+            if test:
+                self.filename = ""
         if self.filename == "":
             if XML_VERSION:
                 self.open_xml()
             elif SQL_VERSION:
                 self.open_sql()
-        else:
-            self.startfile()
         self.initializing = False
         self.zetfocus(0) # book.page0.SetFocus()
 
@@ -1908,6 +1865,8 @@ class MainWindow(gui.QMainWindow):
         self.book.page5.doelayout()
         self.book.addTab(self.book.page6, "&" + self.book.tabs[6])
         self.book.page6.doelayout()
+        for i in range(1, self.book.count()):
+            self.book.setTabEnabled(i, False)
 
 
     def doelayout(self, pnl):
@@ -1926,23 +1885,25 @@ class MainWindow(gui.QMainWindow):
         "Menukeuze: nieuw file"
         self.newfile = False
         self.dirname = os.getcwd()
-        name = gui.QFileDialog.getSaveFileName(self,
+        fname = gui.QFileDialog.getSaveFileName(self,
             self.title + " - nieuw gegevensbestand",
-            self.dirname, "", "XML files (*.xml);;all files (*.*)")
-        if name:
-            self.filename, self.dirname = os.path.split(fname)
+            self.dirname, "XML files (*.xml);;all files (*.*)")
+        if fname:
+            self.dirname, self.filename = os.path.split(str(fname))
             self.newfile = True
             self.startfile()
             self.newfile = False
+            for i in range(1, self.book.count()):
+                self.book.setTabEnabled(i, False)
 
     def open_xml(self, evt=None):   # Done
         "Menukeuze: open file"
         self.dirname = os.getcwd()
         fname = gui.QFileDialog.getOpenFileName(self,
             self.title + " - kies een gegevensbestand",
-            self.dirname, "", "XML files (*.xml);;all files (*.*)")
+            self.dirname, "XML files (*.xml);;all files (*.*)")
         if fname:
-            self.filename, self.dirname = os.path.split(fname)
+            self.dirname, self.filename = os.path.split(str(fname))
             self.startfile()
 
     def open_sql(self, evt=None):   # Done, untested
@@ -1956,16 +1917,17 @@ class MainWindow(gui.QMainWindow):
         data = data # [1:]
         data.sort()
         print(self.filename)
+        choice = 0
         for idx, h in enumerate(data):
             print(h)
             if h[0] == self.filename or \
-                    (self.filename == "_basic" and h[0] == "Basic"):
-                choice = h[0] # idx
+                    (self.filename == "_basic" and h[0] == "Demo"):
+                choice = idx
                 break
         # combobox versie
         choice, ok = gui.QInputDialog.getItem(self, 'Probreg SQL versie',
             'Kies een project om te openen', [": ".join((h[1],h[2])) for h in data],
-            current = idx, editable=False)
+            current = choice, editable=False)
         ## # listbox versie
         ## dlg = gui.QInputDialog(self)
         ## dlg.setInputMode(gui.QInputDialog.TextInput)
@@ -1977,8 +1939,8 @@ class MainWindow(gui.QMainWindow):
         ## ok = dlg.exec_() # need a way to transfer the actual choice
         ## if ok == gui.QDialog.Accepted():
         if ok:
-            self.filename = choice
-            if self.filename == "Basic":
+            self.filename = str(choice).split(': ')[0]
+            if self.filename == "Demo":
                 self.filename = "_basic"
             self.startfile()
 
@@ -1997,6 +1959,11 @@ class MainWindow(gui.QMainWindow):
                 actie = str(item.text(0))
                 started = ''
                 soort =  str(item.text(1))
+                for x in self.book.cats.values():
+                    oms, code = x[0], x[1]
+                    if code == soort:
+                        soort = oms
+                        break
                 status = str(item.text(2))
                 l_wijz = str(item.text(3))
                 titel =  str(item.text(4))
@@ -2005,13 +1972,17 @@ class MainWindow(gui.QMainWindow):
                     titel = str(item.text(5))
                     l_wijz = l_wijz[:19]
                     actie = actie + " - " + over
+                    ## started = ... # staat niet in het scherm, zou je uit de page tabel moeten halen
                     started = started[:19]
-                if l_wijz:
-                    l_wijz = ", laatst behandeld op " + l_wijz
                 if status != self.book.stats[0][0]:
-                    l_wijz = "status: {}, {}".format(status, l_wijz)
+                    if l_wijz:
+                        l_wijz = ", laatst behandeld op " + l_wijz
+                    l_wijz = "status: {}{}".format(status, l_wijz)
                 else:
-                    l_wijz = "status: {}".format(status)
+                    hlp = "status: {}".format(status)
+                    if l_wijz and not started:
+                        hlp += ' op {}'.format(l_wijz)
+                    l_wijz = hlp
                 lijst.append((actie, titel, soort, started, l_wijz))
             self.printdict['lijst'] = lijst
         elif self.book.current_tab == 1:
@@ -2044,12 +2015,10 @@ class MainWindow(gui.QMainWindow):
                 events.append((data, self.book.page6.event_data[idx].replace('\n',
                     '<br>')))
             self.printdict['events'] = events
-        print('alles voorbereid voor printen scherm')
         self.preview()
 
     def print_actie(self, evt = None):  # Done
         "Menukeuze: print deze actie"
-        print('printing current issue')
         if self.book.pagedata is None or self.book.newitem:
             # afbreken met melding geen actie geselecteerd
             dlg = gui.QMessageBox.information(self,
@@ -2086,7 +2055,6 @@ class MainWindow(gui.QMainWindow):
             'status': stat,
             }
         empty = "(nog niet beschreven)"
-        print(self.book.tabs)
         sections = [[title.split(None, 1)[1], ''] for key, title in
             self.book.tabs.items() if key > 2]
         sections[0][1] = self.book.pagedata.melding.replace('\n', '<br>') or empty
@@ -2098,7 +2066,6 @@ class MainWindow(gui.QMainWindow):
         self.printdict['sections'] = sections
         self.printdict['events'] = [(x, y.replace('\n', '<br>')) for x, y in
             self.book.pagedata.events] or []
-        print('alles voorbereid voor printen actie')
         self.preview()
 
     def exit_app(self, evt = None): # Done
@@ -2194,8 +2161,8 @@ class MainWindow(gui.QMainWindow):
             fullname = os.path.join(self.dirname, self.filename)
             retval = checkfile(fullname, self.newfile)
             if retval != '':
-                gui.QMessageBox.info(self, "Oeps", retval)
-                return
+                gui.QMessageBox.information(self, "Oeps", retval)
+                return retval
             self.book.fnaam = fullname
             self.title = self.filename
         elif SQL_VERSION:
@@ -2230,21 +2197,21 @@ class MainWindow(gui.QMainWindow):
         "Voorgestelde oplossing",
         "Eventuele vervolgactie(s)",
         "Overzicht stand van zaken"]
-        for item_value, item in data.stat.iteritems():
+        for item_value, item in data.stat.items():
             if XML_VERSION:
                 item_text, sortkey = item
                 self.book.stats[int(sortkey)] = (item_text, item_value)
             elif SQL_VERSION:
                 item_text, sortkey, row_id = item
                 self.book.stats[int(sortkey)] = (item_text, item_value, row_id)
-        for item_value, item in data.cat.iteritems():
+        for item_value, item in data.cat.items():
             if XML_VERSION:
                 item_text, sortkey = item
                 self.book.cats[int(sortkey)] = (item_text, item_value)
             elif SQL_VERSION:
                 item_text, sortkey, row_id = item
                 self.book.cats[int(sortkey)] = (item_text, item_value, row_id)
-        for tab_num, tab_text in data.kop.iteritems():
+        for tab_num, tab_text in data.kop.items():
             if XML_VERSION:
                 self.book.tabs[int(tab_num)] = " ".join((tab_num, tab_text))
             elif SQL_VERSION:
@@ -2262,7 +2229,7 @@ class MainWindow(gui.QMainWindow):
             settings.kop = data
             settings.write()
             self.book.tabs = {}
-            for item_value, item_text in data.iteritems():
+            for item_value, item_text in data.items():
                 ## if XML_VERSION:
                     ## tabtext = " ".join((item_value, item_text))
                     ## self.book.tabs[item_value] = tabtext
@@ -2275,7 +2242,7 @@ class MainWindow(gui.QMainWindow):
             settings.stat = data
             settings.write()
             self.book.stats = {}
-            for item_value, item in data.iteritems():
+            for item_value, item in data.items():
                 if XML_VERSION:
                     item_text, sortkey = item
                     self.book.stats[sortkey] = (item_text, item_value)
@@ -2286,7 +2253,7 @@ class MainWindow(gui.QMainWindow):
             settings.cat = data
             settings.write()
             self.book.cats = {}
-            for item_value, item in data.iteritems():
+            for item_value, item in data.items():
                 if XML_VERSION:
                     item_text, sortkey = item
                     self.book.cats[sortkey] = (item_text, item_value)
@@ -2311,6 +2278,10 @@ class MainWindow(gui.QMainWindow):
         ## sel = self.book.GetSelection() # unused
         if LIN and old == -1: # bij initialisatie en bij afsluiten - op Windows is deze altijd -1?
             return
+        print("enabling tabs in on_page_changing to", newtabnum)
+        for i in range(self.book.count()):
+            if i != self.book.current_tab:
+                self.book.setTabEnabled(i, True)
         if new == 0:
             self.book.page0.vulp()
         elif new == 1:
@@ -2359,7 +2330,7 @@ class MainWindow(gui.QMainWindow):
         ## prt = dlg.printer()
         ## print(self.printdict)
         doc = gui.QTextDocument(self)
-        html = Template(filename='actie.tpl').render(**self.printdict)
+        html = Template(filename='probreg/actie.tpl').render(**self.printdict)
         ## print(html)
         doc.setHtml(html)
         printer.setOutputFileName(self.hdr)
@@ -2378,12 +2349,12 @@ def main(arg=None, log=False):
             format='%(asctime)s %(message)s')
     if arg is None:
         globals()["SQL_VERSION"] = True
-        from dml_sql import DataError, get_acties, Actie, Settings
-        from config_sql import APPS
+        from probreg.dml_sql import DataError, get_acties, Actie, Settings
+        from probreg.config_sql import APPS
         globals()["APPS"] = APPS
     else:
         globals()["XML_VERSION"] = True
-        from dml_xml import DataError, checkfile, get_acties, Actie, Settings
+        from probreg.dml_xml import DataError, checkfile, get_acties, Actie, Settings
         globals()["checkfile"] = checkfile
     globals()["DataError"] = DataError
     globals()["get_acties"] = get_acties
