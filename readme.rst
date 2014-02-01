@@ -6,25 +6,22 @@ developed for. It's actually a port of a mainframe application I built over twen
 years ago after a colleague's design, in which our team meant to keep track of
 various issues occurring with the applications we maintained.
 
-When I made the PC version, I added configurable categories and statuses,
-and after some time using it for myself I decided I needed some more detailed
-progress reporting so I added the rightmost panel.
-
 This application was built using Python with wxPython for the GUI bit and
 ElementTree XML processing for the data handling bit.
-A while ago I made a web version using the Django framework, switching to Sqlite
+A while ago I made a web version using the Django framework (see
+`ActieReg </avisser/actiereg/>`_ , switching to Sqlite
 for the data stuff and adding some user management.
 
-Shortly after that I decided to modify the standalone version to be able to
-communicate with the Django version, which meant some changes in the GUI and
-switching from XML to SQL.
-Since I still use the XML version for my personal task management at work, it
-survived the makeover so this repository now contains both versions.
-
-Lately I decided to combine the two versions into one codebase.
+I also adapted this version to work with the same data as the Django version.
 Starting the application with or without an argument determines which version
 is used, but both versions have a startup script.
 
+
+Usage
+-----
+
+Call ``pr_start.py`` from the top directory. Use a filename or an empty string as
+first argument to indicate you want the xml version.
 
 Requirements
 ------------
