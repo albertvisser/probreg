@@ -17,6 +17,7 @@ from mako.template import Template
 import probreg.pr_globals as pr
 XML_VERSION = SQL_VERSION = False
 sortorder = {"A": core.Qt.AscendingOrder, "D": core.Qt.DescendingOrder}
+HERE = os.path.dirname(__file__)
 
 def get_dts():
     "routine om een geformatteerd date/time stamp te verkrijgen"
@@ -36,17 +37,257 @@ def data2int(data):
     else:
         return int(data)
 
+def tabsize(pointsize):
+     "pointsize omrekenen in pixels t.b.v. (gemiddelde) tekenbreedte"
+     x, y = divmod(pointsize * 8, 10)
+     return x * 4 if y < 5 else (x + 1) * 4
+
+class EditorPanel(gui.QTextEdit):
+    "Rich text editor displaying the selected note"
+
+    def __init__(self, parent):
+        self.parent = parent.parent.parent
+        gui.QTextEdit.__init__(self)
+        self.setAcceptRichText(True)
+        ## self.setTabChangesFocus(True)
+        self.setAutoFormatting(gui.QTextEdit.AutoAll)
+        self.currentCharFormatChanged.connect(self.charformat_changed)
+        self.cursorPositionChanged.connect(self.cursorposition_changed)
+        font = self.currentFont()
+        self.setTabStopWidth(tabsize(font.pointSize()))
+
+    def canInsertFromMimeData(self, source):
+        if source.hasImage:
+            return True
+        else:
+            return gui.QTextEdit.canInsertFromMimeData(source)
+
+    def insertFromMimeData(self, source):
+        if source.hasImage():
+            image = source.imageData()
+            if sys.version < '3':
+                image = gui.QImage(image)
+            cursor = self.textCursor()
+            document = self.document()
+            num = self.parent.opts['ImageCount']
+            num += 1
+            self.parent.opts['ImageCount'] = num
+            urlname = '{}_{:05}.png'.format(self.parent.project_file,  num)
+            ok = image.save(urlname)
+            urlname = os.path.basename(urlname) # make name "relative"
+            document.addResource(gui.QTextDocument.ImageResource,
+                core.QUrl(urlname), image)
+            cursor.insertImage(urlname)
+        else:
+            gui.QTextEdit.insertFromMimeData(self, source)
+
+    def set_contents(self, data):
+        "load contents into editor"
+        self.setHtml(data)
+        fmt = gui.QTextCharFormat()
+        self.charformat_changed(fmt)
+        self.oldtext = data
+
+    def get_contents(self):
+        "return contents from editor"
+        return self.toHtml()
+
+    def text_bold(self, event=None):
+        "selectie vet maken"
+        if not self.hasFocus():
+            return
+        fmt = gui.QTextCharFormat()
+        if self.parent.actiondict['&Bold'].isChecked():
+            fmt.setFontWeight(gui.QFont.Bold)
+        else:
+            fmt.setFontWeight(gui.QFont.Normal)
+        self.mergeCurrentCharFormat(fmt)
+
+    def text_italic(self, event=None):
+        "selectie schuin schrijven"
+        if not self.hasFocus():
+            return
+        fmt = gui.QTextCharFormat()
+        fmt.setFontItalic(self.parent.actiondict['&Italic'].isChecked())
+        self.mergeCurrentCharFormat(fmt)
+
+    def text_underline(self, event=None):
+        "selectie onderstrepen"
+        if not self.hasFocus():
+            return
+        fmt = gui.QTextCharFormat()
+        fmt.setFontUnderline(self.parent.actiondict['&Underline'].isChecked())
+        self.mergeCurrentCharFormat(fmt)
+
+    def case_lower(self, event=None):
+        pass
+
+    def case_upper(self, event=None):
+        pass
+
+    def indent_more(self, event=None):
+        "alinea verder laten inspringen"
+        if not self.hasFocus():
+            return
+        loc = self.textCursor()
+        where = loc.block()
+        ## fmt = gui.QTextBlockFormat()
+        fmt = where.blockFormat()
+        wid = fmt.indent()
+        print('indent_more called, current indent is {}'.format(wid))
+        fmt.setIndent(wid + 1)
+        print('indent_more called, indent aangepast naar {}'.format(fmt.indent()))
+        loc.mergeBlockFormat(fmt)
+        # maar hier is geen merge methode voor, lijkt het...
+
+    def indent_less(self, event=None):
+        "alinea minder ver laten inspringen"
+        if not self.hasFocus():
+            return
+        loc = self.textCursor()
+        where = loc.block()
+        ## fmt = gui.QTextBlockFormat()
+        fmt = where.blockFormat()
+        wid = fmt.indent()
+        print('indent_less called, current indent is {}'.format(wid))
+        if wid >= 1:
+            fmt.setIndent(wid - 1)
+        print('indent_less called, indent aangepast naar {}'.format(fmt.indent()))
+        loc.mergeBlockFormat(fmt)
+
+    def text_font(self, event=None):
+        "lettertype en/of -grootte instellen"
+        if not self.hasFocus():
+            return
+        font, ok = gui.QFontDialog.getFont(self.currentFont(), self)
+        if ok:
+            fmt = gui.QTextCharFormat()
+            fmt.setFont(font)
+            ## pointsize = float(font.pointSize())
+            self.setTabStopWidth(tabsize(font.pointSize()))
+            self.mergeCurrentCharFormat(fmt)
+
+    def text_family(self, family):
+        "lettertype instellen"
+        fmt = gui.QTextCharFormat()
+        fmt.setFontFamily(family);
+        self.mergeCurrentCharFormat(fmt)
+        self.setFocus()
+
+    def enlarge_text(self, event=None):
+        size = self.parent.combo_size.currentText()
+        indx = self.parent.fontsizes.index(size)
+        if indx < len(self.parent.fontsizes) - 1:
+            self.text_size(self.parent.fontsizes[indx + 1])
+
+    def shrink_text(self, event=None):
+        size = self.parent.combo_size.currentText()
+        indx = self.parent.fontsizes.index(size)
+        if indx > 0:
+            self.text_size(self.parent.fontsizes[indx - 1])
+
+    def linespacing_1(self, event=None):
+        pass
+
+    def linespacing_15(self, event=None):
+        pass
+
+    def linespacing_2(self, event=None):
+        pass
+
+    def increase_paragraph_spacing(self, event=None):
+        pass
+
+    def decrease_paragraph_spacing(self, event=None):
+        pass
+
+    def text_size(self, size):
+        "lettergrootte instellen"
+        pointsize = float(size)
+        if pointsize > 0:
+            fmt = gui.QTextCharFormat()
+            fmt.setFontPointSize(pointsize)
+            self.setTabStopWidth(tabsize(pointsize))
+            self.mergeCurrentCharFormat(fmt)
+            self.setFocus()
+
+    def charformat_changed(self, format):
+        "wordt aangeroepen als het tekstformat gewijzigd is"
+        self.font_changed(format.font());
+        ## self.color_changed(format.foreground().color())
+        ## backg = format.background()
+        ## if int(backg.style()) == 0: # nul betelkent transparant
+            ## bgcol = core.Qt.white # eigenlijk standaardkleur, niet per se wit
+        ## else:
+            ## bgcol = backg.color()
+        ## self.background_changed(bgcol)
+
+    def cursorposition_changed(self):
+        "wordt aangeroepen als de cursorpositie gewijzigd is"
+        pass # self.alignment_changed(self.alignment())
+
+    def font_changed(self, font):
+        """fontgegevens aanpassen
+
+        de selectie in de comboboxen wordt aangepast, de van toepassing zijnde
+        menuopties worden aangevinkt, en en de betreffende toolbaricons worden
+        geaccentueerd"""
+        self.parent.combo_font.setCurrentIndex(
+            self.parent.combo_font.findText(gui.QFontInfo(font).family()))
+        self.parent.combo_size.setCurrentIndex(
+            self.parent.combo_size.findText(str(font.pointSize())))
+        self.parent.actiondict["&Bold"].setChecked(font.bold())
+        self.parent.actiondict["&Italic"].setChecked(font.italic())
+        self.parent.actiondict["&Underline"].setChecked(font.underline())
+
+    def mergeCurrentCharFormat(self, format):
+        "de geselecteerde tekst op de juiste manier weergeven"
+        cursor = self.textCursor()
+        if not cursor.hasSelection():
+            cursor.select(gui.QTextCursor.WordUnderCursor)
+        cursor.mergeCharFormat(format)
+        gui.QTextEdit.mergeCurrentCharFormat(self, format)
+
+    def _check_dirty(self):
+        "check for modifications"
+        return self.document().isModified()
+
+    def _mark_dirty(self, value):
+        "manually turn modified flag on/off (mainly intended for off)"
+        self.document().setModified(value)
+
+    def _openup(self, value):
+        "make text accessible (or not)"
+        self.setReadOnly(not value)
+
+
 class Page(gui.QFrame):
     "base class for notebook page"
-    def __init__(self, parent, standard=True): # Done
+    def __init__(self, parent, pageno, standard=True): # Done
         self.parent = parent
         gui.QFrame.__init__(self, parent)
         if not standard:
             return
         high = 330 if LIN else 430
-        self.text1 = gui.QTextEdit(self)
+        self.text1 = EditorPanel(self)
         self.text1.resize(490, high)
         self.text1.textChanged.connect(self.on_text)
+        self.parent.textcallbacks[pageno] = {
+            '&Bold': self.text1.text_bold,
+            '&Italic': self.text1.text_italic,
+            '&Underline': self.text1.text_underline,
+            "&Enlarge text": self.text1.enlarge_text,
+            "&Shrink text": self.text1.shrink_text,
+            'To &Lower Case': self.text1.case_lower,
+            'To &Upper Case': self.text1.case_upper,
+            "Indent &More": self.text1.indent_more,
+            "Indent &Less": self.text1.indent_less,
+            "Normal Line Spacing": self.text1.linespacing_1,
+            "1.5 Line Spacing": self.text1.linespacing_15,
+            "Double Line Spacing": self.text1.linespacing_2,
+            "Increase Paragraph &Spacing": self.text1.increase_paragraph_spacing,
+            "Decrease &Paragraph Spacing": self.text1.decrease_paragraph_spacing,
+            }
         self.save_button = gui.QPushButton('Sla wijzigingen op (Ctrl-S)', self)
         self.save_button.clicked.connect(self.savep)
         action = gui.QShortcut('Ctrl+S', self, self.savepfromkey)
@@ -91,7 +332,21 @@ class Page(gui.QFrame):
             text))
         self.parent.parent.sbar.showMessage(
             self.parent.pagehelp[self.parent.current_tab])
+        print(self.parent.current_tab, self.parent.parent.toolbar,
+            self.parent.parent.toolbar.isHidden(),
+            self.parent.parent.toolbar.isVisible())
         if 1 < self.parent.current_tab < 6:
+            if self.parent.parent.toolbar and self.parent.parent.toolbar.isHidden():
+                self.parent.parent.toolbar.show()
+            for key, action in self.parent.parent.actiondict.items():
+                action.triggered.connect(
+                    self.parent.textcallbacks[self.parent.current_tab][key])
+            self.parent.parent.combo_font.activated[str].connect(
+                self.text1.text_family)
+            self.parent.parent.combo_size.activated[str].connect(
+                self.text1.text_size)
+            self.text1.font_changed(self.text1.font())
+            self.parent.editor = self.text1
             self.oldbuf = ''
             if self.parent.pagedata is not None:
                 if self.parent.current_tab == 2 and self.parent.pagedata.melding:
@@ -108,6 +363,10 @@ class Page(gui.QFrame):
                     ## self.text1.setReadOnly(False)
                 self.text1.setReadOnly(self.parent.pagedata.arch)
             self.text1.setText(self.oldbuf)
+        else:
+            if self.parent.parent.toolbar and self.parent.parent.toolbar.isVisible():
+                self.parent.parent.toolbar.hide()
+            self.Editor = None
         self.initializing = False
         self.parent.checked_for_leaving = True
 
@@ -292,7 +551,7 @@ class Page0(Page):
     "pagina 0: overzicht acties"
     def __init__(self, parent): # Done
         self.parent = parent
-        Page.__init__(self, parent, standard=False)
+        Page.__init__(self, parent, pageno=0, standard=False)
         self.selection = 'excl. gearchiveerde'
         self.sel_args = {}
         self.sorted = (0, "A")
@@ -574,7 +833,7 @@ class Page0(Page):
 class Page1(Page):
     "pagina 1: startscherm actie"
     def __init__(self, parent): # Done
-        Page.__init__(self, parent, standard=False)
+        Page.__init__(self, parent, pageno=1, standard=False)
 
         self.id_text = gui.QLineEdit(self)
         self.id_text.setMaximumWidth(120)
@@ -872,7 +1131,7 @@ class Page1(Page):
 class Page6(Page):
     "pagina 6: voortgang"
     def __init__(self, parent): # Done (almost)
-        Page.__init__(self, parent, standard=False)
+        Page.__init__(self, parent, pageno=6, standard=False)
         self.current_item = 0
         self.oldtext = ""
         sizes = 200, 100 if LIN else 280, 110
@@ -885,12 +1144,28 @@ class Page6(Page):
         self.progress_list.itemActivated.connect(self.on_activate_item)
         action = gui.QShortcut('Shift+Ctrl+N', self, functools.partial(
             self.on_activate_item, self.progress_list.item(0)))
-        self.progress_text = gui.QTextEdit(self)
+        self.progress_text = EditorPanel(self)
         ## self.resize(500, high)
         self.progress_text.textChanged.connect(self.on_text)
         self.pnl.addWidget(self.progress_list)
         self.pnl.addWidget(self.progress_text)
         ## self.pnl.setSizes(sizes)
+        self.parent.textcallbacks[6] = {
+            '&Bold': self.progress_text.text_bold,
+            '&Italic': self.progress_text.text_italic,
+            '&Underline': self.progress_text.text_underline,
+            "&Enlarge text": self.progress_text.enlarge_text,
+            "&Shrink text": self.progress_text.shrink_text,
+            'To &Lower Case': self.progress_text.case_lower,
+            'To &Upper Case': self.progress_text.case_upper,
+            "Indent &More": self.progress_text.indent_more,
+            "Indent &Less": self.progress_text.indent_less,
+            "Normal Line Spacing": self.progress_text.linespacing_1,
+            "1.5 Line Spacing": self.progress_text.linespacing_15,
+            "Double Line Spacing": self.progress_text.linespacing_2,
+            "Increase Paragraph &Spacing": self.progress_text.increase_paragraph_spacing,
+            "Decrease &Paragraph Spacing": self.progress_text.decrease_paragraph_spacing,
+            }
 
         self.save_button = gui.QPushButton('Sla wijzigingen op (Ctrl-S)', self)
         self.save_button.clicked.connect(self.savep)
@@ -1710,6 +1985,9 @@ class MainWindow(gui.QMainWindow):
         pnl = gui.QFrame(self)
         self.setCentralWidget(pnl)
         ## self.close = self.exit_app
+        self.toolbar = None
+        self.actiondict = {}
+        self.create_toolbar()
         self.create_book(pnl)
         self.exit_button = gui.QPushButton('&Quit', pnl)
         self.exit_button.clicked.connect(self.exit_app)
@@ -1790,6 +2068,88 @@ class MainWindow(gui.QMainWindow):
             for menuitem in items:
                 add_to_menu(menu, menuitem)
 
+    def create_toolbar(self):
+        ## self.editor = self.book.page2.text1
+        toolbar = self.addToolBar('styles')
+        toolbar.setIconSize(core.QSize(16,16))
+        self.combo_font = gui.QFontComboBox(toolbar)
+        toolbar.addWidget(self.combo_font)
+        ## self.combo_font.activated[str].connect(self.editor.text_family)
+        ## self.combo_font.setCurrentIndex(self.combo_size.findText(
+            ## str(self.editor.font().family())))
+        self.combo_size = gui.QComboBox(toolbar)
+        toolbar.addWidget(self.combo_size)
+        self.combo_size.setEditable(True)
+        db = gui.QFontDatabase()
+        self.fontsizes = []
+        for size in db.standardSizes():
+            self.combo_size.addItem(str(size))
+            self.fontsizes.append(str(size))
+        ## self.combo_size.activated[str].connect(self.editor.text_size)
+        ## self.combo_size.setCurrentIndex(self.combo_size.findText(
+            ## str(self.editor.font().pointSize())))
+        toolbar.addSeparator()
+
+        data = (
+            ('&Bold', 'Ctrl+B', 'icons/sc_bold.png', 'CheckB'),
+            ('&Italic', 'Ctrl+I', 'icons/sc_italic.png', 'CheckI'),
+            ('&Underline', 'Ctrl+U', 'icons/sc_underline.png', 'CheckU'),
+            (),
+            ("&Enlarge text", 'Ctrl+Up', 'icons/sc_grow', 'Use bigger letters'),
+            ("&Shrink text", 'Ctrl+Down', 'icons/sc_shrink', 'Use smaller letters'),
+            (),
+            ('To &Lower Case', 'Shift+Ctrl+L', 'icons/sc_changecasetolower.png',
+                'Use all lower case letters'),
+            ('To &Upper Case', 'Shift+Ctrl+U', 'icons/sc_changecasetoupper.png',
+                'Use all upper case letters'),
+            (),
+            ("Indent &More", 'Ctrl+]', 'icons/sc_incrementindent',
+                'Increase indentation'),
+            ("Indent &Less", 'Ctrl+[', 'icons/sc_decrementindent',
+                'Decrease indentation'),
+            (),
+            ("Normal Line Spacing", '', 'icons/sc_spacepara1',
+                'Set line spacing to 1'),
+            ("1.5 Line Spacing",    '', 'icons/sc_spacepara15',
+                'Set line spacing to 1.5'),
+            ("Double Line Spacing", '', 'icons/sc_spacepara2',
+                'Set line spacing to 2'),
+            (),
+            ("Increase Paragraph &Spacing", '', 'icons/sc_paraspaceincrease',
+                'Increase spacing between paragraphs'),
+            ("Decrease &Paragraph Spacing", '', 'icons/sc_paraspacedecrease',
+                'Decrease spacing between paragraphs'),
+            )
+        for menudef in data:
+            if not menudef:
+                toolbar.addSeparator()
+                continue
+            label, shortcut, icon, info = menudef
+            if icon:
+                action = gui.QAction(gui.QIcon(os.path.join(HERE, icon)), label,
+                    self)
+                toolbar.addAction(action)
+            else:
+                action = gui.QAction(label, self)
+            ## action.triggered.connect(handler)
+            ## self.connect(action, core.SIGNAL('triggered()'), handler)
+            if shortcut:
+                action.setShortcuts([x for x in shortcut.split(",")])
+            if info.startswith("Check"):
+                action.setCheckable(True)
+                info = info[5:]
+                if info in ('B', 'I', 'U'):
+                    font = gui.QFont()
+                    if info == 'B':
+                        font.setBold(True)
+                    elif info == 'I':
+                        font.setItalic(True)
+                    elif info == 'U':
+                        font.setUnderline(True)
+                    action.setFont(font)
+            self.actiondict[label] = action
+        self.toolbar = toolbar
+
     def create_actions(self):
         action = gui.QShortcut('Ctrl+P', self, self.print_)
         action = gui.QShortcut('Alt+Left', self, self.go_prev)
@@ -1839,13 +2199,15 @@ class MainWindow(gui.QMainWindow):
         self.book.current_tab = -1
         self.book.newitem = False
         self.book.pagedata = None
+        self.book.textcallbacks = {}
+
         #~ self.book.SetMinSize((486,496))
         self.book.page0 = Page0(self.book)
         self.book.page1 = Page1(self.book)
-        self.book.page2 = Page(self.book)
-        self.book.page3 = Page(self.book)
-        self.book.page4 = Page(self.book)
-        self.book.page5 = Page(self.book)
+        self.book.page2 = Page(self.book, 2)
+        self.book.page3 = Page(self.book, 3)
+        self.book.page4 = Page(self.book, 4)
+        self.book.page5 = Page(self.book, 5)
         self.book.page6 = Page6(self.book)
         self.book.pages = 7
         self.book.checked_for_leaving = True
