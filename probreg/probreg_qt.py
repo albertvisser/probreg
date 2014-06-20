@@ -83,13 +83,20 @@ class EditorPanel(gui.QTextEdit):
 
     def set_contents(self, data):
         "load contents into editor"
-        self.setHtml(data)
+        ## data = data.replace('img src="',
+            ## 'img src="{}/'.format(os.path.dirname(self.parent.project_file)))
+        if data.startswith('<'): # only load as html if it looks like html
+            self.setHtml(data)
+        else:
+            self.setText(data)
         fmt = gui.QTextCharFormat()
         self.charformat_changed(fmt)
         self.oldtext = data
 
     def get_contents(self):
         "return contents from editor"
+        ## return self.toHtml().replace('img src="{}/'.format(os.path.dirname(
+            ## self.parent.project_file)), 'img src="')
         return self.toHtml()
 
     def text_bold(self, event=None):
@@ -332,20 +339,38 @@ class Page(gui.QFrame):
             text))
         self.parent.parent.sbar.showMessage(
             self.parent.pagehelp[self.parent.current_tab])
-        print(self.parent.current_tab, self.parent.parent.toolbar,
-            self.parent.parent.toolbar.isHidden(),
-            self.parent.parent.toolbar.isVisible())
+        ## print(self.parent.current_tab, self.parent.parent.toolbar,
+            ## self.parent.parent.toolbar.isHidden(),
+            ## self.parent.parent.toolbar.isVisible())
+        ## if self.parent.parent.toolbar and self.parent.parent.toolbar.isHidden():
+            ## self.parent.parent.toolbar.show()
+        ## if self.parent.parent.toolbar and self.parent.parent.toolbar.isVisible():
+            ## self.parent.parent.toolbar.hide()
+        for key, action in self.parent.parent.actiondict.items():
+            try:
+                action.triggered.disconnect()
+            except TypeError: # nothing to disconnect
+                pass
+        if self.parent.parent.toolbar: # it's not present yet on the first call
+            if self.parent.current_tab > 1:
+                if not self.parent.parent.toolbar.isEnabled():
+                    self.parent.parent.toolbar.setEnabled(True)
+                for key, action in self.parent.parent.actiondict.items():
+                    action.triggered.connect(
+                        self.parent.textcallbacks[self.parent.current_tab][key])
+                if self.parent.current_tab == 6:
+                    win = self.progress_text
+                else:
+                    win = self.text1
+                self.parent.parent.combo_font.activated[str].connect(
+                    win.text_family)
+                self.parent.parent.combo_size.activated[str].connect(
+                    win.text_size)
+                win.font_changed(win.font())
+            elif self.parent.current_tab <= 1:
+                if self.parent.parent.toolbar.isEnabled():
+                    self.parent.parent.toolbar.setDisabled(True)
         if 1 < self.parent.current_tab < 6:
-            if self.parent.parent.toolbar and self.parent.parent.toolbar.isHidden():
-                self.parent.parent.toolbar.show()
-            for key, action in self.parent.parent.actiondict.items():
-                action.triggered.connect(
-                    self.parent.textcallbacks[self.parent.current_tab][key])
-            self.parent.parent.combo_font.activated[str].connect(
-                self.text1.text_family)
-            self.parent.parent.combo_size.activated[str].connect(
-                self.text1.text_size)
-            self.text1.font_changed(self.text1.font())
             self.parent.editor = self.text1
             self.oldbuf = ''
             if self.parent.pagedata is not None:
@@ -362,10 +387,9 @@ class Page(gui.QFrame):
                 ## else:
                     ## self.text1.setReadOnly(False)
                 self.text1.setReadOnly(self.parent.pagedata.arch)
-            self.text1.setText(self.oldbuf)
+            ## self.text1.setText(self.oldbuf)
+            self.text1.set_contents(self.oldbuf)
         else:
-            if self.parent.parent.toolbar and self.parent.parent.toolbar.isVisible():
-                self.parent.parent.toolbar.hide()
             self.Editor = None
         self.initializing = False
         self.parent.checked_for_leaving = True
@@ -430,7 +454,8 @@ class Page(gui.QFrame):
         if self.parent.current_tab <= 1 or self.parent.current_tab == 6:
             return
         wijzig = False
-        text = str(self.text1.toPlainText())
+        ## text = str(self.text1.toPlainText())
+        text = self.text1.get_contents()
         if self.parent.current_tab == 2 and text != self.parent.pagedata.melding:
             self.oldbuf = self.parent.pagedata.melding = text
             self.parent.pagedata.events.append((get_dts(),"Meldingtekst aangepast"))
@@ -489,7 +514,8 @@ class Page(gui.QFrame):
                 int(self.stat_choice.currentIndex()),
                 int(self.cat_choice.currentIndex()))
         elif 1 < self.parent.current_tab < 6:
-            newbuf = self.text1.toPlainText()
+            ## newbuf = self.text1.toPlainText()
+            newbuf = self.text1.get_contents()
         elif self.parent.current_tab == 6:
             newbuf = (self.event_list, self.event_data)
         return newbuf
@@ -1241,7 +1267,8 @@ class Page6(Page):
         # voor het geval er na het aanpassen van een tekst direkt "sla op" gekozen is
         # nog even kijken of de tekst al in self.event_data is aangepast.
         idx = self.current_item
-        hlp = str(self.progress_text.toPlainText())
+        ## hlp = str(self.progress_text.toPlainText())
+        hlp = str(self.progress_text.get_contents())
         if idx > 0:
             idx -= 1
         if self.event_data[idx] != hlp:
@@ -1341,6 +1368,7 @@ class Page6(Page):
             ## if indx > -1:
                 ## datum = text.split(' - ')[0]
                 ## tekst = str(self.progress_text.toPlainText()) # self.progress_list.GetItemText(idx)
+                ## tekst = str(self.progress_text.get_contents()) # self.progress_list.GetItemText(idx)
                 ## if tekst != self.oldtext:
                     ## self.event_data[indx] = tekst
                     ## short_text = tekst.split("\n")[0]
@@ -1357,7 +1385,8 @@ class Page6(Page):
             self.oldtext = ""
         else:
             self.oldtext = self.event_data[indx] # dan wel item_n.text()
-            self.progress_text.setText(self.oldtext)
+            ## self.progress_text.setText(self.oldtext)
+            self.progress_text.set_contents(self.oldtext)
             if not self.parent.pagedata.arch:
                 self.progress_text.setReadOnly(False)
                 self.progress_text.moveCursor(gui.QTextCursor.End,
@@ -1378,7 +1407,8 @@ class Page6(Page):
         if self.initializing:
             return
         ## idx = self.current_item # self.progress_list.Selection # niet gebruikt
-        tekst = str(self.progress_text.toPlainText()) # self.progress_list.GetItemText(ix)
+        ## tekst = str(self.progress_text.toPlainText()) # self.progress_list.GetItemText(ix)
+        tekst = str(self.progress_text.get_contents()) # self.progress_list.GetItemText(ix)
         print("\non text:", tekst, file=self._out)
         if tekst != self.oldtext:
             self.oldtext = tekst
@@ -2091,16 +2121,16 @@ class MainWindow(gui.QMainWindow):
         toolbar.addSeparator()
 
         data = (
-            ('&Bold', 'Ctrl+B', 'icons/sc_bold.png', 'CheckB'),
-            ('&Italic', 'Ctrl+I', 'icons/sc_italic.png', 'CheckI'),
-            ('&Underline', 'Ctrl+U', 'icons/sc_underline.png', 'CheckU'),
+            ('&Bold', 'Ctrl+B', 'icons/sc_bold', 'CheckB'),
+            ('&Italic', 'Ctrl+I', 'icons/sc_italic', 'CheckI'),
+            ('&Underline', 'Ctrl+U', 'icons/sc_underline', 'CheckU'),
             (),
             ("&Enlarge text", 'Ctrl+Up', 'icons/sc_grow', 'Use bigger letters'),
             ("&Shrink text", 'Ctrl+Down', 'icons/sc_shrink', 'Use smaller letters'),
             (),
-            ('To &Lower Case', 'Shift+Ctrl+L', 'icons/sc_changecasetolower.png',
+            ('To &Lower Case', 'Shift+Ctrl+L', 'icons/sc_changecasetolower',
                 'Use all lower case letters'),
-            ('To &Upper Case', 'Shift+Ctrl+U', 'icons/sc_changecasetoupper.png',
+            ('To &Upper Case', 'Shift+Ctrl+U', 'icons/sc_changecasetoupper',
                 'Use all upper case letters'),
             (),
             ("Indent &More", 'Ctrl+]', 'icons/sc_incrementindent',
@@ -2361,13 +2391,17 @@ class MainWindow(gui.QMainWindow):
         elif 2 <= self.book.current_tab <= 5:
             title = self.book.tabs[self.book.current_tab].split(None, 1)[1]
             if self.book.current_tab == 2:
-                text = self.book.page2.text1.toPlainText()
+                ## text = self.book.page2.text1.toPlainText()
+                text = self.book.page2.text1.get_contents()
             elif self.book.current_tab == 3:
-                text = self.book.page3.text1.toPlainText()
+                ## text = self.book.page3.text1.toPlainText()
+                text = self.book.page3.text1.get_contents()
             elif self.book.current_tab == 4:
-                text = self.book.page4.text1.toPlainText()
+                ## text = self.book.page4.text1.toPlainText()
+                text = self.book.page4.text1.get_contents()
             elif self.book.current_tab == 5:
-                text = self.book.page5.text1.toPlainText()
+                ## text = self.book.page5.text1.toPlainText()
+                text = self.book.page5.text1.get_contents()
             self.printdict['sections'] = [(title, str(text).replace('\n', '<br>'))]
         elif self.book.current_tab == 6:
             events = []
