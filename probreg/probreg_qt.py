@@ -8,7 +8,7 @@ import sys, os
 LIN = True if os.name == 'posix' else False
 from datetime import datetime
 import pprint
-#import images
+import collections
 import PyQt4.QtGui as gui
 import PyQt4.QtCore as core
 import logging
@@ -279,22 +279,23 @@ class Page(gui.QFrame):
         self.text1 = EditorPanel(self)
         self.text1.resize(490, high)
         self.text1.textChanged.connect(self.on_text)
-        self.parent.textcallbacks[pageno] = {
-            '&Bold': self.text1.text_bold,
-            '&Italic': self.text1.text_italic,
-            '&Underline': self.text1.text_underline,
-            "&Enlarge text": self.text1.enlarge_text,
-            "&Shrink text": self.text1.shrink_text,
-            'To &Lower Case': self.text1.case_lower,
-            'To &Upper Case': self.text1.case_upper,
-            "Indent &More": self.text1.indent_more,
-            "Indent &Less": self.text1.indent_less,
-            "Normal Line Spacing": self.text1.linespacing_1,
-            "1.5 Line Spacing": self.text1.linespacing_15,
-            "Double Line Spacing": self.text1.linespacing_2,
-            "Increase Paragraph &Spacing": self.text1.increase_paragraph_spacing,
-            "Decrease &Paragraph Spacing": self.text1.decrease_paragraph_spacing,
-            }
+        self.parent.textcallbacks[pageno] = dict(zip(
+            self.parent.parent.actiondict.keys(), [
+                 self.text1.text_bold,
+                 self.text1.text_italic,
+                 self.text1.text_underline,
+                 self.text1.enlarge_text,
+                 self.text1.shrink_text,
+                 self.text1.case_lower,
+                 self.text1.case_upper,
+                 self.text1.indent_more,
+                 self.text1.indent_less,
+                 self.text1.linespacing_1,
+                 self.text1.linespacing_15,
+                 self.text1.linespacing_2,
+                 self.text1.increase_paragraph_spacing,
+                 self.text1.decrease_paragraph_spacing,
+             ]))
         self.save_button = gui.QPushButton('Sla wijzigingen op (Ctrl-S)', self)
         self.save_button.clicked.connect(self.savep)
         action = gui.QShortcut('Ctrl+S', self, self.savepfromkey)
@@ -1176,23 +1177,23 @@ class Page6(Page):
         self.pnl.addWidget(self.progress_list)
         self.pnl.addWidget(self.progress_text)
         ## self.pnl.setSizes(sizes)
-        self.parent.textcallbacks[6] = {
-            '&Bold': self.progress_text.text_bold,
-            '&Italic': self.progress_text.text_italic,
-            '&Underline': self.progress_text.text_underline,
-            "&Enlarge text": self.progress_text.enlarge_text,
-            "&Shrink text": self.progress_text.shrink_text,
-            'To &Lower Case': self.progress_text.case_lower,
-            'To &Upper Case': self.progress_text.case_upper,
-            "Indent &More": self.progress_text.indent_more,
-            "Indent &Less": self.progress_text.indent_less,
-            "Normal Line Spacing": self.progress_text.linespacing_1,
-            "1.5 Line Spacing": self.progress_text.linespacing_15,
-            "Double Line Spacing": self.progress_text.linespacing_2,
-            "Increase Paragraph &Spacing": self.progress_text.increase_paragraph_spacing,
-            "Decrease &Paragraph Spacing": self.progress_text.decrease_paragraph_spacing,
-            }
-
+        self.parent.textcallbacks[6] = dict(zip(
+            self.parent.parent.actiondict.keys(), [
+                self.progress_text.text_bold,
+                self.progress_text.text_italic,
+                self.progress_text.text_underline,
+                self.progress_text.enlarge_text,
+                self.progress_text.shrink_text,
+                self.progress_text.case_lower,
+                self.progress_text.case_upper,
+                self.progress_text.indent_more,
+                self.progress_text.indent_less,
+                self.progress_text.linespacing_1,
+                self.progress_text.linespacing_15,
+                self.progress_text.linespacing_2,
+                self.progress_text.increase_paragraph_spacing,
+                self.progress_text.decrease_paragraph_spacing,
+            ]))
         self.save_button = gui.QPushButton('Sla wijzigingen op (Ctrl-S)', self)
         self.save_button.clicked.connect(self.savep)
         action = gui.QShortcut('Ctrl+S', self, self.savepfromkey)
@@ -2016,7 +2017,7 @@ class MainWindow(gui.QMainWindow):
         self.setCentralWidget(pnl)
         ## self.close = self.exit_app
         self.toolbar = None
-        self.actiondict = {}
+        self.actiondict = collections.OrderedDict()
         self.create_toolbar()
         self.create_book(pnl)
         self.exit_button = gui.QPushButton('&Quit', pnl)
