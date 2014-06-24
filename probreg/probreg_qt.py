@@ -55,6 +55,7 @@ class EditorPanel(gui.QTextEdit):
         self.cursorPositionChanged.connect(self.cursorposition_changed)
         font = self.currentFont()
         self.setTabStopWidth(tabsize(font.pointSize()))
+        self.defaultfamily, self.defaultsize = font.family(), font.pointSize()
 
     def canInsertFromMimeData(self, source):
         if source.hasImage:
@@ -85,12 +86,15 @@ class EditorPanel(gui.QTextEdit):
         "load contents into editor"
         ## data = data.replace('img src="',
             ## 'img src="{}/'.format(os.path.dirname(self.parent.project_file)))
+        ## print('\nin set_contents, vóór setHtml', data) # self.get_contents())
         if data.startswith('<'): # only load as html if it looks like html
             self.setHtml(data)
         else:
             self.setText(data)
+        ## print('\nin set_contents, vóór charformat_changed', self.get_contents())
         fmt = gui.QTextCharFormat()
         self.charformat_changed(fmt)
+        ## print('\nin set_contents, na charformat_changed', self.get_contents())
         self.oldtext = data
 
     def get_contents(self):
@@ -126,6 +130,18 @@ class EditorPanel(gui.QTextEdit):
         fmt.setFontUnderline(self.parent.actiondict['&Underline'].isChecked())
         self.mergeCurrentCharFormat(fmt)
 
+    ## def toggle_monospace(self, event=None):
+        ## print('toggling monospace')
+        ## if not self.hasFocus():
+            ## return
+        ## fmt = gui.QTextCharFormat()
+        ## hlp = fmt.fontFixedPitch()
+        ## print('fixed pitch is', hlp)
+        ## hlp = not hlp
+        ## print('setting it to', hlp)
+        ## fmt.setFontFixedPitch(hlp) # only works when the font has both variants?
+        ## self.mergeCurrentCharFormat(fmt)
+
     def case_lower(self, event=None):
         pass
 
@@ -141,9 +157,9 @@ class EditorPanel(gui.QTextEdit):
         ## fmt = gui.QTextBlockFormat()
         fmt = where.blockFormat()
         wid = fmt.indent()
-        print('indent_more called, current indent is {}'.format(wid))
+        ## print('indent_more called, current indent is {}'.format(wid))
         fmt.setIndent(wid + 1)
-        print('indent_more called, indent aangepast naar {}'.format(fmt.indent()))
+        ## print('indent_more called, indent aangepast naar {}'.format(fmt.indent()))
         loc.mergeBlockFormat(fmt)
         # maar hier is geen merge methode voor, lijkt het...
 
@@ -156,10 +172,10 @@ class EditorPanel(gui.QTextEdit):
         ## fmt = gui.QTextBlockFormat()
         fmt = where.blockFormat()
         wid = fmt.indent()
-        print('indent_less called, current indent is {}'.format(wid))
+        ## print('indent_less called, current indent is {}'.format(wid))
         if wid >= 1:
             fmt.setIndent(wid - 1)
-        print('indent_less called, indent aangepast naar {}'.format(fmt.indent()))
+        ## print('indent_less called, indent aangepast naar {}'.format(fmt.indent()))
         loc.mergeBlockFormat(fmt)
 
     def text_font(self, event=None):
@@ -194,19 +210,55 @@ class EditorPanel(gui.QTextEdit):
             self.text_size(self.parent.fontsizes[indx - 1])
 
     def linespacing_1(self, event=None):
-        pass
+        if not self.hasFocus():
+            return
+        loc = self.textCursor()
+        fmt = loc.block().blockFormat()
+        fmt.setLineHeight(0, gui.QTextBlockFormat.SingleHeight)
+        ## fmt.setLineHeight(100, gui.QTextBlockFormat.ProportionalHeight)
+        loc.mergeBlockFormat(fmt)
 
     def linespacing_15(self, event=None):
-        pass
+        if not self.hasFocus():
+            return
+        loc = self.textCursor()
+        fmt = loc.block().blockFormat()
+        fmt.setLineHeight(150, gui.QTextBlockFormat.ProportionalHeight)
+        loc.mergeBlockFormat(fmt)
 
     def linespacing_2(self, event=None):
-        pass
+        if not self.hasFocus():
+            return
+        loc = self.textCursor()
+        fmt = loc.block().blockFormat()
+        fmt.setLineHeight(200, gui.QTextBlockFormat.ProportionalHeight)
+        loc.mergeBlockFormat(fmt)
 
     def increase_paragraph_spacing(self, event=None):
-        pass
+        if not self.hasFocus():
+            return
+        loc = self.textCursor()
+        fmt = loc.block().blockFormat()
+        top, bottom = fmt.topMargin(), fmt.bottomMargin()
+        ## print('top/bottom margin:', top, bottom)
+        fmt.setTopMargin(top + 0.5 * self.currentFont().pointSize())
+        fmt.setBottomMargin(bottom + 0.5 * self.currentFont().pointSize())
+        loc.mergeBlockFormat(fmt)
+        ## print('top/bottom margin changed to:', fmt.topMargin(), fmt.bottomMargin())
 
     def decrease_paragraph_spacing(self, event=None):
-        pass
+        if not self.hasFocus():
+            return
+        loc = self.textCursor()
+        fmt = loc.block().blockFormat()
+        top, bottom = fmt.topMargin(), fmt.bottomMargin()
+        ## print('top/bottom margin:', top, bottom)
+        if top > 0.5:
+            fmt.setTopMargin(top - 0.5 * self.currentFont().pointSize())
+        if bottom > 0.5:
+            fmt.setBottomMargin(bottom - 0.5 * self.currentFont().pointSize())
+        loc.mergeBlockFormat(fmt)
+        ## print('top/bottom margin changed to:', fmt.topMargin(), fmt.bottomMargin())
 
     def text_size(self, size):
         "lettergrootte instellen"
@@ -284,6 +336,7 @@ class Page(gui.QFrame):
                  self.text1.text_bold,
                  self.text1.text_italic,
                  self.text1.text_underline,
+                 ## self.text1.toggle_monospace,
                  self.text1.enlarge_text,
                  self.text1.shrink_text,
                  self.text1.case_lower,
@@ -374,6 +427,7 @@ class Page(gui.QFrame):
         if 1 < self.parent.current_tab < 6:
             self.parent.editor = self.text1
             self.oldbuf = ''
+            ## print('\nin vulp, voorafgaand aan instellen oldbuf', self.oldbuf)
             if self.parent.pagedata is not None:
                 if self.parent.current_tab == 2 and self.parent.pagedata.melding:
                     self.oldbuf = self.parent.pagedata.melding
@@ -388,8 +442,11 @@ class Page(gui.QFrame):
                 ## else:
                     ## self.text1.setReadOnly(False)
                 self.text1.setReadOnly(self.parent.pagedata.arch)
+            ## print('\nin vulp, na instellen oldbuf', self.oldbuf)
             ## self.text1.setText(self.oldbuf)
+            ## print("\nin vulp, voorafgaand aan set_contents", self.oldbuf) # self.text1.get_contents())
             self.text1.set_contents(self.oldbuf)
+            ## print("\nin vulp, volgend op set_contents", self.text1.get_contents())
         else:
             self.Editor = None
         self.initializing = False
@@ -496,7 +553,20 @@ class Page(gui.QFrame):
 
     def restorep(self, evt=None): # Done, works
         "oorspronkelijke (laatst opgeslagen) inhoud van de pagina herstellen"
+        ## print("\nin restorep, voorafgaand aan vulp", self.text1.get_contents())
+        # reset font - are these also needed: case? indent? linespacing? paragraphspacing?
+        if self.parent.current_tab > 1:
+            if self.parent.current_tab == 6:
+                win = self.progress_text
+            else:
+                win = self.text1
+        win.setFontWeight(gui.QFont.Normal)
+        win.setFontItalic(False)
+        win.setFontUnderline(False)
+        win.setFontFamily(win.defaultfamily)
+        win.setFontPointSize(win.defaultsize)
         self.vulp()
+        ## print("\nin restorep, volgend op vulp", self.text1.get_contents())
 
     def on_text(self, evt=None): # Done, works
         """callback voor EVT_TEXT
@@ -1182,6 +1252,7 @@ class Page6(Page):
                 self.progress_text.text_bold,
                 self.progress_text.text_italic,
                 self.progress_text.text_underline,
+                ## self.progress_text.toggle_monospace,
                 self.progress_text.enlarge_text,
                 self.progress_text.shrink_text,
                 self.progress_text.case_lower,
@@ -1248,14 +1319,18 @@ class Page6(Page):
             for idx, datum in enumerate(self.event_list):
                 if SQL_VERSION:
                     datum = datum[:19]
+                # convert to HTML (if needed) and back
+                self.progress_text.set_contents(self.event_data[idx])
+                tekst_plat = self.progress_text.toPlainText()
                 try:
-                    text = self.event_data[idx].split("\n")[0].strip()
+                    text = tekst_plat.split("\n")[0].strip()
                 except AttributeError:
-                    text = self.event_data[idx] or ""
+                    text = tekst_plat or ""
                 text = text if len(text) < 80 else text[:80] + "..."
                 newitem = gui.QListWidgetItem('{} - {}'.format(datum, text))
                 newitem.setData(core.Qt.UserRole, idx)
                 self.progress_list.addItem(newitem)
+        self.progress_text.clear() # set_contents('')
         self.oldbuf = (self.old_list, self.old_data)
         self.oldtext = ''
         self.initializing = False
@@ -1354,34 +1429,19 @@ class Page6(Page):
         het panel wilt verlaten of afsluiten
         de knoppen onderaan doen de hele lijst bijwerken in self.parent.book.p
         """
-        if item_n is not None:
-            print('\nselect item   ', item_n.text(), file=self._out)
-        if item_o is not None:
-            print('vorig item was', item_o.text(), file=self._out)
-        self.progress_text.setReadOnly(True)
+        ## print('selecting item')
+        ## if item_n is not None:
+            ## print('\nselect item   ', item_n.text()) # , file=self._out)
         ## if item_o is not None:
-            ## # hoeft dit wel (aangenomen dat dit is om te kijken of de tekst gewijzigd is -
-            ## # dat gebeurt volgens mij al in on_text() - nee dat is alleen het aanpassen in
-            ## # de event_data tabel, zie opmerking aldaar)
-            ## print('bijwerken vorig item in interne tabel')
-            ## text = item_o.text()
-            ## indx = data2int(item_o.data(core.Qt.UserRole)
-            ## if indx > -1:
-                ## datum = text.split(' - ')[0]
-                ## tekst = str(self.progress_text.toPlainText()) # self.progress_list.GetItemText(idx)
-                ## tekst = str(self.progress_text.get_contents()) # self.progress_list.GetItemText(idx)
-                ## if tekst != self.oldtext:
-                    ## self.event_data[indx] = tekst
-                    ## short_text = tekst.split("\n")[0]
-                    ## if len(short_text) >= 80:
-                        ## short_text = short_text[:80] + "..."
-                    ## item_o.setText("{} - {}".format(datum, short_text))
-                    ## self.progress_list.SetItemData(indx, indx - 1)
+            ## print('vorig item was', item_o.text()) # , file=self._out)
+        self.progress_text.setReadOnly(True)
         if item_n is None:
             return
         text, indx = item_n.text(), data2int(item_n.data(core.Qt.UserRole))
-        print('ophalen data huidige item', indx, file=self._out)
+        ## print('ophalen data huidige item', indx) # , file=self._out)
         self.current_item = self.progress_list.currentRow() # item_n # self.currentItem()
+        ## print(self.progress_list.item(self.current_item).text())
+        print(indx, self.current_item)
         if indx == -1:
             self.oldtext = ""
         else:
@@ -1393,8 +1453,7 @@ class Page6(Page):
                 self.progress_text.moveCursor(gui.QTextCursor.End,
                     gui.QTextCursor.MoveAnchor)
             self.progress_text.setFocus()
-        print(self.event_data, file=self._out)
-        #~ event.Skip()
+        ## print(self.event_data) # , file=self._out)
 
     def on_text(self):  # Done, untested
         """callback voor wanneer de tekst gewijzigd is
@@ -1410,9 +1469,10 @@ class Page6(Page):
         ## idx = self.current_item # self.progress_list.Selection # niet gebruikt
         ## tekst = str(self.progress_text.toPlainText()) # self.progress_list.GetItemText(ix)
         tekst = str(self.progress_text.get_contents()) # self.progress_list.GetItemText(ix)
-        print("\non text:", tekst, file=self._out)
+        ## print("\non text:", tekst) # , file=self._out)
         if tekst != self.oldtext:
             self.oldtext = tekst
+            tekst_plat = self.progress_text.toPlainText()
             self.enable_buttons()
             ## print(self.current_item)
             ## current_item = self.progress_list.currentRow() # item_n # self.currentItem()
@@ -1421,7 +1481,7 @@ class Page6(Page):
                 self.event_data[indx] = tekst
                 item = self.progress_list.currentItem()
                 datum = str(item.text()).split(' - ')[0]
-                short_text = ' - '.join((datum, tekst.split("\n")[0]))
+                short_text = ' - '.join((datum, tekst_plat.split("\n")[0]))
                 if len(short_text) >= 80:
                     short_text = short_text[:80] + "..."
                 item.setText(short_text)
@@ -2125,6 +2185,8 @@ class MainWindow(gui.QMainWindow):
             ('&Bold', 'Ctrl+B', 'icons/sc_bold', 'CheckB'),
             ('&Italic', 'Ctrl+I', 'icons/sc_italic', 'CheckI'),
             ('&Underline', 'Ctrl+U', 'icons/sc_underline', 'CheckU'),
+            ## ("Toggle &Monospace", 'Shift+Ctrl+M', 'icons/text',
+                ## 'Switch using proportional font off/on'),
             (),
             ("&Enlarge text", 'Ctrl+Up', 'icons/sc_grow', 'Use bigger letters'),
             ("&Shrink text", 'Ctrl+Down', 'icons/sc_shrink', 'Use smaller letters'),
