@@ -14,7 +14,7 @@ import PyQt4.QtCore as core
 import logging
 import functools
 from mako.template import Template
-import probreg.pr_globals as pr
+## import probreg.pr_globals as pr
 XML_VERSION = SQL_VERSION = False
 sortorder = {"A": core.Qt.AscendingOrder, "D": core.Qt.DescendingOrder}
 HERE = os.path.dirname(__file__)
@@ -70,15 +70,16 @@ class EditorPanel(gui.QTextEdit):
                 image = gui.QImage(image)
             cursor = self.textCursor()
             document = self.document()
-            num = self.parent.opts['ImageCount']
+            num = self.parent.imagecount
             num += 1
-            self.parent.opts['ImageCount'] = num
-            urlname = '{}_{:05}.png'.format(self.parent.project_file,  num)
+            self.parent.imagecount = num
+            urlname = '{}_{:05}.png'.format(self.parent.filename,  num)
             ok = image.save(urlname)
             urlname = os.path.basename(urlname) # make name "relative"
             document.addResource(gui.QTextDocument.ImageResource,
                 core.QUrl(urlname), image)
             cursor.insertImage(urlname)
+            self.parent.imagelist.append(urlname)
         else:
             gui.QTextEdit.insertFromMimeData(self, source)
 
@@ -454,7 +455,10 @@ class Page(gui.QFrame):
 
     def readp(self, pid): # Done, seems to work
         "lezen van een actie"
+        if self.parent.pagedata: # spul van de vorige actie opruimen
+            self.parent.pagedata.clear()
         self.parent.pagedata = Actie(self.parent.fnaam, pid)
+        self.parent.parent.imagelist = self.parent.pagedata.imagelist
         self.parent.old_id = self.parent.pagedata.id
         self.parent.newitem = False
 
@@ -597,6 +601,8 @@ class Page(gui.QFrame):
 
     def update_actie(self): # Done, untested
         ## self.parent.pagedata.list() # NB element 0 is leeg
+        self.parent.pagedata.imagecount = self.parent.parent.imagecount
+        self.parent.pagedata.imagelist = self.parent.parent.imagelist
         self.parent.pagedata.write()
         self.parent.checked_for_leaving = True
         self.mag_weg = True
@@ -2201,13 +2207,13 @@ class MainWindow(gui.QMainWindow):
             ("Indent &Less", 'Ctrl+[', 'icons/sc_decrementindent',
                 'Decrease indentation'),
             (),
-            ("Normal Line Spacing", '', 'icons/sc_spacepara1',
-                'Set line spacing to 1'),
-            ("1.5 Line Spacing",    '', 'icons/sc_spacepara15',
-                'Set line spacing to 1.5'),
-            ("Double Line Spacing", '', 'icons/sc_spacepara2',
-                'Set line spacing to 2'),
-            (),
+            ## ("Normal Line Spacing", '', 'icons/sc_spacepara1',
+                ## 'Set line spacing to 1'),
+            ## ("1.5 Line Spacing",    '', 'icons/sc_spacepara15',
+                ## 'Set line spacing to 1.5'),
+            ## ("Double Line Spacing", '', 'icons/sc_spacepara2',
+                ## 'Set line spacing to 2'),
+            ## (),
             ("Increase Paragraph &Spacing", '', 'icons/sc_paraspaceincrease',
                 'Increase spacing between paragraphs'),
             ("Decrease &Paragraph Spacing", '', 'icons/sc_paraspacedecrease',
@@ -2628,7 +2634,7 @@ class MainWindow(gui.QMainWindow):
             self.book.fnaam = self.title = self.filename
         self.book.rereadlist = True
         self.book.sorter = None
-        self.lees_settings()
+        self.lees_settings(get_imagecount=True)
         for x in self.book.tabs.keys():
             self.book.setTabText(x, self.book.tabs[x])
         self.book.page0.sel_args = {}
@@ -2639,13 +2645,15 @@ class MainWindow(gui.QMainWindow):
             self.book.setcurrentIndex(0)
         self.book.checked_for_leaving = True
 
-    def lees_settings(self):        # Done
+    def lees_settings(self, get_imagecount=False):        # Done
         """instellingen (tabnamen, actiesoorten en actiestatussen) inlezen"""
         try:
             data = Settings(self.book.fnaam)
         except DataError as err:
             gui.QMessageBox.information(self, "Oh-oh!", str(err))
             return
+        if get_imagecount:
+            self.imagecount = data.imagecount
         self.book.stats = {}
         self.book.cats = {}
         self.book.tabs = {}

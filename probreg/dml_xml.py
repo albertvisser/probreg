@@ -5,6 +5,7 @@ from __future__ import print_function
 import sys
 import os
 import pprint
+import base64 # gzip
 import datetime as dt
 from shutil import copyfile
 from xml.etree.ElementTree import ElementTree, Element, SubElement
@@ -21,7 +22,7 @@ def checkfile(fn, new=False):
     r = ''
     if new:
         root = Element("acties")
-        s = SubElement(root,"settings")
+        s = SubElement(root,"settings", imagecount="0")
         t = SubElement(s,"stats")
         for x, y in list(statdict.items()):
             u = SubElement(t, "stat", order=str(y[1]), value=x)
@@ -34,7 +35,7 @@ def checkfile(fn, new=False):
         for x, y in list(kopdict.items()):
             u = SubElement(t, "kop", value=x)
             u.text = y
-        ElementTree(root).write(fn)
+        ElementTree(root).write(fn, encoding='utf-8', xml_declaration=True)
     else:
         if not os.path.exists(fn):
             r = fn + " bestaat niet"
@@ -176,6 +177,7 @@ class Settings:
         self.kop = kopdict
         self.stat = statdict
         self.cat = catdict
+        self.imagecount = 0
         self.meld = ''
         if fnaam == "":
             self.meld = "Standaard waarden opgehaald"
@@ -204,6 +206,8 @@ class Settings:
         found = False # wordt niet gebruikt
         x = rt.find("settings")
         if x is not None:
+            self.imagecount = x.get('imagecount') or '0'
+            self.imagecount = int(self.imagecount)
             h = x.find("stats")
             if h is not None:
                 self.stat = {}
@@ -223,15 +227,15 @@ class Settings:
     def write(self, srt=None): # extra argument ivm compat sql-versie
         "settings terugschrijven"
         if not self.exists:
-            f = open(self.fn, "w")
-            f.write('<?xml version="1.0" encoding="iso-8859-1"?>\n<acties>\n</acties>\n')
-            f.close()
-            self.exists = True
-        tree = ElementTree(file=self.fn)
-        rt = tree.getroot()
+            rt = Element('acties')
+            tree = ElementTree(rt)
+        else:
+            tree = ElementTree(file=self.fn)
+            rt = tree.getroot()
         el = rt.find("settings")
         if el is None:
             el = SubElement(rt,"settings")
+        el.set('imagecount', str(self.imagecount))
         for x in list(el):
             if x.tag == "stats":
                 el.remove(x)
@@ -261,10 +265,11 @@ class Settings:
             j = SubElement(h, "kop", value=x)
             j.text = self.kop[x]
         copyfile(self.fn, self.fno)
-        tree.write(self.fn)
+        tree.write(self.fn, encoding='utf-8', xml_declaration=True)
+        self.exists = True
 
     def set(self, naam, key=None, waarde=None):
-        "settings warde instellen"
+        "settings waarde instellen"
         if naam not in ("stat", "cat", "kop"):
             self.meld = 'Foutieve soort opgegeven'
             raise DataError(self.meld)
@@ -340,6 +345,8 @@ class Actie:
             self.fn = os.path.join(datapad, fnaam) # naam van het xml bestand
             self.fnaam = fnaam
         self.settings = Settings(fnaam)
+        self.imagecount = int(self.settings.imagecount) # NB: attribuut van settings
+        self.imagelist = []
         self.id = _id
         self.datum = ''
         self.status = '0'
@@ -425,6 +432,19 @@ class Actie:
                     self.events = []
                     for z in list(y):
                         self.events.append((z.get("id"), z.text))
+                elif y.tag == 'images':
+                    self.imagelist = []
+                    for z in list(y):
+                        fname = z.get("filename")
+                        self.imagelist.append(fname)
+                        with open(fname, 'wb') as _out:
+                            print('length of text:', len(z.text))
+                            ## data = bytes(z.text, encoding='utf-8')
+                            ## data = gzip.decompress(data)
+                            data = base64.b64decode(eval(z.text)) # .decode('ascii')
+                            ## data = base64.decodebytes(bytes(z.text, encoding='utf-8')) # .decode('ascii')
+                            ## data = base64.b64decode(bytes(z.text, encoding='utf-8'))
+                            _out.write(data)
             self.exists = True
 
     def get_statustext(self):
@@ -497,8 +517,13 @@ class Actie:
         if os.path.exists(self.fn):
             tree = ElementTree(file=self.fn)
             rt = tree.getroot()
+            sett = rt.find('settings')
         else:
             rt = Element("acties")
+            sett = SubElement(rt, 'settings')
+        # terugschrijven imagecount
+        sett.set('imagecount', str(self.imagecount))
+
         if not self.exists:
             x = SubElement(rt, "actie")
             x.set("id", self.id)
@@ -549,16 +574,34 @@ class Actie:
             h = x.find("events")
             if h is not None:
                 x.remove(h)
-            h = SubElement(x, "events") # maakt dit een bestaande "leeg" ?
+            h = SubElement(x, "events")
             for y, z in self.events:
                 q = SubElement(h, "event", id=y)
                 q.text = z
+            h = x.find("images")
+            if h is not None:
+                x.remove(h)
+            h = SubElement(x, "images")
+            for fname in self.imagelist:
+                q = SubElement(h, 'image', filename=fname)
+                with open(fname, 'rb') as _in:
+                    data = _in.read()
+                print('length of data:', len(data))
+                q.text = str(base64.b64encode(data))
+                print('length of text:', len(q.text))
+                ## q.text = str(base64.encodebytes(data))
+                ## q.text = str(gzip.compress(data)) # let op: bdata, geen cdata !
             tree = ElementTree(rt)
             copyfile(self.fn, self.fno)
-            tree.write(self.fn)
+            tree.write(self.fn, encoding='utf-8', xml_declaration=True)
             self.exists = True
         else:
             return False
+
+    def clear(self):
+        "images opruimen"
+        for fname in self.imagelist:
+            os.remove(fname)
 
     def list(self):
         "actie uitlijsten naar print"
