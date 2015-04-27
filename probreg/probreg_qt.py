@@ -1493,7 +1493,7 @@ class Page6(Page):
                 item.setText(short_text)
         print(self.event_data, file=self._out)
 
-class SortOptionsDialog(gui.QDialog):   # Done
+class SortOptionsDialog(gui.QDialog):
     "dialoog om de sorteer opties in te stellen"
     def __init__(self, parent):
         self.parent = parent
@@ -1547,7 +1547,7 @@ class SortOptionsDialog(gui.QDialog):   # Done
         gui.QDialog.accept(self)
 
 
-class SelectOptionsDialog(gui.QDialog): # Nog testen en verder aanpassen
+class SelectOptionsDialog(gui.QDialog):
     """dialoog om de selectie op te geven
 
     sel_args is de dictionary waarin de filterwaarden zitten, bv:
@@ -1951,7 +1951,7 @@ class OptionsDialog(gui.QDialog):
             return
         gui.QDialog.accept(self)
 
-class TabOptions(OptionsDialog): # Done
+class TabOptions(OptionsDialog):
     "dialoog voor mogelijke tab headers"
     def initstuff(self):
         "aanvullende initialisatie"
@@ -1975,7 +1975,7 @@ class TabOptions(OptionsDialog): # Done
             self.newtabs[str(idx)] = str(item)
         self.parent.save_settings("tab", self.newtabs)
 
-class StatOptions(OptionsDialog): # Done
+class StatOptions(OptionsDialog):
     "dialoog voor de mogelijke statussen"
     def initstuff(self):
         "aanvullende initialisatie"
@@ -2008,7 +2008,7 @@ class StatOptions(OptionsDialog): # Done
             self.newstats[value] = (text, sortkey)
         self.parent.save_settings("stat", self.newstats)
 
-class CatOptions(OptionsDialog): # Done
+class CatOptions(OptionsDialog):
     "dialoog voor de mogelijke categorieen"
     def initstuff(self):
         "aanvullende initialisatie"
@@ -2043,7 +2043,7 @@ class CatOptions(OptionsDialog): # Done
 
 class MainWindow(gui.QMainWindow):
     """Hoofdscherm met menu, statusbalk, notebook en een "quit" button"""
-    def __init__(self, parent, fnaam=""):   # Done
+    def __init__(self, parent, fnaam=""):
         self.parent = parent
         self.title = 'Actieregistratie'
         self.initializing = True
@@ -2342,7 +2342,7 @@ class MainWindow(gui.QMainWindow):
         sizer0.addLayout(sizer2)
         pnl.setLayout(sizer0)
 
-    def new_file(self, evt):        # Done, untested
+    def new_file(self, evt):
         "Menukeuze: nieuw file"
         self.newfile = False
         self.dirname = os.getcwd()
@@ -2357,7 +2357,7 @@ class MainWindow(gui.QMainWindow):
             for i in range(1, self.book.count()):
                 self.book.setTabEnabled(i, False)
 
-    def open_xml(self, evt=None):   # Done
+    def open_xml(self, evt=None):
         "Menukeuze: open file"
         self.dirname = os.getcwd()
         fname = gui.QFileDialog.getOpenFileName(self,
@@ -2367,7 +2367,7 @@ class MainWindow(gui.QMainWindow):
             self.dirname, self.filename = os.path.split(str(fname))
             self.startfile()
 
-    def open_sql(self, evt=None):   # Done, untested
+    def open_sql(self, evt=None):
         "Menukeuze: open project"
         data = []
         with open(APPS) as f_in:
@@ -2405,7 +2405,7 @@ class MainWindow(gui.QMainWindow):
                 self.filename = "_basic"
             self.startfile()
 
-    def print_scherm(self, evt = None): # Done
+    def print_scherm(self, evt=None):
         "Menukeuze: print dit scherm"
         print('printing current screen')
         self.printdict = {'lijst': [], 'actie': [], 'sections': [],
@@ -2482,7 +2482,7 @@ class MainWindow(gui.QMainWindow):
             self.printdict['events'] = events
         self.preview()
 
-    def print_actie(self, evt = None):  # Done
+    def print_actie(self, evt=None):
         "Menukeuze: print deze actie"
         if self.book.pagedata is None or self.book.newitem:
             # afbreken met melding geen actie geselecteerd
@@ -2533,7 +2533,7 @@ class MainWindow(gui.QMainWindow):
             self.book.pagedata.events] or []
         self.preview()
 
-    def exit_app(self, evt = None): # Done
+    def exit_app(self, evt=None):
         "Menukeuze: exit applicatie"
         self.exiting = True
         if self.book.current_tab == 0:
@@ -2554,36 +2554,36 @@ class MainWindow(gui.QMainWindow):
             self.book.page6._out.close()
             self.close()
 
-    def tab_settings(self, evt):    # Done
+    def tab_settings(self, evt):
         "Menukeuze: settings - data - tab titels"
         TabOptions(self, "Wijzigen tab titels", size=(350, 200)).exec_()
 
-    def stat_settings(self, evt):   # Done
+    def stat_settings(self, evt):
         "Menukeuze: settings - data - statussen"
         StatOptions(self, "Wijzigen statussen", size=(350, 200)).exec_()
 
-    def cat_settings(self, evt):    # Done
+    def cat_settings(self, evt):
         "Menukeuze: settings - data - soorten"
         CatOptions(self, "Wijzigen categorieen", size=(350, 200)).exec_()
 
-    def font_settings(self, evt):   # Done
+    def font_settings(self, evt):
         "Menukeuze: settings - applicatie - lettertype"
         gui.QMessageBox.information(self, "Oeps", "Sorry, werkt nog niet")
 
-    def colour_settings(self, evt): # Done
+    def colour_settings(self, evt):
         "Menukeuze: settings - applicatie - kleuren"
         gui.QMessageBox.information(self, "Oeps", "Sorry, werkt nog niet")
 
-    def hotkey_settings(self, evt): # Done
+    def hotkey_settings(self, evt):
         "Menukeuze: settings - applicatie- hotkeys (niet geactiveerd)"
         gui.QMessageBox.information(self, "Oeps", "Sorry, werkt nog niet")
 
-    def about_help(self, evt):      # Done
+    def about_help(self, evt):
         "Menukeuze: help - about"
         gui.QMessageBox.information(self, 'Help',
             "PyQt4 versie van mijn actiebox")
 
-    def hotkey_help(self, evt):     # Done
+    def hotkey_help(self, evt):
         "menukeuze: help - keys"
         if not self.helptext:
             help = ["=== Albert's actiebox ===\n",
@@ -2615,12 +2615,12 @@ class MainWindow(gui.QMainWindow):
             self.helptext = "\n".join(help)
         gui.QMessageBox.information(self, 'Help', self.helptext)
 
-    def silly_menu(self, evt):      # Done
+    def silly_menu(self, evt):
         "Menukeuze: settings - het leven"
         gui.QMessageBox.information(self, 'Haha',
             "Yeah you wish...\nHet leven is niet in te stellen helaas")
 
-    def startfile(self):            # Done
+    def startfile(self):
         "initialisatie t.b.v. nieuw bestand"
         if XML_VERSION:
             fullname = os.path.join(self.dirname, self.filename)
@@ -2634,7 +2634,7 @@ class MainWindow(gui.QMainWindow):
             self.book.fnaam = self.title = self.filename
         self.book.rereadlist = True
         self.book.sorter = None
-        self.lees_settings(get_imagecount=True)
+        self.lees_settings()
         for x in self.book.tabs.keys():
             self.book.setTabText(x, self.book.tabs[x])
         self.book.page0.sel_args = {}
@@ -2645,15 +2645,14 @@ class MainWindow(gui.QMainWindow):
             self.book.setcurrentIndex(0)
         self.book.checked_for_leaving = True
 
-    def lees_settings(self, get_imagecount=False):        # Done
+    def lees_settings(self):
         """instellingen (tabnamen, actiesoorten en actiestatussen) inlezen"""
         try:
             data = Settings(self.book.fnaam)
         except DataError as err:
             gui.QMessageBox.information(self, "Oh-oh!", str(err))
             return
-        if get_imagecount:
-            self.imagecount = data.imagecount
+        self.imagecount = data.imagecount
         self.book.stats = {}
         self.book.cats = {}
         self.book.tabs = {}
@@ -2685,7 +2684,7 @@ class MainWindow(gui.QMainWindow):
                 tab_text, tab_adr = tab_text
                 self.book.tabs[int(tab_num)] = " ".join((tab_num, tab_text.title()))
 
-    def save_settings(self, srt, data): # Done
+    def save_settings(self, srt, data):
         """instellingen (tabnamen, actiesoorten of actiestatussen) terugschrijven
 
         argumenten: soort, data
@@ -2729,7 +2728,7 @@ class MainWindow(gui.QMainWindow):
                     self.book.cats[sortkey] = (item_text, item_value, row_id)
         self.book.page1.vul_combos()
 
-    def on_page_changing(self, newtabnum):  # Mostly Done, maar werkt nog niet lekker
+    def on_page_changing(self, newtabnum):
         """
         deze methode is bedoeld om wanneer er van pagina gewisseld gaat worden
         te controleren of dat wel mogelijk is en zo niet, te melden waarom en de
@@ -2765,7 +2764,7 @@ class MainWindow(gui.QMainWindow):
             self.book.page6.vulp()
         self.zetfocus(self.book.current_tab)
 
-    def zetfocus(self, tabno):      # Done
+    def zetfocus(self, tabno):
         "focus geven aan de gekozen tab"
         #~ self.setFocus()
         if tabno == 0:
@@ -2788,7 +2787,7 @@ class MainWindow(gui.QMainWindow):
         self.print_dlg.paintRequested.connect(self.afdrukken)
         self.print_dlg.exec_()
 
-    def afdrukken(self, printer):            # Done, maar werkt nog niet naar behoren
+    def afdrukken(self, printer):
         "wordt aangeroepen door de menuprint methodes"
         self.css = ""
         if self.css:

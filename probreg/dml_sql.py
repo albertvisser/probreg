@@ -178,6 +178,7 @@ class Settings:
         self.kop = kopdict
         self.stat = statdict
         self.cat = catdict
+        self.imagecount = 0   # compatability
         self.meld = ''
         if fnaam == "":
             self.meld = "Standaard waarden opgehaald"
@@ -342,6 +343,7 @@ class Actie:
         (self.over, self.titel, self.gewijzigd, self.status, self.soort, self.arch,
             self.melding, self.oorzaak, self.oplossing, self.vervolg) = new_data
         self.exists = False
+        self.imagelist = []                     # compatability
         self.con = sql.connect(DBLOC)
         self.con.row_factory = sql.Row
         if self.id in (0, "0"):
@@ -543,6 +545,10 @@ class Actie:
             raise DataError(rtn)
         self.con.commit()
         self.exists = True
+
+    def clear(self):                            # compatability
+        "images opruimen"
+        pass
 
     def list(self):
         "actiegegevens uitlijsten naar print"
