@@ -337,9 +337,15 @@ class Page0(Page, listmix.ColumnSorterMixin):
 
         self.imglist = wx.ImageList(16, 16)
 
-        self.idx1 = self.imglist.Add(images.getPtBitmap())
-        self.up_arrow = self.imglist.Add(images.getSmallUpArrowBitmap())
-        self.down_arrow = self.imglist.Add(images.getSmallDnArrowBitmap())
+        ## self.idx1 = self.imglist.Add(images.getPtBitmap())
+        ## self.up_arrow = self.imglist.Add(images.getSmallUpArrowBitmap())
+        with open('icons/up.png') as _in:
+            img = wx.ImageFromStream(_in, wx.BITMAP_TYPE_PNG)
+            self.up_arrow = self.imglist.Add(wx.BitmapFromImage(img))
+        ## self.down_arrow = self.imglist.Add(images.getSmallDnArrowBitmap())
+        with open('icons/down.png') as _in:
+            img = wx.ImageFromStream(_in, wx.BITMAP_TYPE_PNG)
+            self.down_arrow = self.imglist.Add(wx.BitmapFromImage(img))
 
         self.p0list = MyListCtrl(self, -1, style = wx.LC_REPORT |
                                                    wx.BORDER_SUNKEN |
@@ -1648,8 +1654,8 @@ class MainWindow(wx.Frame):
         self.helptext = "\n".join(self.help)
     # --- schermen opbouwen: controls plaatsen ------------------------------------------------
         self.SetTitle(self.title)
-        #~ self.SetIcon(wx.Icon("task.ico",wx.BITMAP_TYPE_ICO))
-        self.SetIcon(images.gettaskIcon())
+        self.SetIcon(wx.Icon("task.ico",wx.BITMAP_TYPE_ICO))
+        ## self.SetIcon(images.gettaskIcon())
         #~ self.SetMinSize((476, 560))
         self.pnl = wx.Panel(self, -1)
         self.book = wx.Notebook(self.pnl, -1, size=(300,300))
