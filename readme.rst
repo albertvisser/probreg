@@ -27,6 +27,6 @@ Requirements
 ------------
 
 - Python (including ElementTree, and Sqlite for the sql version)
-- wxPython
+- wxPython (the Python 3 version uses PyQt4)
 - PocketPyGUI for a PocketPC version.
 
