@@ -2642,7 +2642,7 @@ class MainWindow(gui.QMainWindow):
         if self.book.current_tab == 0:
             self.book.page0.vulp()
         else:
-            self.book.setcurrentIndex(0)
+            self.book.setCurrentIndex(0)
         self.book.checked_for_leaving = True
 
     def lees_settings(self):
