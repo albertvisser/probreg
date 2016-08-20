@@ -46,10 +46,10 @@ class EditorPanel(gui.QTextEdit):
     "Rich text editor displaying the selected note"
 
     def __init__(self, parent):
+        self.tbparent = parent
         self.parent = parent.parent.parent
         gui.QTextEdit.__init__(self)
         self.setAcceptRichText(True)
-        ## self.setTabChangesFocus(True)
         self.setAutoFormatting(gui.QTextEdit.AutoAll)
         self.currentCharFormatChanged.connect(self.charformat_changed)
         self.cursorPositionChanged.connect(self.cursorposition_changed)
@@ -85,23 +85,16 @@ class EditorPanel(gui.QTextEdit):
 
     def set_contents(self, data):
         "load contents into editor"
-        ## data = data.replace('img src="',
-            ## 'img src="{}/'.format(os.path.dirname(self.parent.project_file)))
-        ## print('\nin set_contents, vóór setHtml', data) # self.get_contents())
         if data.startswith('<'): # only load as html if it looks like html
             self.setHtml(data)
         else:
             self.setText(data)
-        ## print('\nin set_contents, vóór charformat_changed', self.get_contents())
         fmt = gui.QTextCharFormat()
         self.charformat_changed(fmt)
-        ## print('\nin set_contents, na charformat_changed', self.get_contents())
         self.oldtext = data
 
     def get_contents(self):
         "return contents from editor"
-        ## return self.toHtml().replace('img src="{}/'.format(os.path.dirname(
-            ## self.parent.project_file)), 'img src="')
         return self.toHtml()
 
     def text_bold(self, event=None):
@@ -109,7 +102,7 @@ class EditorPanel(gui.QTextEdit):
         if not self.hasFocus():
             return
         fmt = gui.QTextCharFormat()
-        if self.parent.actiondict['&Bold'].isChecked():
+        if self.tbparent.actiondict['&Bold'].isChecked():
             fmt.setFontWeight(gui.QFont.Bold)
         else:
             fmt.setFontWeight(gui.QFont.Normal)
@@ -120,7 +113,7 @@ class EditorPanel(gui.QTextEdit):
         if not self.hasFocus():
             return
         fmt = gui.QTextCharFormat()
-        fmt.setFontItalic(self.parent.actiondict['&Italic'].isChecked())
+        fmt.setFontItalic(self.tbparent.actiondict['&Italic'].isChecked())
         self.mergeCurrentCharFormat(fmt)
 
     def text_underline(self, event=None):
@@ -128,20 +121,17 @@ class EditorPanel(gui.QTextEdit):
         if not self.hasFocus():
             return
         fmt = gui.QTextCharFormat()
-        fmt.setFontUnderline(self.parent.actiondict['&Underline'].isChecked())
+        fmt.setFontUnderline(self.tbparent.actiondict['&Underline'].isChecked())
         self.mergeCurrentCharFormat(fmt)
 
-    ## def toggle_monospace(self, event=None):
-        ## print('toggling monospace')
-        ## if not self.hasFocus():
-            ## return
-        ## fmt = gui.QTextCharFormat()
-        ## hlp = fmt.fontFixedPitch()
-        ## print('fixed pitch is', hlp)
-        ## hlp = not hlp
-        ## print('setting it to', hlp)
-        ## fmt.setFontFixedPitch(hlp) # only works when the font has both variants?
-        ## self.mergeCurrentCharFormat(fmt)
+    def text_strikethrough(self, event=None):
+        "selectie doorstrepen"
+        # TODO make this accessible (define an action for it)
+        if not self.hasFocus():
+            return
+        fmt = gui.QTextCharFormat()
+        fmt.setFontStrikeOut(self.tbparent.actiondict['Strike&through'].isChecked())
+        self.mergeCurrentCharFormat(fmt)
 
     def case_lower(self, event=None):
         pass
@@ -155,14 +145,10 @@ class EditorPanel(gui.QTextEdit):
             return
         loc = self.textCursor()
         where = loc.block()
-        ## fmt = gui.QTextBlockFormat()
         fmt = where.blockFormat()
         wid = fmt.indent()
-        ## print('indent_more called, current indent is {}'.format(wid))
         fmt.setIndent(wid + 1)
-        ## print('indent_more called, indent aangepast naar {}'.format(fmt.indent()))
         loc.mergeBlockFormat(fmt)
-        # maar hier is geen merge methode voor, lijkt het...
 
     def indent_less(self, event=None):
         "alinea minder ver laten inspringen"
@@ -170,13 +156,10 @@ class EditorPanel(gui.QTextEdit):
             return
         loc = self.textCursor()
         where = loc.block()
-        ## fmt = gui.QTextBlockFormat()
         fmt = where.blockFormat()
         wid = fmt.indent()
-        ## print('indent_less called, current indent is {}'.format(wid))
         if wid >= 1:
             fmt.setIndent(wid - 1)
-        ## print('indent_less called, indent aangepast naar {}'.format(fmt.indent()))
         loc.mergeBlockFormat(fmt)
 
     def text_font(self, event=None):
@@ -187,7 +170,6 @@ class EditorPanel(gui.QTextEdit):
         if ok:
             fmt = gui.QTextCharFormat()
             fmt.setFont(font)
-            ## pointsize = float(font.pointSize())
             self.setTabStopWidth(tabsize(font.pointSize()))
             self.mergeCurrentCharFormat(fmt)
 
@@ -199,16 +181,16 @@ class EditorPanel(gui.QTextEdit):
         self.setFocus()
 
     def enlarge_text(self, event=None):
-        size = self.parent.combo_size.currentText()
-        indx = self.parent.fontsizes.index(size)
-        if indx < len(self.parent.fontsizes) - 1:
-            self.text_size(self.parent.fontsizes[indx + 1])
+        size = self.tbparent.combo_size.currentText()
+        indx = self.tbparent.fontsizes.index(size)
+        if indx < len(self.tbparent.fontsizes) - 1:
+            self.text_size(self.tbparent.fontsizes[indx + 1])
 
     def shrink_text(self, event=None):
-        size = self.parent.combo_size.currentText()
-        indx = self.parent.fontsizes.index(size)
+        size = self.tbparent.combo_size.currentText()
+        indx = self.tbparent.fontsizes.index(size)
         if indx > 0:
-            self.text_size(self.parent.fontsizes[indx - 1])
+            self.text_size(self.tbparent.fontsizes[indx - 1])
 
     def linespacing_1(self, event=None):
         if not self.hasFocus():
@@ -216,7 +198,6 @@ class EditorPanel(gui.QTextEdit):
         loc = self.textCursor()
         fmt = loc.block().blockFormat()
         fmt.setLineHeight(0, gui.QTextBlockFormat.SingleHeight)
-        ## fmt.setLineHeight(100, gui.QTextBlockFormat.ProportionalHeight)
         loc.mergeBlockFormat(fmt)
 
     def linespacing_15(self, event=None):
@@ -241,11 +222,9 @@ class EditorPanel(gui.QTextEdit):
         loc = self.textCursor()
         fmt = loc.block().blockFormat()
         top, bottom = fmt.topMargin(), fmt.bottomMargin()
-        ## print('top/bottom margin:', top, bottom)
         fmt.setTopMargin(top + 0.5 * self.currentFont().pointSize())
         fmt.setBottomMargin(bottom + 0.5 * self.currentFont().pointSize())
         loc.mergeBlockFormat(fmt)
-        ## print('top/bottom margin changed to:', fmt.topMargin(), fmt.bottomMargin())
 
     def decrease_paragraph_spacing(self, event=None):
         if not self.hasFocus():
@@ -253,13 +232,11 @@ class EditorPanel(gui.QTextEdit):
         loc = self.textCursor()
         fmt = loc.block().blockFormat()
         top, bottom = fmt.topMargin(), fmt.bottomMargin()
-        ## print('top/bottom margin:', top, bottom)
         if top > 0.5:
             fmt.setTopMargin(top - 0.5 * self.currentFont().pointSize())
         if bottom > 0.5:
             fmt.setBottomMargin(bottom - 0.5 * self.currentFont().pointSize())
         loc.mergeBlockFormat(fmt)
-        ## print('top/bottom margin changed to:', fmt.topMargin(), fmt.bottomMargin())
 
     def text_size(self, size):
         "lettergrootte instellen"
@@ -274,13 +251,6 @@ class EditorPanel(gui.QTextEdit):
     def charformat_changed(self, format):
         "wordt aangeroepen als het tekstformat gewijzigd is"
         self.font_changed(format.font());
-        ## self.color_changed(format.foreground().color())
-        ## backg = format.background()
-        ## if int(backg.style()) == 0: # nul betelkent transparant
-            ## bgcol = core.Qt.white # eigenlijk standaardkleur, niet per se wit
-        ## else:
-            ## bgcol = backg.color()
-        ## self.background_changed(bgcol)
 
     def cursorposition_changed(self):
         "wordt aangeroepen als de cursorpositie gewijzigd is"
@@ -292,13 +262,14 @@ class EditorPanel(gui.QTextEdit):
         de selectie in de comboboxen wordt aangepast, de van toepassing zijnde
         menuopties worden aangevinkt, en en de betreffende toolbaricons worden
         geaccentueerd"""
-        self.parent.combo_font.setCurrentIndex(
-            self.parent.combo_font.findText(gui.QFontInfo(font).family()))
-        self.parent.combo_size.setCurrentIndex(
-            self.parent.combo_size.findText(str(font.pointSize())))
-        self.parent.actiondict["&Bold"].setChecked(font.bold())
-        self.parent.actiondict["&Italic"].setChecked(font.italic())
-        self.parent.actiondict["&Underline"].setChecked(font.underline())
+        self.tbparent.combo_font.setCurrentIndex(
+            self.tbparent.combo_font.findText(gui.QFontInfo(font).family()))
+        self.tbparent.combo_size.setCurrentIndex(
+            self.tbparent.combo_size.findText(str(font.pointSize())))
+        self.tbparent.actiondict["&Bold"].setChecked(font.bold())
+        self.tbparent.actiondict["&Italic"].setChecked(font.italic())
+        self.tbparent.actiondict["&Underline"].setChecked(font.underline())
+        self.tbparent.actiondict["Strike&through"].setChecked(font.strikeOut())
 
     def mergeCurrentCharFormat(self, format):
         "de geselecteerde tekst op de juiste manier weergeven"
@@ -323,33 +294,14 @@ class EditorPanel(gui.QTextEdit):
 
 class Page(gui.QFrame):
     "base class for notebook page"
-    def __init__(self, parent, pageno, standard=True): # Done
+    def __init__(self, parent, pageno, standard=True):
         self.parent = parent
         gui.QFrame.__init__(self, parent)
         if not standard:
             return
-        high = 330 if LIN else 430
-        self.text1 = EditorPanel(self)
-        self.text1.resize(490, high)
-        self.text1.textChanged.connect(self.on_text)
-        self.parent.textcallbacks[pageno] = dict(zip(
-            self.parent.parent.actiondict.keys(), [
-                 self.text1.text_bold,
-                 self.text1.text_italic,
-                 self.text1.text_underline,
-                 ## self.text1.toggle_monospace,
-                 self.text1.enlarge_text,
-                 self.text1.shrink_text,
-                 self.text1.case_lower,
-                 self.text1.case_upper,
-                 self.text1.indent_more,
-                 self.text1.indent_less,
-                 self.text1.linespacing_1,
-                 self.text1.linespacing_15,
-                 self.text1.linespacing_2,
-                 self.text1.increase_paragraph_spacing,
-                 self.text1.decrease_paragraph_spacing,
-             ]))
+        self.actiondict = collections.OrderedDict()
+        self.create_toolbar()
+        self.create_text_field(pageno)
         self.save_button = gui.QPushButton('Sla wijzigingen op (Ctrl-S)', self)
         self.save_button.clicked.connect(self.savep)
         action = gui.QShortcut('Ctrl+S', self, self.savepfromkey)
@@ -362,9 +314,118 @@ class Page(gui.QFrame):
         action = gui.QShortcut('Alt+Ctrl+Z', self, self.restorep) # Ctrl-Z zit al in text control
         action = gui.QShortcut('Alt+N', self, self.nieuwp)
 
-    def doelayout(self): # Done
+    def create_toolbar(self):
+        toolbar = gui.QToolBar('styles')
+        toolbar.setIconSize(core.QSize(16,16))
+        self.combo_font = gui.QFontComboBox(toolbar)
+        toolbar.addWidget(self.combo_font)
+        self.combo_size = gui.QComboBox(toolbar)
+        toolbar.addWidget(self.combo_size)
+        self.combo_size.setEditable(True)
+        db = gui.QFontDatabase()
+        self.fontsizes = []
+        for size in db.standardSizes():
+            self.combo_size.addItem(str(size))
+            self.fontsizes.append(str(size))
+        toolbar.addSeparator()
+
+        data = (
+            ('&Bold', 'Ctrl+B', 'icons/sc_bold2', 'CheckB'),
+            ('&Italic', 'Ctrl+I', 'icons/sc_italic2', 'CheckI'),
+            ('&Underline', 'Ctrl+U', 'icons/sc_underline2', 'CheckU'),
+            ('Strike&through', 'Ctrl+~', 'icons/sc_strikethrough2.png', 'CheckS'),
+            ## ("Toggle &Monospace", 'Shift+Ctrl+M', 'icons/text',
+                ## 'Switch using proportional font off/on'),
+            (),
+            ("&Enlarge text", 'Ctrl+Up', 'icons/sc_grow', 'Use bigger letters'),
+            ("&Shrink text", 'Ctrl+Down', 'icons/sc_shrink', 'Use smaller letters'),
+            (),
+            ('To &Lower Case', 'Shift+Ctrl+L', 'icons/sc_changecasetolower',
+                'Use all lower case letters'),
+            ('To &Upper Case', 'Shift+Ctrl+U', 'icons/sc_changecasetoupper',
+                'Use all upper case letters'),
+            (),
+            ("Indent &More", 'Ctrl+]', 'icons/sc_incrementindent',
+                'Increase indentation'),
+            ("Indent &Less", 'Ctrl+[', 'icons/sc_decrementindent',
+                'Decrease indentation'),
+            (),
+            ## ("Normal Line Spacing", '', 'icons/sc_spacepara1',
+                ## 'Set line spacing to 1'),
+            ## ("1.5 Line Spacing",    '', 'icons/sc_spacepara15',
+                ## 'Set line spacing to 1.5'),
+            ## ("Double Line Spacing", '', 'icons/sc_spacepara2',
+                ## 'Set line spacing to 2'),
+            ## (),
+            ("Increase Paragraph &Spacing", '', 'icons/sc_paraspaceincrease',
+                'Increase spacing between paragraphs'),
+            ("Decrease &Paragraph Spacing", '', 'icons/sc_paraspacedecrease',
+                'Decrease spacing between paragraphs'),
+            )
+        for menudef in data:
+            if not menudef:
+                toolbar.addSeparator()
+                continue
+            label, shortcut, icon, info = menudef
+            if icon:
+                action = gui.QAction(gui.QIcon(os.path.join(HERE, icon)), label,
+                    self)
+                toolbar.addAction(action)
+            else:
+                action = gui.QAction(label, self)
+            if shortcut:
+                action.setShortcuts([x for x in shortcut.split(",")])
+            if info.startswith("Check"):
+                action.setCheckable(True)
+                info = info[5:]
+                if info in ('B', 'I', 'U', 'S'):
+                    font = gui.QFont()
+                    if info == 'B':
+                        font.setBold(True)
+                    elif info == 'I':
+                        font.setItalic(True)
+                    elif info == 'U':
+                        font.setUnderline(True)
+                    elif info == 'S':
+                        font.setStrikeOut(True)
+                    action.setFont(font)
+            self.actiondict[label] = action
+        self.toolbar = toolbar
+
+    def create_text_field(self, pageno):
+        high = 330 if LIN else 430
+        self.text1 = EditorPanel(self)
+        self.text1.resize(490, high)
+        self.text1.textChanged.connect(self.on_text)
+        for action, callback in zip(self.actiondict.values(), [
+                 self.text1.text_bold,
+                 self.text1.text_italic,
+                 self.text1.text_underline,
+                 self.text1.text_strikethrough,
+                 ## self.text1.toggle_monospace,
+                 self.text1.enlarge_text,
+                 self.text1.shrink_text,
+                 self.text1.case_lower,
+                 self.text1.case_upper,
+                 self.text1.indent_more,
+                 self.text1.indent_less,
+                 self.text1.linespacing_1,
+                 self.text1.linespacing_15,
+                 self.text1.linespacing_2,
+                 self.text1.increase_paragraph_spacing,
+                 self.text1.decrease_paragraph_spacing,
+                ]):
+            action.triggered.connect(callback)
+        self.combo_font.activated[str].connect(self.text1.text_family)
+        self.combo_size.activated[str].connect(self.text1.text_size)
+        self.text1.font_changed(self.text1.font())
+
+    def doelayout(self):
         "layout page"
         sizer0 = gui.QVBoxLayout()
+        sizer1 = gui.QVBoxLayout()
+        sizer1.addWidget(self.toolbar)
+        sizer0.addLayout(sizer1)
         sizer1 = gui.QVBoxLayout()
         sizer1.addWidget(self.text1)
         sizer0.addLayout(sizer1)
@@ -378,7 +439,7 @@ class Page(gui.QFrame):
         self.setLayout(sizer0)
         return True
 
-    def vulp(self, evt=None): # Done, seems to work
+    def vulp(self, evt=None):
         """te tonen gegevens invullen in velden e.a. initialisaties
 
         methode aan te roepen voorafgaand aan het tonen van de pagina"""
@@ -394,41 +455,9 @@ class Page(gui.QFrame):
             text))
         self.parent.parent.sbar.showMessage(
             self.parent.pagehelp[self.parent.current_tab])
-        ## print(self.parent.current_tab, self.parent.parent.toolbar,
-            ## self.parent.parent.toolbar.isHidden(),
-            ## self.parent.parent.toolbar.isVisible())
-        ## if self.parent.parent.toolbar and self.parent.parent.toolbar.isHidden():
-            ## self.parent.parent.toolbar.show()
-        ## if self.parent.parent.toolbar and self.parent.parent.toolbar.isVisible():
-            ## self.parent.parent.toolbar.hide()
-        for key, action in self.parent.parent.actiondict.items():
-            try:
-                action.triggered.disconnect()
-            except TypeError: # nothing to disconnect
-                pass
-        if self.parent.parent.toolbar: # it's not present yet on the first call
-            if self.parent.current_tab > 1:
-                if not self.parent.parent.toolbar.isEnabled():
-                    self.parent.parent.toolbar.setEnabled(True)
-                for key, action in self.parent.parent.actiondict.items():
-                    action.triggered.connect(
-                        self.parent.textcallbacks[self.parent.current_tab][key])
-                if self.parent.current_tab == 6:
-                    win = self.progress_text
-                else:
-                    win = self.text1
-                self.parent.parent.combo_font.activated[str].connect(
-                    win.text_family)
-                self.parent.parent.combo_size.activated[str].connect(
-                    win.text_size)
-                win.font_changed(win.font())
-            elif self.parent.current_tab <= 1:
-                if self.parent.parent.toolbar.isEnabled():
-                    self.parent.parent.toolbar.setDisabled(True)
         if 1 < self.parent.current_tab < 6:
             self.parent.editor = self.text1
             self.oldbuf = ''
-            ## print('\nin vulp, voorafgaand aan instellen oldbuf', self.oldbuf)
             if self.parent.pagedata is not None:
                 if self.parent.current_tab == 2 and self.parent.pagedata.melding:
                     self.oldbuf = self.parent.pagedata.melding
@@ -438,22 +467,15 @@ class Page(gui.QFrame):
                     self.oldbuf = self.parent.pagedata.oplossing
                 if self.parent.current_tab == 5 and self.parent.pagedata.vervolg:
                     self.oldbuf = self.parent.pagedata.vervolg
-                ## if self.parent.pagedata.arch:
-                    ## self.text1.setReadOnly(True)
-                ## else:
-                    ## self.text1.setReadOnly(False)
                 self.text1.setReadOnly(self.parent.pagedata.arch)
-            ## print('\nin vulp, na instellen oldbuf', self.oldbuf)
-            ## self.text1.setText(self.oldbuf)
-            ## print("\nin vulp, voorafgaand aan set_contents", self.oldbuf) # self.text1.get_contents())
             self.text1.set_contents(self.oldbuf)
-            ## print("\nin vulp, volgend op set_contents", self.text1.get_contents())
+            self.oldbuf = self.text1.get_contents() # make sure it's rich text
         else:
             self.Editor = None
         self.initializing = False
         self.parent.checked_for_leaving = True
 
-    def readp(self, pid): # Done, seems to work
+    def readp(self, pid):
         "lezen van een actie"
         if self.parent.pagedata: # spul van de vorige actie opruimen
             self.parent.pagedata.clear()
@@ -462,7 +484,7 @@ class Page(gui.QFrame):
         self.parent.old_id = self.parent.pagedata.id
         self.parent.newitem = False
 
-    def nieuwp(self, evt=None): # Done, seems to work
+    def nieuwp(self, evt=None):
         """voorbereiden opvoeren nieuwe actie"""
         print('opvoeren nieuwe actie')
         self.parent.newitem = True
@@ -471,6 +493,8 @@ class Page(gui.QFrame):
                 for i in range(1, self.parent.count()):
                     self.parent.setTabEnabled(i, True)
             self.parent.pagedata = Actie(self.parent.fnaam, 0)
+            self.parent.parent.imagelist = self.parent.pagedata.imagelist
+            self.parent.newitem = True
             if self.parent.current_tab == 1:
                 self.vulp() # om de velden leeg te maken
                 self.proc_entry.setFocus()
@@ -480,9 +504,8 @@ class Page(gui.QFrame):
             self.parent.newitem = False
             print("leavep() geeft False: nog niet klaar met huidige pagina")
 
-    def leavep(self): # Done, untested
+    def leavep(self):
         "afsluitende acties uit te voeren alvorens de pagina te verlaten"
-        print('leavep for page', self.parent.current_tab)
         newbuf = self.build_newbuf()
         if (self.parent.current_tab == 1 and self.parent.newitem and newbuf[0] == ""
                 and newbuf[1] == "" and not self.parent.parent.exiting):
@@ -510,13 +533,12 @@ class Page(gui.QFrame):
                         self.parent.setTabEnabled(i, True)
         return ok_to_leave
 
-    def savep(self, evt=None): # Done
+    def savep(self, evt=None):
         "gegevens van een actie opslaan afhankelijk van pagina"
         self.enable_buttons(False)
         if self.parent.current_tab <= 1 or self.parent.current_tab == 6:
             return
         wijzig = False
-        ## text = str(self.text1.toPlainText())
         text = self.text1.get_contents()
         if self.parent.current_tab == 2 and text != self.parent.pagedata.melding:
             self.oldbuf = self.parent.pagedata.melding = text
@@ -540,7 +562,7 @@ class Page(gui.QFrame):
                 self.parent.pagedata.updated)
         return True
 
-    def savepgo(self, evt=None): # Done, untested
+    def savepgo(self, evt=None):
         "opslaan en naar de volgende pagina"
         if self.savep():
             self.goto_next()
@@ -555,9 +577,8 @@ class Page(gui.QFrame):
             if self.saveandgo_button.isEnabled():
                 self.savepgo()
 
-    def restorep(self, evt=None): # Done, works
+    def restorep(self, evt=None):
         "oorspronkelijke (laatst opgeslagen) inhoud van de pagina herstellen"
-        ## print("\nin restorep, voorafgaand aan vulp", self.text1.get_contents())
         # reset font - are these also needed: case? indent? linespacing? paragraphspacing?
         if self.parent.current_tab > 1:
             if self.parent.current_tab == 6:
@@ -570,9 +591,8 @@ class Page(gui.QFrame):
         win.setFontFamily(win.defaultfamily)
         win.setFontPointSize(win.defaultsize)
         self.vulp()
-        ## print("\nin restorep, volgend op vulp", self.text1.get_contents())
 
-    def on_text(self, evt=None): # Done, works
+    def on_text(self, evt=None):
         """callback voor EVT_TEXT
 
         de initializing flag wordt uitgevraagd omdat deze event ook tijdens vulp()
@@ -589,18 +609,16 @@ class Page(gui.QFrame):
                 int(self.stat_choice.currentIndex()),
                 int(self.cat_choice.currentIndex()))
         elif 1 < self.parent.current_tab < 6:
-            ## newbuf = self.text1.toPlainText()
             newbuf = self.text1.get_contents()
         elif self.parent.current_tab == 6:
             newbuf = (self.event_list, self.event_data)
         return newbuf
 
-    def on_choice(self, evt): # Done, untested
+    def on_choice(self, evt):
         "callback voor combobox"
         self.enable_buttons()
 
-    def update_actie(self): # Done, untested
-        ## self.parent.pagedata.list() # NB element 0 is leeg
+    def update_actie(self):
         self.parent.pagedata.imagecount = self.parent.parent.imagecount
         self.parent.pagedata.imagelist = self.parent.parent.imagelist
         self.parent.pagedata.write()
@@ -608,9 +626,8 @@ class Page(gui.QFrame):
         self.mag_weg = True
         self.parent.pagedata.read()    # om "updated" attribuut op te halen
 
-    def enable_buttons(self, state=True): # Done, works
+    def enable_buttons(self, state=True):
         "buttons wel of niet bruikbaar maken"
-        print(state)
         if state:
             self.parent.checked_for_leaving = False
         self.save_button.setEnabled(state)
@@ -622,11 +639,11 @@ class Page(gui.QFrame):
                 if i != self.parent.current_tab:
                     self.parent.setTabEnabled(i, not state)
 
-    def goto_actie(self, evt=None): # Done
+    def goto_actie(self, evt=None):
         "naar startpagina actie gaan"
         self.goto_page(1)
 
-    def goto_next(self): # Done, untested
+    def goto_next(self):
         "naar de volgende pagina gaan"
         if not self.leavep():
             return
@@ -635,14 +652,16 @@ class Page(gui.QFrame):
             next = 0
         self.parent.setCurrentIndex(next)
 
-    def goto_prev(self): # Done, untested
+    def goto_prev(self):
         "naar de vorige pagina gaan"
+        if not self.leavep():
+            return
         next = self.parent.current_tab - 1
         if next < 0:
             next = self.parent.pages
         self.parent.setCurrentIndex(next)
 
-    def goto_page(self, page_num, check=True): # Done, untested
+    def goto_page(self, page_num, check=True):
         "naar de aangegeven pagina gaan"
         if check and not self.leavep():
             return
@@ -652,7 +671,7 @@ class Page(gui.QFrame):
 
 class Page0(Page):
     "pagina 0: overzicht acties"
-    def __init__(self, parent): # Done
+    def __init__(self, parent):
         self.parent = parent
         Page.__init__(self, parent, pageno=0, standard=False)
         self.selection = 'excl. gearchiveerde'
@@ -660,10 +679,7 @@ class Page0(Page):
         self.sorted = (0, "A")
 
         widths = [94, 24, 146, 90, 400] if LIN else [64, 24, 114, 72, 292]
-        ## if XML_VERSION:
-            ## titels = self.parent.ctitels[:-1]
         if SQL_VERSION:
-            ## titels = self.parent.ctitels
             widths[4] = 90 if LIN else 72
             extra = 310 if LIN else 220
             widths.append(extra)
@@ -673,9 +689,7 @@ class Page0(Page):
         self.go_button = gui.QPushButton('&Ga naar melding', self)
         self.archive_button = gui.QPushButton('&Archiveer', self)
         self.new_button = gui.QPushButton('Voer &Nieuwe melding op', self)
-        ## high = 400 if LIN else 444
 
-        ## self.p0list.SetMinSize((440,high))
         self.p0list.setSortingEnabled(True)
         self.p0list.setHeaderLabels(self.parent.ctitels)
         self.p0list.setAlternatingRowColors(True)
@@ -684,7 +698,6 @@ class Page0(Page):
         for indx, wid in enumerate(widths):
             self.p0hdr.resizeSection(indx, wid)
         self.p0hdr.setStretchLastSection(True)
-        ## self.populate_list()
         self.p0list.itemActivated.connect(self.on_activate_item)
         self.p0list.currentItemChanged.connect(self.on_change_selected)
 
@@ -695,7 +708,7 @@ class Page0(Page):
         self.new_button.clicked.connect(self.nieuwp)
         self.enable_buttons(False, all=True)
 
-    def doelayout(self): # Done
+    def doelayout(self):
         "layout page"
         sizer0 = gui.QVBoxLayout()
         sizer1 = gui.QHBoxLayout()
@@ -712,11 +725,8 @@ class Page0(Page):
         sizer0.addLayout(sizer2)
         self.setLayout(sizer0)
 
-    ## def leavep(self):
-        ## "afsluitende acties uit te voeren alvorens de pagina te verlaten"
-        ## return True # niks doen, doorgaan
 
-    def vulp(self, evt=None): # Done
+    def vulp(self, evt=None):
         """te tonen gegevens invullen in velden e.a. initialisaties
 
         methode aan te roepen voorafgaand aan het tonen van de pagina"""
@@ -735,7 +745,6 @@ class Page0(Page):
                 raise
             else:
                 for idx, item in enumerate(data):
-                    ## print(item)
                     if XML_VERSION:
                         # nummer, start, stat, cat, titel, gewijzigd = item
                         self.parent.data[idx] = (item[0],
@@ -764,7 +773,7 @@ class Page0(Page):
             self.p0list.setCurrentItem(self.parent.current_item)
         self.p0list.scrollToItem(self.parent.current_item)
 
-    def populate_list(self): # Done
+    def populate_list(self):
         "list control vullen"
         self.p0list.clear()
         for i in range(1, self.parent.count()):
@@ -792,7 +801,6 @@ class Page0(Page):
             elif SQL_VERSION:
                 actie, _, soort, status, l_wijz, over, titel = data
                 l_wijz = l_wijz[:19]
-            ## idx = self.p0list.InsertStringItem(sys.maxint, actie)
             new_item = gui.QTreeWidgetItem()
             new_item.setText(0, actie)
             new_item.setData(0, core.Qt.UserRole, actie)
@@ -807,43 +815,25 @@ class Page0(Page):
                 new_item.setText(4, over)
                 new_item.setText(5, titel)
             self.p0list.addTopLevelItem(new_item)
-        self.colorize()
 
-    def colorize(self): # Done,
-        """de regels om en om kleuren"""
-        return
-        kleur = False
-        for row in range(self.p0list.topLevelItemCount()):
-            item = self.p0list.topLevelItem(row)
-            for col in range(len(self.parent.ctitels)):
-                if kleur:
-                    item.setBackgroundColor(col, gui.QColor('#FCF090')) # core.Qt.yellow)
-                else:
-                    item.setBackgroundColor(col, core.Qt.white)
-            kleur = not kleur
-
-    def on_change_selected(self, item_n, item_o): # Done
+    def on_change_selected(self, item_n, item_o):
         """callback voor wijzigen geselecteerd item, o.a. door verplaatsen van de
         cursor of door klikken"""
         if item_n is None: # o.a. self.p0list.clear() veroorzaakt dit
             return
-        self.parent.current_item = item_n # self.p0list.currentItem()
+        self.parent.current_item = item_n
         if not self.parent.newitem:
             selindx = data2str(self.parent.current_item.data(0, core.Qt.UserRole))
             self.readp(selindx)
         hlp = "&Herleef" if self.parent.pagedata.arch else "&Archiveer"
         self.archive_button.setText(hlp)
 
-    def on_activate_item(self, item): # Done
+    def on_activate_item(self, item):
         """callback voor activeren van item, door doubleclick of enter
 
         gek genoeg leidt een enter op een regel al tot het naar de volgende
         tab gaan (misschien door de on key afhandeling?)
         """
-        print('activated item')
-        print(item)
-        print(self.p0list.currentItem())
-        ## self.parent.current_item = self.p0list.currentItem()
         self.goto_actie()
 
     def sort_oncolumn(self, colno): # unnecessary, not connected?
@@ -853,26 +843,15 @@ class Page0(Page):
         de sorteervolgorde te kennen en die is niet af te leiden vandaar een eigen
         instelling. Maar misschien heb ik dat wel helemaal niet nodig.
         """
-        print('sort_oncolumn clicked with', colno, 'with current',
-            self.p0list.sortColumn())
         column, order = self.sorted
         print('order is', column, order)
-        ## if self.p0list.sortColumn == colno:
         if column == colno:
             order = 'A' if order == 'D' else 'D'
         else:
             order = 'A'
-        print('reversing order',)
         self.sorted = colno, order
-        print('order is now', colno, order)
-        ## self.p0list.sortItems(self.sorted[0], sortorder[self.sorted[1]]) #, True)
-        print('items resorted')
-        ## self.p0hdr.setSortIndicator(colno, sortorder[self.sorted[1]])
-        print('indicator reset')
-        self.colorize()
-        print('ready')
 
-    def select_items(self, evt=None): # Done, untested
+    def select_items(self, evt=None):
         """tonen van de selectie dialoog
 
         niet alleen selecteren op tekst(deel) maar ook op status, soort etc"""
@@ -888,9 +867,8 @@ class Page0(Page):
                 gui.QMessageBox.information(self, "Oeps", str(msg))
             else:
                 break
-        ## self.parent.parent.zetfocus(0)
 
-    def sort_items(self, evt=None): # Done
+    def sort_items(self, evt=None):
         """tonen van de sorteer-opties dialoog
 
         sortering mogelijk op datum/tijd, soort, titel, status via schermpje met
@@ -899,10 +877,8 @@ class Page0(Page):
         test = SortOptionsDialog(self).exec_()
         if test == gui.QDialog.Accepted:
             gui.QMessageBox.information(self, 'Oeps', "Sorry, werkt nog niet")
-            # self.colorize() # formerly known as self.AfterSort()
-        ## self.parent.parent.zetfocus(0)
 
-    def archiveer(self, evt=None): # Done, untested
+    def archiveer(self, evt=None):
         "archiveren of herleven van het geselecteerde item"
         selindx = self.parent.current_item.data(0, core.Qt.UserRole)
         selindx = data2str(selindx) if XML_VERSION else data2int(selindx)
@@ -923,7 +899,7 @@ class Page0(Page):
             hlp = "&Herleef" if self.parent.pagedata.arch else "&Archiveer"
             self.archive_button.setText(hlp)
 
-    def enable_buttons(self, state=True, all=False): # Done
+    def enable_buttons(self, state=True, all=False):
         "buttons wel of niet bruikbaar maken"
         self.sort_button.setEnabled(state)
         self.go_button.setEnabled(state)
@@ -935,7 +911,7 @@ class Page0(Page):
 
 class Page1(Page):
     "pagina 1: startscherm actie"
-    def __init__(self, parent): # Done
+    def __init__(self, parent):
         Page.__init__(self, parent, pageno=1, standard=False)
 
         self.id_text = gui.QLineEdit(self)
@@ -958,7 +934,6 @@ class Page1(Page):
         self.stat_choice.setEditable(False)
         self.id_text.setMaximumWidth(140)
         self.stat_choice.currentIndexChanged.connect(self.on_text)
-        ## self.vul_combos()
 
         self.archive_text = gui.QLabel(self)
         self.archive_button = gui.QPushButton("Archiveren", self)
@@ -977,7 +952,7 @@ class Page1(Page):
         action = gui.QShortcut('Alt+Ctrl+Z', self, self.restorep) # Ctrl-Z zit al in text control
         action = gui.QShortcut('Alt+N', self, self.nieuwp)
 
-    def doelayout(self): # Done
+    def doelayout(self):
         "layout page"
         sizer0 = gui.QVBoxLayout()
         sizer0.addSpacing(10)
@@ -985,7 +960,7 @@ class Page1(Page):
         sizerx = gui.QHBoxLayout()
         sizerx.addSpacing(10)
 
-        sizer1 = gui.QGridLayout() # rows, cols, hgap, vgap
+        sizer1 = gui.QGridLayout()
         row = 0
         sizer1.setRowMinimumHeight(row, 10)
         sizer1.setColumnStretch(2, 1)
@@ -1046,12 +1021,11 @@ class Page1(Page):
 
         self.setLayout(sizer0)
 
-    def vulp(self, evt=None): # Done, untested
+    def vulp(self, evt=None):
         """te tonen gegevens invullen in velden e.a. initialisaties
 
         methode aan te roepen voorafgaand aan het tonen van de pagina"""
         Page.vulp(self)
-        print('vulp tab 1')
         self.initializing = True
         self.id_text.clear()
         self.date_text.clear()
@@ -1077,23 +1051,18 @@ class Page1(Page):
             elif SQL_VERSION:
                 self.proc_entry.setText(self.parent.pagedata.over)
                 self.desc_entry.setText(self.parent.pagedata.titel)
-            ## print(self.parent.pagedata.status)
             for x in range(len(self.parent.stats)):
                 y = data2str(self.stat_choice.itemData(x))
-                ## print(x, y)
                 if y == self.parent.pagedata.status:
                     self.stat_choice.setCurrentIndex(x)
                     break
-            ## print(self.parent.pagedata.soort)
             for x in range(len(self.parent.cats)):
                 y = data2str(self.cat_choice.itemData(x))
-                ## print(x, y)
                 if y == self.parent.pagedata.soort:
                     self.cat_choice.setCurrentIndex(x)
                     break
         self.oldbuf = (str(self.proc_entry.text()), str(self.desc_entry.text()),
             int(self.stat_choice.currentIndex()), int(self.cat_choice.currentIndex()))
-        ## self.initializing = False # gebeurt al in Page.vulp()?
         if self.parch:
             aanuit = False
             self.archive_text.setText("Deze actie is gearchiveerd")
@@ -1102,7 +1071,6 @@ class Page1(Page):
             aanuit = True
             self.archive_text.setText("")
             self.archive_button.setText("Archiveren")
-        print('velden aktiveren:', aanuit, self.parch)
         self.id_text.setEnabled(False)
         self.date_text.setEnabled(False)
         self.proc_entry.setEnabled(aanuit)
@@ -1119,21 +1087,15 @@ class Page1(Page):
         "opslaan van de paginagegevens"
         Page.savep(self)
         proc = str(self.proc_entry.text())
-        ## try:
-        proc = proc.capitalize() # [0].upper() + s1[1:]
+        proc = proc.capitalize()
         self.proc_entry.setText(proc)
         self.enable_buttons(False)
-        ## except IndexError:
-            ## pass
         desc = str(self.desc_entry.text())
         if proc == "" or desc == "":
             gui.QMessageBox.information(self, "Oeps",
                 "Beide tekstrubrieken moeten worden ingevuld")
             return False
         wijzig = False
-        ## if self.parent.newitem:
-            ## self.parent.pagedata.events.append(
-                ## (get_dts(), "Actie opgevoerd"))
         procdesc = " - ".join((proc, desc))
         if procdesc != self.parent.pagedata.titel:
             if XML_VERSION:
@@ -1166,11 +1128,9 @@ class Page1(Page):
             self.parent.pagedata.events.append(
                 (get_dts(), "Actie {0}".format(hlp)))
             wijzig = True
-        print('Page 1 middenin', self.parent.pagedata.__dict__['events'])
         if wijzig:
             # wijzigen/toevoegen in de database
             self.update_actie()
-            print('na updaten database', self.parent.pagedata.__dict__['events'])
             if self.parent.newitem:
                 # nieuwe entry maken in de tabel voor panel 0
                 self.parent.current_item = len(self.parent.data) # + 1
@@ -1191,9 +1151,9 @@ class Page1(Page):
                 self.parent.page0.enable_buttons(True)
             # teksten op panel 0 bijwerken
             self.parent.page0.p0list.currentItem().setText(1,
-                self.parent.pagedata.get_soorttext()[0].upper()) # self.parent.pagedata.soort)[0][0].upper())
+                self.parent.pagedata.get_soorttext()[0].upper())
             self.parent.page0.p0list.currentItem().setText(2,
-                self.parent.pagedata.get_statustext()) # self.parent.pagedata.status)[0])
+                self.parent.pagedata.get_statustext())
             self.parent.page0.p0list.currentItem().setText(3,
                 self.parent.pagedata.updated)
             if XML_VERSION:
@@ -1207,7 +1167,6 @@ class Page1(Page):
             self.oldbuf = (str(self.proc_entry.text()), str(self.desc_entry.text()),
                 int(self.stat_choice.currentIndex()),
                 int(self.cat_choice.currentIndex()))
-        print("Eind page 1 savep", self.parent.pagedata.__dict__['events'])
         return True
 
     def archiveer(self, evt=None): # Done, untested
@@ -1216,7 +1175,6 @@ class Page1(Page):
         self.savep()
         self.parent.rereadlist = True
         self.vulp()
-        ## self.goto_prev() # waarom? oorspronkelijk zou ik in dit geval terug naar de lijst
 
     def vul_combos(self): # Done
         "vullen comboboxen"
@@ -1233,60 +1191,46 @@ class Page1(Page):
 
 class Page6(Page):
     "pagina 6: voortgang"
-    def __init__(self, parent): # Done (almost)
+    def __init__(self, parent):
         Page.__init__(self, parent, pageno=6, standard=False)
         self.current_item = 0
         self.oldtext = ""
-        sizes = 200, 100 if LIN else 280, 110
+        ## sizes = 200, 100 if LIN else 280, 110
+        sizes = 350, 100 if LIN else 280, 110
         self.pnl = gui.QSplitter(self)
         self.pnl.setOrientation(core.Qt.Vertical)
 
         self.progress_list = gui.QListWidget(self)
-        ## self.resize=(500, high)
         self.progress_list.currentItemChanged.connect(self.on_select_item)
         self.progress_list.itemActivated.connect(self.on_activate_item)
         action = gui.QShortcut('Shift+Ctrl+N', self, functools.partial(
             self.on_activate_item, self.progress_list.item(0)))
-        self.progress_text = EditorPanel(self)
-        ## self.resize(500, high)
-        self.progress_text.textChanged.connect(self.on_text)
+        textpanel = gui.QFrame()
+        self.actiondict = collections.OrderedDict()
+        Page.create_toolbar(self)
+        Page.create_text_field(self, 6)
+        self.progress_text = self.text1 # to save modifying all references (TODO: fix)
+        sizer0 = gui.QHBoxLayout()
+        sizer1 = gui.QVBoxLayout()
+        sizer1.addWidget(self.toolbar)
+        sizer1.addWidget(self.progress_text)
+        sizer0.addLayout(sizer1)
+        textpanel.setLayout(sizer0)
+        textpanel.show()
         self.pnl.addWidget(self.progress_list)
-        self.pnl.addWidget(self.progress_text)
-        ## self.pnl.setSizes(sizes)
-        self.parent.textcallbacks[6] = dict(zip(
-            self.parent.parent.actiondict.keys(), [
-                self.progress_text.text_bold,
-                self.progress_text.text_italic,
-                self.progress_text.text_underline,
-                ## self.progress_text.toggle_monospace,
-                self.progress_text.enlarge_text,
-                self.progress_text.shrink_text,
-                self.progress_text.case_lower,
-                self.progress_text.case_upper,
-                self.progress_text.indent_more,
-                self.progress_text.indent_less,
-                self.progress_text.linespacing_1,
-                self.progress_text.linespacing_15,
-                self.progress_text.linespacing_2,
-                self.progress_text.increase_paragraph_spacing,
-                self.progress_text.decrease_paragraph_spacing,
-            ]))
+        self.pnl.addWidget(textpanel)
+        self.pnl.setSizes(sizes)
         self.save_button = gui.QPushButton('Sla wijzigingen op (Ctrl-S)', self)
         self.save_button.clicked.connect(self.savep)
         action = gui.QShortcut('Ctrl+S', self, self.savepfromkey)
-        ## self.saveandgo_button = gui.QPushButton('Sla op en ga verder (Ctrl-G)',
-            ## self)
-        ## self.saveandgo_button.clicked.connect(self.savepgo)
-        ## action = gui.QShortcut('Ctrl+G', self, self.savepgofromkey)
         self.cancel_button = gui.QPushButton('Maak wijzigingen ongedaan (Alt-Ctrl-Z)',
             self)
         self.cancel_button.clicked.connect(self.restorep)
         action = gui.QShortcut('Alt+Ctrl+Z', self, self.restorep) # Ctrl-Z zit al in text control
-        action = gui.QShortcut('Alt+N', self, self.nieuwp)
-        action = gui.QShortcut('Ctrl+Up', self, self.goto_prev)
-        action = gui.QShortcut('Ctrl+Down', self, self.goto_next)
+        action = gui.QShortcut('Shift+Ctrl+Up', self, self.goto_prev)
+        action = gui.QShortcut('Shift+Ctrl+Down', self, self.goto_next)
 
-    def doelayout(self):    # Done
+    def doelayout(self):
         "layout page"
         sizer0 = gui.QVBoxLayout()
         sizer1 = gui.QHBoxLayout()
@@ -1295,13 +1239,12 @@ class Page6(Page):
         sizer2 = gui.QHBoxLayout()
         sizer2.addStretch()
         sizer2.addWidget(self.save_button)
-        ## sizer2.addWidget(self.saveandgo_button)
         sizer2.addWidget(self.cancel_button)
         sizer2.addStretch()
         sizer0.addLayout(sizer2)
         self.setLayout(sizer0)
 
-    def vulp(self, evt=None):  # Done, untested
+    def vulp(self, evt=None):
         """te tonen gegevens invullen in velden e.a. initialisaties
 
         methode aan te roepen voorafgaand aan het tonen van de pagina"""
@@ -1310,7 +1253,7 @@ class Page6(Page):
         self.event_list, self.event_data, self.old_list, self.old_data = [], [], [], []
         self.progress_text.clear()
         self.progress_text.setReadOnly(True)
-        if self.parent.pagedata: # and not self.parent.newitem:
+        if self.parent.pagedata:
             self.event_list = [x[0] for x in self.parent.pagedata.events]
             self.event_list.reverse()
             self.old_list = self.event_list[:]
@@ -1336,25 +1279,21 @@ class Page6(Page):
                 newitem = gui.QListWidgetItem('{} - {}'.format(datum, text))
                 newitem.setData(core.Qt.UserRole, idx)
                 self.progress_list.addItem(newitem)
-        self.progress_text.clear() # set_contents('')
+        self.progress_text.clear()
         self.oldbuf = (self.old_list, self.old_data)
         self.oldtext = ''
         self.initializing = False
-        print(self.event_data, file=self._out)
 
-    def savep(self, evt=None):  # Done, untested
+    def savep(self, evt=None):
         "opslaan van de paginagegevens"
-        print("\nsaving data", file=self._out)
         Page.savep(self)
         # voor het geval er na het aanpassen van een tekst direkt "sla op" gekozen is
         # nog even kijken of de tekst al in self.event_data is aangepast.
         idx = self.current_item
-        ## hlp = str(self.progress_text.toPlainText())
         hlp = str(self.progress_text.get_contents())
         if idx > 0:
             idx -= 1
         if self.event_data[idx] != hlp:
-            print('first saving local text', idx, hlp, file=self._out)
             self.event_data[idx] = hlp
             self.oldtext = hlp
             short_text = hlp.split("\n")[0]
@@ -1366,7 +1305,6 @@ class Page6(Page):
                 self.event_list[idx], short_text))
             self.progress_list.item(idx + 1).setData(idx, core.Qt.UserRole)
         wijzig = False
-        print(self.event_data, file=self._out)
         if self.event_list != self.old_list or self.event_data != self.old_data:
             wijzig = True
             hlp = len(self.event_list) - 1
@@ -1400,19 +1338,14 @@ class Page6(Page):
         if test < self.progress_list.count():
             self.progress_list.setCurrentRow(test)
 
-    def on_activate_item(self, item=None):  # Done, untested
+    def on_activate_item(self, item=None):
         """callback voor dubbelklik of Enter op een item
 
         wanneer dit gebeurt op het eerste item kan een nieuwe worden aangemaakt
         """
-        if item:
-            print("\nactivate item:", item, item.text(), file=self._out)
-        else:
-            print('supposedly Shift-Ctrl-N was pressed')
         if self.initializing:
             return
         if item is None or data2int(item.data(core.Qt.UserRole)) == -1:
-            print("adding new item", file = self._out)
             datum, self.oldtext = get_dts(), ''
             newitem = gui.QListWidgetItem('{} - {}'.format(datum, self.oldtext))
             newitem.setData(core.Qt.UserRole, 0)
@@ -1423,10 +1356,9 @@ class Page6(Page):
             self.progress_text.setText(self.oldtext)
             self.progress_text.setReadOnly(False)
             self.progress_text.setFocus()
-        print(self.event_data, file=self._out)
 
-    ## def currentItemChanged(self, item_n, item_o):  # Done, untested
-    def on_select_item(self, item_n, item_o):  # Done, untested
+
+    def on_select_item(self, item_n, item_o):
         """callback voor het selecteren van een item
 
         selecteren van (klikken op) een regel in de listbox doet de inhoud van de
@@ -1435,53 +1367,46 @@ class Page6(Page):
         het panel wilt verlaten of afsluiten
         de knoppen onderaan doen de hele lijst bijwerken in self.parent.book.p
         """
-        ## print('selecting item')
-        ## if item_n is not None:
-            ## print('\nselect item   ', item_n.text()) # , file=self._out)
-        ## if item_o is not None:
-            ## print('vorig item was', item_o.text()) # , file=self._out)
         self.progress_text.setReadOnly(True)
         if item_n is None:
+            # als ik al eens eerder op page 6 geweest ben en er terugkom of bij reset
             return
-        text, indx = item_n.text(), data2int(item_n.data(core.Qt.UserRole))
-        ## print('ophalen data huidige item', indx) # , file=self._out)
-        self.current_item = self.progress_list.currentRow() # item_n # self.currentItem()
-        ## print(self.progress_list.item(self.current_item).text())
-        print(indx, self.current_item)
+        self.current_item = self.progress_list.currentRow()
+        indx = self.current_item - 1
         if indx == -1:
             self.oldtext = ""
         else:
             self.oldtext = self.event_data[indx] # dan wel item_n.text()
-            ## self.progress_text.setText(self.oldtext)
-            self.progress_text.set_contents(self.oldtext)
-            if not self.parent.pagedata.arch:
+        self.initializing = True
+        self.progress_text.set_contents(self.oldtext)
+        self.oldtext = self.progress_text.get_contents()
+        self.initializing = False
+        if not self.parent.pagedata.arch:
+            if indx > -1:
                 self.progress_text.setReadOnly(False)
-                self.progress_text.moveCursor(gui.QTextCursor.End,
-                    gui.QTextCursor.MoveAnchor)
-            self.progress_text.setFocus()
-        ## print(self.event_data) # , file=self._out)
+            self.progress_text.moveCursor(gui.QTextCursor.End,
+                gui.QTextCursor.MoveAnchor)
+        self.progress_text.setFocus()
 
-    def on_text(self):  # Done, untested
+    def on_text(self):
         """callback voor wanneer de tekst gewijzigd is
 
         de initializing flag wordt uitgevraagd omdat deze event ook tijdens vulp()
-        plaatsvindt
-
-        als je hier al de event_data tabel aanpast, waarom dan niet ook gelijk de
-        tekst in de list?
+        en wijzigen van list positie plaatsvindt
         """
         if self.initializing:
             return
-        ## idx = self.current_item # self.progress_list.Selection # niet gebruikt
-        ## tekst = str(self.progress_text.toPlainText()) # self.progress_list.GetItemText(ix)
+        # lees de inhoud van het tekstveld en vergelijk deze met de buffer
         tekst = str(self.progress_text.get_contents()) # self.progress_list.GetItemText(ix)
-        ## print("\non text:", tekst) # , file=self._out)
         if tekst != self.oldtext:
+            # stel de buffer in op de nieuwe tekst
             self.oldtext = tekst
+            # maakt er platte tekst van om straks in de listbox bij te werken
             tekst_plat = self.progress_text.toPlainText()
+            # stel in dat we niet van dit scherm af kunnen zonder te updaten
             self.enable_buttons()
-            ## print(self.current_item)
-            ## current_item = self.progress_list.currentRow() # item_n # self.currentItem()
+            # zorg ervoor dat we met het juiste item bezig zijn maar... dit helpt helamaal niet?
+            current_item = self.progress_list.currentRow()
             if self.current_item > 0:
                 indx = self.current_item - 1
                 self.event_data[indx] = tekst
@@ -1491,7 +1416,6 @@ class Page6(Page):
                 if len(short_text) >= 80:
                     short_text = short_text[:80] + "..."
                 item.setText(short_text)
-        print(self.event_data, file=self._out)
 
 class SortOptionsDialog(gui.QDialog):
     "dialoog om de sorteer opties in te stellen"
@@ -1507,19 +1431,16 @@ class SortOptionsDialog(gui.QDialog):
         hig = 600 # if LIN else 450
         gui.QDialog.__init__(self, parent)
         self.setWindowTitle("Sorteren op meer dan 1 kolom")
-        ## self.resize(wid, hig)
 
         sizer = gui.QVBoxLayout()
         grid = gui.QGridLayout()
         for num in range(1, 5):
             row = num - 1
             grid.addWidget(gui.QLabel("  {}.".format(num), self), row, 0)
-            ## size=(20, -1))
             cmb = gui.QComboBox(self)
             cmb.setEditable(False)
             cmb.addItems(lijst)
             cmb.setCurrentIndex(0)
-             ## size=(80, -1),
             grid.addWidget(cmb, row, 1)
             rbg = gui.QButtonGroup(self)
             rba = gui.QRadioButton(" Asc ", self)
@@ -1553,11 +1474,10 @@ class SelectOptionsDialog(gui.QDialog):
     sel_args is de dictionary waarin de filterwaarden zitten, bv:
     {'status': ['probleem'], 'idlt': '2006-0009', 'titel': 'x', 'soort': ['gemeld'],
     'id': 'and', 'idgt': '2005-0019'}"""
-    def __init__(self, parent, sel_args): # Done
+    def __init__(self, parent, sel_args):
         self.parent = parent
         gui.QDialog.__init__(self, parent)
         self.setWindowTitle("Selecteren")
-            ## size=(250,  250)
 
         self.check_options = gui.QButtonGroup()
         self.check_options.setExclusive(False)
@@ -1682,7 +1602,6 @@ class SelectOptionsDialog(gui.QDialog):
         vbox.addWidget(self.check_options.buttons()[4])
         vbox.addStretch()
         grid.addLayout(vbox, 4, 0)
-        ## grid.addWidget(gui.QLabel('-', self), 4, 1)
         hbox = gui.QHBoxLayout()
         for radio in self.radio_arch.buttons():
             hbox.addWidget(radio)
@@ -1731,10 +1650,8 @@ class SelectOptionsDialog(gui.QDialog):
                 self.radio_arch.buttons()[1].setChecked(True)
             self.check_options.buttons()[4].setChecked(True)
 
-    def on_text(self, arg, text): # Done, untested
+    def on_text(self, arg, text):
         "callback voor EVT_TEXT"
-        ## it = evt.GetEventObject() # unused
-        ## print('on_text:', arg, text)
         if arg in ('gt', 'lt'):
             obj = self.check_options.buttons()[0]
         elif arg == 'zoek':
@@ -1744,9 +1661,8 @@ class SelectOptionsDialog(gui.QDialog):
         else:
             obj.setChecked(True)
 
-    def on_checked(self, arg, val): # Done, untested
+    def on_checked(self, arg, val):
         "callback voor EVT_CHECK"
-        ## print('on_check:', val, arg)
         if arg == 'cat':
             obj = self.check_options.buttons()[1]
             grp = self.check_cats
@@ -1766,11 +1682,11 @@ class SelectOptionsDialog(gui.QDialog):
         else:
             obj.setChecked(False)
 
-    def accept(self): # TODO
+    def accept(self):
         "aangegeven opties verwerken in sel_args dictionary"
         selection = 'excl.gearchiveerde'
         sel_args = {}
-        if self.check_options.buttons()[0].isChecked(): #  checkbox voor "id"
+        if self.check_options.buttons()[0].isChecked():
             selection = '(gefilterd)'
             id_gt, id_lt = str(self.text_gt.text()), str(self.text_lt.text())
             if id_gt:
@@ -1785,7 +1701,7 @@ class SelectOptionsDialog(gui.QDialog):
             itemindex = 1
         elif SQL_VERSION:
             itemindex = 2
-        if self.check_options.buttons()[1].isChecked(): #  checkbox voor "soort"
+        if self.check_options.buttons()[1].isChecked():
             selection = '(gefilterd)'
             if XML_VERSION:
                 lst = [self.parent.parent.cats[x][itemindex]
@@ -1797,7 +1713,7 @@ class SelectOptionsDialog(gui.QDialog):
                     if self.check_cats.buttons()[x].isChecked()]
             if lst:
                 sel_args["soort"] = lst
-        if self.check_options.buttons()[2].isChecked(): #  checkbox voor "status"
+        if self.check_options.buttons()[2].isChecked():
             selection = '(gefilterd)'
             if XML_VERSION:
                 lst = [self.parent.parent.stats[x][itemindex]
@@ -1809,10 +1725,10 @@ class SelectOptionsDialog(gui.QDialog):
                     if self.check_stats.buttons()[x].isChecked()]
             if lst:
                 sel_args["status"] = lst
-        if self.check_options.buttons()[3].isChecked(): # checkbox voor "titel bevat"
+        if self.check_options.buttons()[3].isChecked():
             selection = '(gefilterd)'
             sel_args["titel"] = str(self.text_zoek.text())
-        if self.check_options.buttons()[4].isChecked(): # checkbox voor "archiefstatus"
+        if self.check_options.buttons()[4].isChecked():
             if self.radio_arch.buttons()[0].isChecked():
                 sel_args["arch"] = "arch"
                 if selection != '(gefilterd)':
@@ -1829,7 +1745,7 @@ class OptionsDialog(gui.QDialog):
     """base class voor de opties dialogen
 
     nu nog F2 en dubbelklikken mogelijk maken om editen te starten"""
-    def __init__(self, parent, title, size=(300,300)): # Done
+    def __init__(self, parent, title, size=(300,300)):
         self.parent = parent
         gui.QDialog.__init__(self, parent)
         self.resize(size[0], size[1])
@@ -1877,7 +1793,7 @@ class OptionsDialog(gui.QDialog):
         buttonbox.accepted.connect(self.accept)
         buttonbox.rejected.connect(self.reject)
 
-    def initstuff(self): # Done
+    def initstuff(self):
         """placeholder voor aanvullende initialisatie methode
 
         tevens om te tonen welke dingen er hier ingesteld moeten worden
@@ -1895,16 +1811,16 @@ class OptionsDialog(gui.QDialog):
             return
         gui.QDialog.keyReleaseEvent(self, evt)
 
-    def edit_item(self): # Done, seems ok
+    def edit_item(self):
         "open de betreffende regel voor editing"
         item = self.elb.currentItem()
         self.elb.openPersistentEditor(item)
         self.elb.editItem(item)
 
-    def end_edit(self, item_n, item_o): # ok
+    def end_edit(self, item_n, item_o):
         self.elb.closePersistentEditor(item_o)
 
-    def add_item(self): # seems ok
+    def add_item(self):
         "open een nieuwe lege regel"
         item = gui.QListWidgetItem('')
         self.elb.addItem(item)
@@ -1912,17 +1828,17 @@ class OptionsDialog(gui.QDialog):
         self.elb.openPersistentEditor(item)
         self.elb.editItem(item)
 
-    def remove_item(self): # seems ok
+    def remove_item(self):
         "verwijder de betreffende regel"
         item = self.elb.currentItem()
         row = self.elb.currentRow()
         self.elb.takeItem(row)
 
-    def move_item_up(self): # ok
+    def move_item_up(self):
         "inhoud omwisselen met de regel erboven"
         self.move_item(up=True)
 
-    def move_item_down(self): # ok
+    def move_item_down(self):
         "inhoud omwisselen met de regel eronder"
         self.move_item(up=False)
 
@@ -1944,7 +1860,7 @@ class OptionsDialog(gui.QDialog):
         item.setText(text_to_replace)
         self.elb.setCurrentItem(item_to_replace)
 
-    def accept(self): # Done, untested
+    def accept(self):
         message = self.leesuit()
         if message:
             gui.QMessageBox.information(self, 'Probreg', message)
@@ -1998,7 +1914,6 @@ class StatOptions(OptionsDialog):
     def leesuit(self):
         "wijzigingen doorvoeren"
         self.newstats = {}
-        ## for sortkey, item in enumerate(self.elb.items()):
         for sortkey in range(self.elb.count()):
             item = self.elb.item(sortkey).text()
             try:
@@ -2031,7 +1946,6 @@ class CatOptions(OptionsDialog):
     def leesuit(self):
         "wijzigingen doorvoeren"
         self.newcats = {}
-        ## for sortkey, item in enumerate(self.elb.items()):
         for sortkey in range(self.elb.count()):
             item = self.elb.item(sortkey).text()
             try:
@@ -2064,7 +1978,7 @@ class MainWindow(gui.QMainWindow):
                     self.filepad = ""
             self.dirname, self.filename = os.path.split(self.filepad)
         elif SQL_VERSION:
-            self.filename = "" # fnaam werkt niet omdat ...?
+            self.filename = ""
 
         if LIN:
             wide, high, left, top = 864, 720, 2, 2
@@ -2081,10 +1995,7 @@ class MainWindow(gui.QMainWindow):
 
         pnl = gui.QFrame(self)
         self.setCentralWidget(pnl)
-        ## self.close = self.exit_app
         self.toolbar = None
-        self.actiondict = collections.OrderedDict()
-        self.create_toolbar()
         self.create_book(pnl)
         self.exit_button = gui.QPushButton('&Quit', pnl)
         self.exit_button.clicked.connect(self.exit_app)
@@ -2100,7 +2011,7 @@ class MainWindow(gui.QMainWindow):
             elif SQL_VERSION:
                 self.open_sql()
         self.initializing = False
-        self.zetfocus(0) # book.page0.SetFocus()
+        self.zetfocus(0)
 
     def create_menu(self):
         menu_bar = self.menuBar()
@@ -2165,90 +2076,6 @@ class MainWindow(gui.QMainWindow):
             for menuitem in items:
                 add_to_menu(menu, menuitem)
 
-    def create_toolbar(self):
-        ## self.editor = self.book.page2.text1
-        toolbar = self.addToolBar('styles')
-        toolbar.setIconSize(core.QSize(16,16))
-        self.combo_font = gui.QFontComboBox(toolbar)
-        toolbar.addWidget(self.combo_font)
-        ## self.combo_font.activated[str].connect(self.editor.text_family)
-        ## self.combo_font.setCurrentIndex(self.combo_size.findText(
-            ## str(self.editor.font().family())))
-        self.combo_size = gui.QComboBox(toolbar)
-        toolbar.addWidget(self.combo_size)
-        self.combo_size.setEditable(True)
-        db = gui.QFontDatabase()
-        self.fontsizes = []
-        for size in db.standardSizes():
-            self.combo_size.addItem(str(size))
-            self.fontsizes.append(str(size))
-        ## self.combo_size.activated[str].connect(self.editor.text_size)
-        ## self.combo_size.setCurrentIndex(self.combo_size.findText(
-            ## str(self.editor.font().pointSize())))
-        toolbar.addSeparator()
-
-        data = (
-            ('&Bold', 'Ctrl+B', 'icons/sc_bold', 'CheckB'),
-            ('&Italic', 'Ctrl+I', 'icons/sc_italic', 'CheckI'),
-            ('&Underline', 'Ctrl+U', 'icons/sc_underline', 'CheckU'),
-            ## ("Toggle &Monospace", 'Shift+Ctrl+M', 'icons/text',
-                ## 'Switch using proportional font off/on'),
-            (),
-            ("&Enlarge text", 'Ctrl+Up', 'icons/sc_grow', 'Use bigger letters'),
-            ("&Shrink text", 'Ctrl+Down', 'icons/sc_shrink', 'Use smaller letters'),
-            (),
-            ('To &Lower Case', 'Shift+Ctrl+L', 'icons/sc_changecasetolower',
-                'Use all lower case letters'),
-            ('To &Upper Case', 'Shift+Ctrl+U', 'icons/sc_changecasetoupper',
-                'Use all upper case letters'),
-            (),
-            ("Indent &More", 'Ctrl+]', 'icons/sc_incrementindent',
-                'Increase indentation'),
-            ("Indent &Less", 'Ctrl+[', 'icons/sc_decrementindent',
-                'Decrease indentation'),
-            (),
-            ## ("Normal Line Spacing", '', 'icons/sc_spacepara1',
-                ## 'Set line spacing to 1'),
-            ## ("1.5 Line Spacing",    '', 'icons/sc_spacepara15',
-                ## 'Set line spacing to 1.5'),
-            ## ("Double Line Spacing", '', 'icons/sc_spacepara2',
-                ## 'Set line spacing to 2'),
-            ## (),
-            ("Increase Paragraph &Spacing", '', 'icons/sc_paraspaceincrease',
-                'Increase spacing between paragraphs'),
-            ("Decrease &Paragraph Spacing", '', 'icons/sc_paraspacedecrease',
-                'Decrease spacing between paragraphs'),
-            )
-        for menudef in data:
-            if not menudef:
-                toolbar.addSeparator()
-                continue
-            label, shortcut, icon, info = menudef
-            if icon:
-                action = gui.QAction(gui.QIcon(os.path.join(HERE, icon)), label,
-                    self)
-                toolbar.addAction(action)
-            else:
-                action = gui.QAction(label, self)
-            ## action.triggered.connect(handler)
-            ## self.connect(action, core.SIGNAL('triggered()'), handler)
-            if shortcut:
-                action.setShortcuts([x for x in shortcut.split(",")])
-            if info.startswith("Check"):
-                action.setCheckable(True)
-                info = info[5:]
-                if info in ('B', 'I', 'U'):
-                    font = gui.QFont()
-                    if info == 'B':
-                        font.setBold(True)
-                    elif info == 'I':
-                        font.setItalic(True)
-                    elif info == 'U':
-                        font.setUnderline(True)
-                    action.setFont(font)
-            self.actiondict[label] = action
-        self.toolbar = toolbar
-
     def create_actions(self):
         action = gui.QShortcut('Ctrl+P', self, self.print_)
         action = gui.QShortcut('Alt+Left', self, self.go_prev)
@@ -2300,7 +2127,6 @@ class MainWindow(gui.QMainWindow):
         self.book.pagedata = None
         self.book.textcallbacks = {}
 
-        #~ self.book.SetMinSize((486,496))
         self.book.page0 = Page0(self.book)
         self.book.page1 = Page1(self.book)
         self.book.page2 = Page(self.book, 2)
@@ -2375,7 +2201,7 @@ class MainWindow(gui.QMainWindow):
                 sel, naam, titel, oms = line.strip().split(";")
                 if sel == "X":
                     data.append((naam.capitalize(),titel.capitalize(),oms))
-        data = data # [1:]
+        data = data
         data.sort()
         print(self.filename)
         choice = 0
@@ -2385,20 +2211,9 @@ class MainWindow(gui.QMainWindow):
                     (self.filename == "_basic" and h[0] == "Demo"):
                 choice = idx
                 break
-        # combobox versie
         choice, ok = gui.QInputDialog.getItem(self, 'Probreg SQL versie',
             'Kies een project om te openen', [": ".join((h[1],h[2])) for h in data],
             current = choice, editable=False)
-        ## # listbox versie
-        ## dlg = gui.QInputDialog(self)
-        ## dlg.setInputMode(gui.QInputDialog.TextInput)
-        ## dlg.setComboBoxItems([": ".join((h[1],h[2])) for h in data])
-        ## dlg.setOption(gui.QInputDialog.UseListViewForComboBoxItems, True)
-        ## dlg.setLabelText('Kies een project om te openen')
-        ## dlg.setTextValue(choice)
-        ## dlg.setComboBoxEditable(False)
-        ## ok = dlg.exec_() # need a way to transfer the actual choice
-        ## if ok == gui.QDialog.Accepted():
         if ok:
             self.filename = str(choice).split(': ')[0]
             if self.filename == "Demo":
@@ -2433,7 +2248,6 @@ class MainWindow(gui.QMainWindow):
                     titel = str(item.text(5))
                     l_wijz = l_wijz[:19]
                     actie = actie + " - " + over
-                    ## started = ... # staat niet in het scherm, zou je uit de page tabel moeten halen
                     started = started[:19]
                 if status != self.book.stats[0][0]:
                     if l_wijz:
@@ -2460,16 +2274,12 @@ class MainWindow(gui.QMainWindow):
         elif 2 <= self.book.current_tab <= 5:
             title = self.book.tabs[self.book.current_tab].split(None, 1)[1]
             if self.book.current_tab == 2:
-                ## text = self.book.page2.text1.toPlainText()
                 text = self.book.page2.text1.get_contents()
             elif self.book.current_tab == 3:
-                ## text = self.book.page3.text1.toPlainText()
                 text = self.book.page3.text1.get_contents()
             elif self.book.current_tab == 4:
-                ## text = self.book.page4.text1.toPlainText()
                 text = self.book.page4.text1.get_contents()
             elif self.book.current_tab == 5:
-                ## text = self.book.page5.text1.toPlainText()
                 text = self.book.page5.text1.get_contents()
             self.printdict['sections'] = [(title, str(text).replace('\n', '<br>'))]
         elif self.book.current_tab == 6:
@@ -2485,14 +2295,13 @@ class MainWindow(gui.QMainWindow):
     def print_actie(self, evt=None):
         "Menukeuze: print deze actie"
         if self.book.pagedata is None or self.book.newitem:
-            # afbreken met melding geen actie geselecteerd
             dlg = gui.QMessageBox.information(self,
                 self.parent.parent.title,
                 "Wel eerst een actie kiezen om te printen",
             )
             return
         self.hdr = ("Actie: {} {}".format(self.book.pagedata.id, self.book.pagedata.titel))
-        tekst = self.book.pagedata.titel #.split(" - ", 1)
+        tekst = self.book.pagedata.titel
         try:
             oms, tekst = tekst.split(" - ", 1)
         except ValueError:
@@ -2696,14 +2505,9 @@ class MainWindow(gui.QMainWindow):
             settings.write()
             self.book.tabs = {}
             for item_value, item_text in data.items():
-                ## if XML_VERSION:
-                    ## tabtext = " ".join((item_value, item_text))
-                    ## self.book.tabs[item_value] = tabtext
-                    ## self.book.setTabText(int(item_value), tabtext)
-                ## elif SQL_VERSION:
-                    item = " ".join((item_value, item_text))
-                    self.book.tabs[int(item_value)] = item
-                    self.book.setTabText(int(item_value), item)
+                item = " ".join((item_value, item_text))
+                self.book.tabs[int(item_value)] = item
+                self.book.setTabText(int(item_value), item)
         elif srt == "stat":
             settings.stat = data
             settings.write()
@@ -2740,11 +2544,8 @@ class MainWindow(gui.QMainWindow):
         """
         old = self.book.current_tab
         new = self.book.current_tab = self.book.currentIndex()
-        print('going to new page', new)
-        ## sel = self.book.GetSelection() # unused
         if LIN and old == -1: # bij initialisatie en bij afsluiten - op Windows is deze altijd -1?
             return
-        print("enabling tabs in on_page_changing to", newtabnum)
         for i in range(self.book.count()):
             if i != self.book.current_tab:
                 self.book.setTabEnabled(i, True)
@@ -2766,7 +2567,6 @@ class MainWindow(gui.QMainWindow):
 
     def zetfocus(self, tabno):
         "focus geven aan de gekozen tab"
-        #~ self.setFocus()
         if tabno == 0:
             self.book.page0.p0list.setFocus()
         elif tabno == 1:
@@ -2793,16 +2593,11 @@ class MainWindow(gui.QMainWindow):
         if self.css:
             self.printdict['css'] = self.css
         self.printdict['hdr'] = self.hdr
-        ## prt = dlg.printer()
-        ## print(self.printdict)
         doc = gui.QTextDocument(self)
         html = Template(filename='probreg/actie.tpl').render(**self.printdict)
-        ## print(html)
         doc.setHtml(html)
         printer.setOutputFileName(self.hdr)
-        ## print(doc.toHtml())
         doc.print_(printer)
-        ## self.printer.print_("".join(self.text), self.hdr)
         self.print_dlg.done(True)
 
 def main(arg=None, log=False):
