@@ -9,7 +9,7 @@ statdict: dictionary van mogelijke statussen in de vorm  volgorde: (omschrijving
 catdict: dictionary van mogelijke soorten in de vorm     volgorde: (omschrijving, code, id in tabel)
 """
 import os
-root = "/home/albert/www/django/actiereg/actiereg"
+root = "/home/albert/projects/actiereg/actiereg"
 DBLOC = os.path.join(root, "actiereg.db")
 USER = 2
 APPS = os.path.join(root, "apps.dat")
