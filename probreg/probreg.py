@@ -4,4 +4,5 @@
 """
 
 ## from .probreg_wx import main
-from .probreg_qt import main
+## from .probreg_qt import main
+from .probreg_qt5 import main
