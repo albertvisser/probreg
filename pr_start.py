@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 """Startprogramma voor probreg gui versie
 
 importeert module probreg uit package probreg

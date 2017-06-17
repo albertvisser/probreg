@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 """Startprogramma voor probreg gui sql versie
 
 importeert module probreg uit package probreg (probreg_sql is vervallen)
