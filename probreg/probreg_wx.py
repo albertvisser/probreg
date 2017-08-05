@@ -1,6 +1,6 @@
 #! usr/bin/env python
 # -*- coding: UTF-8 -*-
-"""Actie (was: problemen) Registratie, GUI versie
+"""Actie (was: problemen) Registratie, wxPython versie - niet actief onderhouden
 """
 
 from __future__ import print_function

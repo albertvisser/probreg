@@ -26,10 +26,10 @@ kopdict_xml = {
 statdict_xml = {
     "0": ("gemeld", 0),
     "1": ("in behandeling", 1),
-    "2": ("oplossing controleren",2),
-    "3": ("nog niet opgelost",3),
+    "2": ("oplossing controleren", 2),
+    "3": ("nog niet opgelost", 3),
     "4": ("afgehandeld", 4),
-    "5": ("afgehandeld - vervolg",5)
+    "5": ("afgehandeld - vervolg", 5)
 }
 catdict_xml = {
     "P": ("probleem", 1),

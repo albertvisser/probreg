@@ -1,6 +1,8 @@
 #! usr/bin/env python
 # -*- coding: UTF-8 -*-
 """Actie (was: problemen) Registratie, GUI versie
+
+redirect gui-insensitive import to gui-sensitive module
 """
 
 ## from .probreg_wx import main

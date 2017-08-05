@@ -1,11 +1,11 @@
 # -*- coding: UTF-8 -*-
-"data managenent statements"
+"data managenent voor ProbReg XML versie"
 from __future__ import print_function
 
-import sys
+## import sys
 import os
-import pprint
-import base64 # gzip
+## import pprint
+import base64  # gzip
 import datetime as dt
 from shutil import copyfile
 from xml.etree.ElementTree import ElementTree, Element, SubElement
@@ -13,25 +13,41 @@ from probreg.config_xml import kopdict, statdict, catdict
 
 datapad = os.getcwd()
 
+
 class DataError(Exception):
     "Eigen all-purpose exception - maakt resultaat testen eenvoudiger"
     pass
+
+
+def check_filename(fnaam):
+    """check for correct filename and return short and long version
+    """
+    fn, meld = ''
+    if os.path.splitext(fnaam)[1] != ".xml":
+        meld = "Filename incorrect (must end in .xml)"
+    if os.path.dirname(fnaam) != "":
+        fn, fnaam = fnaam, os.path.basename(fnaam)
+    else:
+        fn = os.path.join(datapad, fnaam)
+    exists = os.path.exists(fn)
+    return fn, fnaam, exists, meld
+
 
 def checkfile(fn, new=False):
     "controleer of projectbestand bestaat, maak indien aangegeven nieuwe aan"
     r = ''
     if new:
         root = Element("acties")
-        s = SubElement(root,"settings", imagecount="0")
-        t = SubElement(s,"stats")
+        s = SubElement(root, "settings", imagecount="0")
+        t = SubElement(s, "stats")
         for x, y in list(statdict.items()):
             u = SubElement(t, "stat", order=str(y[1]), value=x)
             u.text = y[0]
-        t = SubElement(s,"cats")
+        t = SubElement(s, "cats")
         for x, y in list(catdict.items()):
             u = SubElement(t, "cat", order=str(y[1]), value=x)
             u.text = y[0]
-        t = SubElement(s,"koppen")
+        t = SubElement(s, "koppen")
         for x, y in list(kopdict.items()):
             u = SubElement(t, "kop", value=x)
             u.text = y
@@ -44,6 +60,7 @@ def checkfile(fn, new=False):
             if tree.getroot().tag != "acties":
                 r = fn + " is geen bruikbaar xml bestand"
     return r
+
 
 def get_nieuwetitel(fnaam, jaar=None):
     "bepaal nieuw uit te geven actienummer"
@@ -65,6 +82,7 @@ def get_nieuwetitel(fnaam, jaar=None):
         if int(t[1]) > nummer:
             nummer = int(t[1])
     return "%s-%04i" % (jaar, nummer + 1)
+
 
 def get_acties(fnaam, select=None, arch=""):
     """
@@ -99,8 +117,8 @@ def get_acties(fnaam, select=None, arch=""):
             if "idlt" not in select and "idgt" not in select:
                 raise DataError("Foutieve combinatie van selectie-argumenten opgegeven")
     if arch not in ("", "arch", "alles"):
-        raise DataError("Foutieve waarde voor archief opgegeven " \
-            "(moet niks, 'arch'  of 'alles' zijn)")
+        raise DataError("Foutieve waarde voor archief opgegeven "
+                        "(moet niks, 'arch'  of 'alles' zijn)")
     sett = Settings(fnaam)
     if os.path.exists(fnaam):
         dnaam = fnaam
@@ -124,7 +142,7 @@ def get_acties(fnaam, select=None, arch=""):
                 continue
         else:
             if ("idgt" in select and nr <= select["idgt"]) \
-                or ("idlt" in select and nr >= select["idlt"]):
+                    or ("idlt" in select and nr >= select["idlt"]):
                 continue
         ## alternatief en meer overeenkomend met de sql versie
         ## if 'id' in select:
@@ -158,12 +176,13 @@ def get_acties(fnaam, select=None, arch=""):
         if h in list(sett.cat.keys()):
             ct = sett.cat[h]
         tl = x.find("titel").text
-        if tl == None:
+        if tl is None:
             tl = ""
         if "titel" in select and select["titel"].upper() not in tl.upper():
             continue
         lijst.append((nr, dd, st, ct, tl, lu))
     return lijst
+
 
 class Settings:
     """
@@ -182,28 +201,17 @@ class Settings:
         if fnaam == "":
             self.meld = "Standaard waarden opgehaald"
             return
-        if os.path.splitext(fnaam)[1] != ".xml":
-            #~ print os.path.splitext(fnaam)[1]
-            self.meld = "Geen xml-bestand opgegeven: " + fnaam
+        self.fn, self.fnaam, self.exists, self.meld = check_filename(fnaam)
+        if self.meld:
             raise DataError(self.meld)
-        fn = os.path.split(fnaam)
-        if fn[0] != "":
-            self.fn = fnaam
-            self.fnaam = fn[1]
-        else:
-            self.fn = os.path.join(datapad, fnaam) # naam van het xml bestand
-            self.fnaam = fnaam
-        self.fno = self.fn + ".old"     # naam van de backup van het xml bestand
-        self.exists = False
-        if os.path.exists(self.fn):
-            self.exists = True
+        if self.exists:
             self.read()
 
     def read(self):
         "settings lezen"
         tree = ElementTree(file=self.fn)
         rt = tree.getroot()
-        found = False # wordt niet gebruikt
+        ## found = False  # wordt niet gebruikt
         x = rt.find("settings")
         if x is not None:
             self.imagecount = x.get('imagecount') or '0'
@@ -224,7 +232,7 @@ class Settings:
                 for y in h.findall("kop"):
                     self.kop[y.get("value")] = y.text
 
-    def write(self, srt=None): # extra argument ivm compat sql-versie
+    def write(self, srt=None):  # extra argument ivm compat sql-versie
         "settings terugschrijven"
         if not self.exists:
             rt = Element('acties')
@@ -234,7 +242,7 @@ class Settings:
             rt = tree.getroot()
         el = rt.find("settings")
         if el is None:
-            el = SubElement(rt,"settings")
+            el = SubElement(rt, "settings")
         el.set('imagecount', str(self.imagecount))
         for x in list(el):
             if x.tag == "stats":
@@ -243,28 +251,28 @@ class Settings:
                 el.remove(x)
             elif x.tag == "koppen":
                 el.remove(x)
-        h = SubElement(el,"stats")
-        #~ print self.stat
+        h = SubElement(el, "stats")
+        ## print self.stat
         for x in list(self.stat.keys()):
             if x is int:
                 x = str(x)
             j = SubElement(h, "stat", value=x)
             j.set("order", str(self.stat[x][1]))
             j.text = self.stat[x][0]
-        h = SubElement(el,"cats")
-        #~ print self.cat
+        h = SubElement(el, "cats")
+        ## print self.cat
         for x in list(self.cat.keys()):
             j = SubElement(h, "cat", value=x)
             j.set("order", str(self.cat[x][1]))
             j.text = self.cat[x][0]
-        h = SubElement(el,"koppen")
-        #~ print self.kop
+        h = SubElement(el, "koppen")
+        ## print self.kop
         for x in list(self.kop.keys()):
             if x is int:
                 x = str(x)
             j = SubElement(h, "kop", value=x)
             j.text = self.kop[x]
-        copyfile(self.fn, self.fno)
+        copyfile(self.fn, self.fn + ".old")
         tree.write(self.fn, encoding='utf-8', xml_declaration=True)
         self.exists = True
 
@@ -280,17 +288,17 @@ class Settings:
             self.meld = 'Geen waarde voor sleutel opgegeven'
             raise DataError(self.meld)
         elif naam == "stat":
-            if type(waarde) is not tuple:
+            if not isinstance(waarde, tuple):
                 self.meld = 'Sleutelwaarde moet bestaan uit tekst en sortvolgnummer'
                 raise DataError(self.meld)
             self.stat[key] = waarde
         elif naam == "cat":
-            if type(waarde) is not tuple:
+            if not isinstance(waarde, tuple):
                 self.meld = 'Sleutelwaarde moet bestaan uit tekst en sortvolgnummer'
                 raise DataError(self.meld)
             self.cat[key] = waarde
         elif naam == "kop":
-            if type(waarde) is not str:
+            if not isinstance(waarde, str):
                 self.meld = 'Sleutelwaarde moet bestaan uit alleen tekst'
                 raise DataError(self.meld)
             self.kop[key] = waarde
@@ -304,7 +312,7 @@ class Settings:
             if key is None:
                 return self.stat
             else:
-                if type(key) is int:
+                if isinstance(key, int):
                     key = str(key)
                 if key not in self.stat:
                     self.meld = 'Sleutel bestaat niet voor status'
@@ -322,64 +330,52 @@ class Settings:
             if key is None:
                 return self.kop
             else:
-                if type(key) is int:
+                if isinstance(key, int):
                     key = str(key)
                 if key not in self.kop:
                     self.meld = 'Sleutel bestaat niet voor kop'
                     raise DataError(self.meld)
                 return self.kop[key]
 
+
 class Actie:
     """lijst alle gegevens van een bepaald item"""
     def __init__(self, fnaam, _id):
-        self.meld = ''
-        if os.path.splitext(fnaam)[1] != ".xml":
-            #~ print os.path.splitext(fnaam)[1]
-            self.meld = "Geen xml-bestand opgegeven: " + fnaam
+        self.fn, self.fnaam, self.file_exists, self.meld = check_filename(fnaam)
+        if self.meld:
             raise DataError(self.meld)
-        fn = os.path.split(fnaam)
-        if fn[0] != "":
-            self.fn = fnaam
-            self.fnaam = fn[1]
-        else:
-            self.fn = os.path.join(datapad, fnaam) # naam van het xml bestand
-            self.fnaam = fnaam
         self.settings = Settings(fnaam)
-        self.imagecount = int(self.settings.imagecount) # NB: attribuut van settings
+        self.imagecount = int(self.settings.imagecount)  # NB: attribuut van settings
         self.imagelist = []
-        self.id = _id
-        self.datum = ''
-        self.status = '0'
-        self.soort = ''
-        self.arch = False
-        self.titel = ''
-        self.melding = ''
-        self.oorzaak = ''
-        self.oplossing  = ''
-        self.vervolg = ''
-        self.stand = ''
+        self.id, self.exists = _id, False
+        self.datum = self.soort = self.titel = ''
+        self.status, self.arch = '0', False
+        self.melding = self.oorzaak = self.oplossing = self.vervolg = self.stand = ''
         self.events = []
         self.fno = self.fn + ".old"     # naam van de backup van het xml bestand
-        self.exists = False
-        if os.path.exists(self.fn):
-            pass
-        elif _id == 0 or _id == "0":
-            self.nieuwfile()
-        if _id == 0 or _id == "0":
-            self.nieuw()
+        new_item = _id == 0 or _id == "0"
+        if self.file_exists:
+            if new_item:
+                self.nieuw()
+            else:
+                self.read()
         else:
-            self.read()
-
-    def nieuw(self):
-        "nieuwe actie initialiseren"
-        self.id = get_nieuwetitel(self.fn)
-        self.datum = dt.datetime.today().isoformat(' ')[:19]
+            if new_item:
+                self.nieuwfile()
+                self.nieuw()
+            else:
+                raise DataError("Can't pass non-empty id for nonexistant file")
 
     def nieuwfile(self):
         "nieuw projectbestand aanmaken"
         f = open(self.fn, "w")
         f.write('<?xml version="1.0" encoding="iso-8859-1"?>\n<acties>\n</acties>\n')
         f.close()
+
+    def nieuw(self):
+        "nieuwe actie initialiseren"
+        self.id = get_nieuwetitel(self.fn)
+        self.datum = dt.datetime.today().isoformat(' ')[:19]
 
     def read(self):
         "gegevens lezen van een bepaalde actie"
@@ -398,7 +394,7 @@ class Actie:
             self.status = x.get("status")
             try:
                 self.soort = x.get("soort")
-            except:
+            except: # FIXME: which exception? Why not just test for None?
                 pass
             h = x.get("arch")
             if h is not None:
@@ -441,7 +437,7 @@ class Actie:
                             print('length of text:', len(z.text))
                             ## data = bytes(z.text, encoding='utf-8')
                             ## data = gzip.decompress(data)
-                            data = base64.b64decode(eval(z.text)) # .decode('ascii')
+                            data = base64.b64decode(eval(z.text))  # FIXME: why eval?
                             ## data = base64.decodebytes(bytes(z.text, encoding='utf-8')) # .decode('ascii')
                             ## data = base64.b64decode(bytes(z.text, encoding='utf-8'))
                             _out.write(data)
@@ -469,15 +465,16 @@ class Actie:
 
     def set_status(self, waarde):
         "stel status in (code of tekst)"
-        if type(waarde) is int:
+        if isinstance(waarde, int):
             if str(waarde) in statdict:
                 self.status = waarde
             else:
                 raise DataError("Foutieve numerieke waarde voor status")
-        elif type(waarde) is str:
+        elif isinstance(waarde, str):
             found = False
             for x, y in list(statdict.values()):
-                if x == waarde:
+                print(waarde, x, y)
+                if x == waarde: # FIXME: moet dit soms y zijn?
                     found = True
                     self.status = x
                     break
@@ -489,7 +486,7 @@ class Actie:
     def set_soort(self, waarde):
         "stel soort in (code of tekst)"
         print(waarde)
-        if type(waarde) is str:
+        if isinstance(waarde, str):
             if waarde in catdict:
                 self.soort = waarde
             else:
@@ -514,7 +511,7 @@ class Actie:
 
     def write(self):
         "actiegegevens terugschrijven"
-        if os.path.exists(self.fn):
+        if self.file_exists:     # os.path.exists(self.fn):
             tree = ElementTree(file=self.fn)
             rt = tree.getroot()
             sett = rt.find('settings')
@@ -592,7 +589,7 @@ class Actie:
                 ## q.text = str(base64.encodebytes(data))
                 ## q.text = str(gzip.compress(data)) # let op: bdata, geen cdata !
             tree = ElementTree(rt)
-            copyfile(self.fn, self.fno)
+            copyfile(self.fn, self.fn + ".old")
             tree.write(self.fn, encoding='utf-8', xml_declaration=True)
             self.exists = True
         else:
@@ -614,20 +611,21 @@ class Actie:
             status = status + ' ' + self.get_statustext()
         except DataError:
             pass
-        print("%s %s gemeld op %s status %s" % (
-            soort,
-            self.id,
-            self.datum,
-            status
-            ))
-        print("Titel:", self.titel, sep=" ")
-        print("Melding:", self.melding, sep=" ")
-        print("Oorzaak:", self.oorzaak, sep=" ")
-        print("Oplossing:", self.oplossing, sep=" ")
-        print("Vervolg:", self.vervolg, sep=" ")
-        print("Stand:", self.stand, sep=" ")
-        print("Verslag:")
-        for x, y in self.events:
-            print("   {0} - {1}".format(x, y))
+        result = ["%s %s gemeld op %s status %s" % (soort,
+                                                    self.id,
+                                                    self.datum,
+                                                    status)]
+        result.append("Titel: {}".format(self.titel))
+        result.append("Melding: {}".format(self.melding))
+        result.append("Oorzaak: {}".format(self.oorzaak))
+        result.append("Oplossing: {}".format(self.oplossing))
+        result.append("Vervolg: {}".format(self.vervolg))
+        result.append("Stand: {}".format(self.stand))
+        result.append("Verslag:")
+        for date, text in self.events:
+            result.append("\t{} - {}".format(date, text))
         if self.arch:
-            print("Actie is gearchiveerd.")
+            result.append("Actie is gearchiveerd.")
+        # for now
+        for line in result:
+            print(line)

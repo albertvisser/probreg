@@ -1,36 +1,38 @@
+"""Unit tests for SQL dml
+"""
 import sys
 import os
-from logbook import Logger, FileHandler
-logger = Logger('dmlsql')
 import pprint as pp
 import datetime as dt
+from logbook import Logger, FileHandler  # FIXME: either reinstall or use stdlib's logging
+logger = Logger('dmlsql')
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-## from dml_sql import get_acties, Settings, Actie
-from dml_single_codebase import get_nieuwetitel, get_config_objects
-for key, value in get_config_objects(sql=True).items():
-    globals()[key] = value
+from dml_sql import get_acties, Settings, Actie
+## from dml_single_codebase import get_config_objects  #  get_nieuwetitel,
+## for key, value in get_config_objects(sql=True).items():
+    ## globals()[key] = value
+
 
 def list(self):
     "uitlijsten gegevens van actie object"
-    print self.soort, self.status
+    print(self.soort, self.status)
     pp.pprint(self.settings.__dict__)
-    logger.info(  "%s %s gemeld op %s status %s %s" % (
-        self.get_soorttext(),
-        self.id,
-        self.datum,
-        self.status,
-        self.get_statustext()
-        ))
-    logger.info(  "Titel: {} - {}".format(self.over, self.titel))
-    logger.info(  "Melding: {}".format(self.melding))
-    logger.info(  "Oorzaak: {}".format(self.oorzaak))
-    logger.info(  "Oplossing: {}".format(self.oplossing))
-    logger.info(  "Vervolg: {}".format(self.vervolg))
-    logger.info(  "Verslag:")
+    logger.info("%s %s gemeld op %s status %s %s" % (self.get_soorttext(),
+                                                     self.id,
+                                                     self.datum,
+                                                     self.status,
+                                                     self.get_statustext()))
+    logger.info("Titel: {} - {}".format(self.over, self.titel))
+    logger.info("Melding: {}".format(self.melding))
+    logger.info("Oorzaak: {}".format(self.oorzaak))
+    logger.info("Oplossing: {}".format(self.oplossing))
+    logger.info("Vervolg: {}".format(self.vervolg))
+    logger.info("Verslag:")
     for x, y in self.events:
         logger.info("\t {0} - {1}".format(x, y))
     if self.arch:
         logger.info("  Actie is gearchiveerd.")
+
 
 def test_get_acties(fnaam, op1, op2):
     "test routine"
@@ -41,6 +43,7 @@ def test_get_acties(fnaam, op1, op2):
         i += 1
         logger.info('  {} {} - {}'.format(item[0], item[6], item[7]))
     logger.info("  {} records\n".format(i))
+
 
 def test_settings(fnaam=None, obj=None):
     "test routine"
@@ -60,10 +63,10 @@ def test_settings(fnaam=None, obj=None):
     logger.info('  {}'.format(h.cat))
     return h
 
-def test_wijzigsettings(item, soort, key, tekst, waarde, data=None,
-        update=False):
-    logger.info('test wijzigsettings voor {} {} {} {} {} {} {}'.format(item, soort,
-        key, tekst, waarde, data, update))
+
+def test_wijzigsettings(item, soort, key, tekst, waarde, data=None, update=False):
+    logger.info('test wijzigsettings voor {} {} {} {} {} {} {}'.format(
+        item, soort, key, tekst, waarde, data, update))
     h = item
     if soort == 'stat':
         h.stat[key] = (tekst, waarde, data)
@@ -75,6 +78,7 @@ def test_wijzigsettings(item, soort, key, tekst, waarde, data=None,
     if update:
         h.write(soort)
     return h
+
 
 def test_actie(fnaam="", id='', obj=None):
     "test routine"
@@ -92,6 +96,7 @@ def test_actie(fnaam="", id='', obj=None):
     else:
         list(p)
     return p
+
 
 def test_wijzig_actie(obj, soort, data, update=False):
     p = obj
@@ -125,14 +130,14 @@ if __name__ == "__main__":
     log_handler = FileHandler('get_acties_sql_1.log', mode='w')
     with log_handler.applicationbound():
         test_get_acties(fnm, {}, "")
-        test_get_acties(fnm, {"idlt": "2010", }, "")
-        test_get_acties(fnm, {"idlt": "2010",  "id": "and",  "idgt": "2007-0003"}, "")
-        test_get_acties(fnm, {"idgt": "2010",  "id": "or",  "idlt": "2007-0003"}, "")
-        test_get_acties(fnm, {"idgt": "2007-0003",}, "")
+        test_get_acties(fnm, {"idlt": "2010"}, "")
+        test_get_acties(fnm, {"idlt": "2010", "id": "and", "idgt": "2007-0003"}, "")
+        test_get_acties(fnm, {"idgt": "2010", "id": "or", "idlt": "2007-0003"}, "")
+        test_get_acties(fnm, {"idgt": "2007-0003"}, "")
         test_get_acties(fnm, {"status": ["1"]}, "")
         test_get_acties(fnm, {"status": ["1", "2"]}, "")
-        test_get_acties(fnm, {"soort" : ["4"]}, '')
-        test_get_acties(fnm, {"soort" : ["4", "2"]}, '')
+        test_get_acties(fnm, {"soort": ["4"]}, '')
+        test_get_acties(fnm, {"soort": ["4", "2"]}, '')
         test_get_acties(fnm, {"titel": "en"}, "")
         test_get_acties(fnm, {}, "arch")
         test_get_acties(fnm, {}, "alles")
@@ -146,7 +151,7 @@ if __name__ == "__main__":
         h = test_wijzigsettings(h, 'cat', "X", "Willen we niet weten", 6, -1)
         h = test_wijzigsettings(h, 'kop', '4', "Gargl", "opl")
         h = test_settings(obj=h)
-        h = test_wijzigsettings(h, 'stat','7', "Gloekgloekgloe", 7, -1)
+        h = test_wijzigsettings(h, 'stat', '7', "Gloekgloekgloe", 7, -1)
         h = test_wijzigsettings(h, 'cat', "X", "Ahum ahum", 7, -1)
         ## h = test_wijzigsettings(h, 'kop','4', "Oplossing/SvZ", "opl", update = True)
         ## h = test_settings(fnaam=fnm)
@@ -162,7 +167,8 @@ if __name__ == "__main__":
         p = test_actie(obj=p)
         p = test_wijzig_actie(p, 'melding', "Het is niet gebeurd")
         p = test_wijzig_actie(p, 'oorzaak', "Het leek maar alsof")
-        p = test_wijzig_actie(p, 'oplossing', "Dus hebben we teruggedraaid wat we er aan gedaan hebben")
+        p = test_wijzig_actie(p, 'oplossing',
+                              "Dus hebben we teruggedraaid wat we er aan gedaan hebben")
         p = test_wijzig_actie(p, 'event', "Beschrijving oplossing aangepast")
         p = test_wijzig_actie(p, 'statuscode', 2)
         ## p = test_wijzig_actie(p, 'arch', True, update=True)

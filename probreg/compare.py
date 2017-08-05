@@ -1,4 +1,5 @@
-"""
+"""vergelijk de twee in de invoer genoemde Probreg XML files em zet de output in een derde
+
 1. lees alles in
 2. sorteer eventueel op kenmerkend attribuut per node
 nee we gaan niet sorteren maar langslopen en zoeken in de andere
@@ -10,11 +11,9 @@ elementnaam=keynaam
 [elementnaam]
 subelementnaam=keynaam
 """
-import sys, os
-if sys.version[:3] >= '2.5':
-    import xml.etree.ElementTree as et
-else:
-    import elementtree.ElementTree as et
+import sys
+import xml.etree.ElementTree as et
+
 
 def doactie(x, y):
     "vergelijk acties met een overeenkomstig nummer "
@@ -45,7 +44,8 @@ def doactie(x, y):
             verschillen[e] = (xt, yt)
     return verschillen
 
-def dosett(x, y): # argument y wordt niet gebruikt
+
+def dosett(x, y):
     "vergelijk de settings"
     verschillen = {}
     ex = {}
@@ -58,7 +58,7 @@ def dosett(x, y): # argument y wordt niet gebruikt
     ey = {}
     for e in ('stats', 'cats', 'koppen'):
         dy = []
-        for s in x.find(e):
+        for s in y.find(e):
             dy.append((s.get('order'), s.get('value'), s.text))
         dy.sort()
         ey[e] = dy
@@ -67,11 +67,12 @@ def dosett(x, y): # argument y wordt niet gebruikt
             verschillen[e] = (ex[e], ey[e])
     return verschillen
 
+
 def vergelijk(file1, file2, uit=sys.stdout):
     "het daadwerlkelijke vergelijken"
     x1 = et.ElementTree(file=file1)
     r1 = x1.getroot()
-    l1 = [(e, e.tag) for e in list(r1)] # deze variabele wordt niet gebruikt
+    ## l1 = [(e, e.tag) for e in list(r1)]  # deze variabele wordt niet gebruikt
 
     x2 = et.ElementTree(file=file2)
     r2 = x2.getroot()
@@ -101,16 +102,16 @@ def vergelijk(file1, file2, uit=sys.stdout):
                 break
             else:
                 # meld dit element als "unmatched"
-                verschillen.append(('actie ' + xid,"alleen in " + file1))
+                verschillen.append(('actie ' + xid, "alleen in " + file1))
     for y in l2:
         # meld deze elementen als "unmatched"
-        verschillen.append(('actie ' + y[0].get('id'),"alleen in " + file2))
+        verschillen.append(('actie ' + y[0].get('id'), "alleen in " + file2))
 
     if len(verschillen) > 0:
         uit.write("verschillen tussen %s en %s\n" % (file1, file2))
     for x in verschillen:
-        if type(x[1]) is dict:
-            uit.write('-------------------------\n%s\n' % x[0] )
+        if isinstance(x[1], dict):
+            uit.write('-------------------------\n%s\n' % x[0])
             for y in list(x[1].keys()):
                 uit.write('-\n%s\n' % y)
                 h = x[1][y][0]
@@ -124,8 +125,9 @@ def vergelijk(file1, file2, uit=sys.stdout):
         else:
             uit.write(" ".join(x[0], x[1]) + "\n")
 
+
 def main(argv):
-    "vergelijk de twee in de invoer genoemde files em zet de output in een derde"
+    "functie uitvoeren"
     f1 = argv[1]
     f2 = argv[2]
     f3 = open('vergelijk_jvs.txt', 'w')

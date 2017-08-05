@@ -28,7 +28,7 @@ statdict = {
     "0": ("gemeld", 0, -1),
     "1": ("in behandeling", 1, -1),
     "2": ("oplossing controleren", 2, -1),
-    "3": ("nog niet opgelost",3, -1),
+    "3": ("nog niet opgelost", 3, -1),
     "4": ("afgehandeld", 4, -1),
     "5": ("afgehandeld - vervolg", 5, -1)
 }

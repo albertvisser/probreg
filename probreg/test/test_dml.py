@@ -1,6 +1,8 @@
+"""Unit tests for XML dml
+"""
 import os
 import sys
-from logbook import Logger, FileHandler
+from logbook import Logger, FileHandler  # FIXME: either reinstall or use stdlib's logging
 logger = Logger('dmlxml')
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dml_xml import DataError, get_nieuwetitel, get_acties, Actie, Settings
@@ -8,7 +10,8 @@ from dml_xml import DataError, get_nieuwetitel, get_acties, Actie, Settings
 ## for key, value in get_config_objects(sql=False).items():
     ## globals()[key] = value
 
-xmlfile = "/home/albert/probreg/jvs.xml" # todo.xml"
+xmlfile = "/home/albert/probreg/jvs.xml"  # todo.xml"
+
 
 def test_laatste():
     try:
@@ -17,6 +20,7 @@ def test_laatste():
         logger.info(meld)
     else:
         logger.info(h)
+
 
 def test_acties(arch=None, select=None):
     logger.info('test get_acties voor {} {}'.format(arch, select))
@@ -36,6 +40,7 @@ def test_acties(arch=None, select=None):
         for x in lijst:
             logger.info(x)
 
+
 def test_actie(sleutel=None):
     if sleutel is None:
         h = Actie(xmlfile, 0)
@@ -44,33 +49,34 @@ def test_actie(sleutel=None):
         h.titel = "er ging nog iets mis"
         h.probleem = "dit is dit keer het probleem"
         h.oorzaak = "het kwam ditmaal hierdoor"
-        h.oplossing  = "we hebben het weer zo opgelost"
+        h.oplossing = "we hebben het weer zo opgelost"
         h.vervolg = "uitzoeken of er een verband is"
         h.stand = "net begonnen"
-        h.events = [("eerste","hallo"), ("tweede","daar")]
+        h.events = [("eerste", "hallo"), ("tweede", "daar")]
         h.list()
         h.write()
         return h.id
     h = Actie(xmlfile, sleutel)
     logger.info(h.meld)
     if h.exists:
-        h.list() # 'actie_xml.log')
+        h.list()  # 'actie_xml.log')
     else:
         logger.info("geen item met deze sleutel bekend")
-        #~ h = Actie(fn,0)
-        #~ logger.info "na init"
-        #~ h.list()
-        #~ h.setStatus(2)
+        ## h = Actie(fn,0)
+        ## logger.info "na init"
+        ## h.list()
+        ## h.setStatus(2)
         h.set_status("in behandeling")
-        #~ h.setSoort("P")
+        ## h.setSoort("P")
         h.set_soort("wens")
-        #~ h.titel = "er ging iets mis"
-        #~ h.probleem = "dit is het probleem"
-        #~ h.oorzaak = "het kwam hierdoor"
-        #~ h.oplossing  = "we hebben het zo opgelost"
-        #~ h.vervolg = "maar er moet nog een vervolg komen"
-        #~ h.list()
-        #~ h.write()
+        ## h.titel = "er ging iets mis"
+        ## h.probleem = "dit is het probleem"
+        ## h.oorzaak = "het kwam hierdoor"
+        ## h.oplossing  = "we hebben het zo opgelost"
+        ## h.vervolg = "maar er moet nog een vervolg komen"
+        ## h.list()
+        ## h.write()
+
 
 def test_settings():
     h = Settings(xmlfile)
@@ -99,32 +105,32 @@ def test_settings():
     logger.info(stats)
     logger.info(cats)
     logger.info(tabs)
-    #~ try:
-        #~ h.set("test")
-        #~ h.set("cat")
-        #~ h.set("stat")
-        #~ h.set("cat", "test")
-        #~ h.set("stat", "test")
-        #~ h.set("cat", "V", "vraag")
-        #~ h.set("stat", "4", "onoplosbaar")
-        #~ h.set("cat", "", "o niks")
-        #~ h.set("stat", "3", "opgelost")
-        #~ logger.info h.get("test")
-        #~ logger.info h.get("cat")
-        #~ logger.info h.get("stat", "x")
-        #~ logger.info h.get("cat", "x")
-        #~ logger.info h.get("stat", "1")
-        #~ logger.info h.get("cat", "")
-        #~ logger.info h.get("kop", "1")
-        #~ logger.info h.get("stat", 3)
-        #~ logger.info h.get("cat", 3)
-        #~ logger.info h.get("kop", 1)
-    #~ except DataError as meld:
-        #~ logger.info meld
-        #~ return
-    #~ logger.info "-- na set -----------------"
-    #~ for x in h.__dict__.items():
-        #~ logger.info x
+    ## try:
+        ## h.set("test")
+        ## h.set("cat")
+        ## h.set("stat")
+        ## h.set("cat", "test")
+        ## h.set("stat", "test")
+        ## h.set("cat", "V", "vraag")
+        ## h.set("stat", "4", "onoplosbaar")
+        ## h.set("cat", "", "o niks")
+        ## h.set("stat", "3", "opgelost")
+        ## logger.info h.get("test")
+        ## logger.info h.get("cat")
+        ## logger.info h.get("stat", "x")
+        ## logger.info h.get("cat", "x")
+        ## logger.info h.get("stat", "1")
+        ## logger.info h.get("cat", "")
+        ## logger.info h.get("kop", "1")
+        ## logger.info h.get("stat", 3)
+        ## logger.info h.get("cat", 3)
+        ## logger.info h.get("kop", 1)
+    ## except DataError as meld:
+        ## logger.info meld
+        ## return
+    ## logger.info "-- na set -----------------"
+    ## for x in h.__dict__.items():
+        ## logger.info x
     for x in list(h.stat.keys()):
         h.set("stat", x, (h.stat[x][0], x))
     i = 0
@@ -145,6 +151,7 @@ def test_settings():
     logger.info("cat:", h.cat, sep=" ")
     logger.info("kop:", h.kop, sep=" ")
     h.write()
+
 
 def test_archiveren():
     h = Actie(xmlfile, "2006-0001")

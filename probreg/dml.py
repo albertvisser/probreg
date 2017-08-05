@@ -3,9 +3,12 @@
 bevat dml voor werken met xml files en dml voor werken met sql
 in het laatste geval wordt dezelfde data gebruikt die de Django versie gebruikt
 
-tevens functie om de toepasselijke objecten/functies terug te geven, die daarmee
-deze geeft een dictionary met symbolen terug, die in het aanroepende programma
-met die waarde aan globals() kunnen worden toegevoegd
+het aanroepende programma (probreg_qt.py in dit geval) is hier nog niet op aangepast
+en ik weet ook niet of het slim is om dat te doen omdat je dan overal verschil
+moet gaan maken in plaats van klassen te gebruiken met dezelfde namen maar
+verschillend gedrag
+of misschien was dit wel de versie waar alles in stond voordat ik besloot om het
+op een slimmere manier apart neer te zetten?
 """
 from __future__ import print_function
 
@@ -20,9 +23,11 @@ import config
 
 datapad = os.getcwd()
 
+
 class DataError(Exception):
     "Eigen all-purpose exception - maakt resultaat testen eenvoudiger"
     pass
+
 
 def getsql(con, cmd, item=None):
     """retrieval sql uitvoeren en resultaat teruggeven
@@ -38,6 +43,7 @@ def getsql(con, cmd, item=None):
     except (sql.ProgrammingError, sql.OperationalError) as err:
         raise DataError(str(err))
     return result
+
 
 def doesql(con, cmd, item=None):
     """update sql uitvoeren en resultaat terugmelden
@@ -55,6 +61,7 @@ def doesql(con, cmd, item=None):
             sql.ProgrammingError, sql.OperationalError) as msg:
         err = str(msg)
     return err
+
 
 def complete_ids(dic):
     """ids genereren voor items met id = -1
@@ -77,6 +84,7 @@ def complete_ids(dic):
     for key in newkeys:
         last_id += 1
         dic[key] = (dic[key][0], dic[key][1], last_id)
+
 
 def checkfile(fn, new=False):
     "controleer of projectbestand bestaat, maak indien aangegeven nieuwe aan"
@@ -106,6 +114,7 @@ def checkfile(fn, new=False):
                 message = fn + " is geen bruikbaar xml bestand"
     return message
 
+
 def get_nieuwetitel(fnaam, jaar=None):
     "bepaal nieuw uit te geven actienummer"
     if os.path.exists(fnaam):
@@ -126,6 +135,7 @@ def get_nieuwetitel(fnaam, jaar=None):
         if int(t[1]) > nummer:
             nummer = int(t[1])
     return "%s-%04i" % (jaar, nummer + 1)
+
 
 def get_acties_xml(fnaam, select=None, arch=""):
     """
@@ -215,6 +225,7 @@ def get_acties_xml(fnaam, select=None, arch=""):
             continue
         lijst.append((nr, dd, st, ct, tl, lu))
     return lijst
+
 
 class XmlSettings:
     """
@@ -375,6 +386,7 @@ class XmlSettings:
         if meld:
             raise DataError(meld)
         return retval
+
 
 class XmlActie:
     """lijst alle gegevens van een bepaald item"""
@@ -634,6 +646,7 @@ class XmlActie:
         if self.arch:
             print("Actie is gearchiveerd.", file=_out)
 
+
 def get_acties_sql(naam, select=None, arch=""):
     """selecteer acties; geef het resultaat terug of throw an exception
 
@@ -727,6 +740,7 @@ def get_acties_sql(naam, select=None, arch=""):
         return data
     else:
         raise DataError(naam + " bestaat niet")
+
 
 class SqlSettings:
     """instellingen voor project
@@ -893,6 +907,7 @@ class SqlSettings:
                 return text
         raise DataError("Geen omschrijving gevonden bij soortcode of -id '{}'".format(
             waarde))
+
 
 class SqlActie:
     """lijst alle gegevens van een bepaald item"""
@@ -1125,6 +1140,7 @@ class SqlActie:
             print("\t {0} - {1}".format(date, text), file=_out)
         if self.arch:
             print("Actie is gearchiveerd.", file=_out)
+
 
 def get_config_objects(sql=True):
     """geef de voor sql dan wel xml mode toepasselijke symbolen terug

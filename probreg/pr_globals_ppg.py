@@ -1,5 +1,6 @@
-#! C:/python26/python
 # -*- coding: UTF-8 -*-
+"""Probreg constants for menu items and other stuff - pocketPyGUI version - not maintained
+"""
 
 ID_FILE=("&File",)
 ID_NEW=("&New (Ctrl-N)"," Create a new file")

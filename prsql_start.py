@@ -6,7 +6,5 @@ roept de main routine daarin aan zonder argumenten
 daardoor schakelt deze over naar de sql versie
 deze kijkt naar de verzameling projecten die de django versie ook gebruikt
 """
-
-import sys, os
 from probreg import probreg
 probreg.main()

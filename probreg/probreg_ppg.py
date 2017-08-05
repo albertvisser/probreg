@@ -1,5 +1,6 @@
-﻿#! C:/python26/python
-# -*- coding: UTF-8 -*-
+﻿# -*- coding: UTF-8 -*-
+"""Actie (was: problemen) Registratie, PocketPyGUI versie - niet actief onderhouden
+"""
 
 import sys, os
 if os.name == 'ce':
