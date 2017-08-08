@@ -9,9 +9,15 @@ import base64  # gzip
 import datetime as dt
 from shutil import copyfile
 from xml.etree.ElementTree import ElementTree, Element, SubElement
+import logging
 from probreg.config_xml import kopdict, statdict, catdict
 
 datapad = os.getcwd()
+
+
+def log(msg, *args, **kwargs):
+    if 'DEBUG' in os.environ and os.environ['DEBUG']:
+        logging.info(msg, *args, **kwargs)
 
 
 class DataError(Exception):
@@ -22,7 +28,7 @@ class DataError(Exception):
 def check_filename(fnaam):
     """check for correct filename and return short and long version
     """
-    fn, meld = ''
+    fn = meld = ''
     if os.path.splitext(fnaam)[1] != ".xml":
         meld = "Filename incorrect (must end in .xml)"
     if os.path.dirname(fnaam) != "":
@@ -382,7 +388,7 @@ class Actie:
         tree = ElementTree(file=self.fn)
         rt = tree.getroot()
         found = False
-        print(self.id, type(self.id))
+        log('%s %s', self.id, type(self.id))
         for x in rt.findall("actie"):
             if x.get("id") == self.id:
                 found = True
@@ -434,7 +440,7 @@ class Actie:
                         fname = z.get("filename")
                         self.imagelist.append(fname)
                         with open(fname, 'wb') as _out:
-                            print('length of text:', len(z.text))
+                            log('length of text:', len(z.text))
                             ## data = bytes(z.text, encoding='utf-8')
                             ## data = gzip.decompress(data)
                             data = base64.b64decode(eval(z.text))  # FIXME: why eval?
@@ -473,7 +479,7 @@ class Actie:
         elif isinstance(waarde, str):
             found = False
             for x, y in list(statdict.values()):
-                print(waarde, x, y)
+                log('%s %s %s', waarde, x, y)
                 if x == waarde: # FIXME: moet dit soms y zijn?
                     found = True
                     self.status = x
@@ -485,14 +491,14 @@ class Actie:
 
     def set_soort(self, waarde):
         "stel soort in (code of tekst)"
-        print(waarde)
+        log(waarde)
         if isinstance(waarde, str):
             if waarde in catdict:
                 self.soort = waarde
             else:
                 found = False
                 for x, y in list(catdict.items()):
-                    print(y)
+                    log(y)
                     if y[0] == waarde:
                         found = True
                         self.soort = x
@@ -583,9 +589,9 @@ class Actie:
                 q = SubElement(h, 'image', filename=fname)
                 with open(fname, 'rb') as _in:
                     data = _in.read()
-                print('length of data:', len(data))
+                log('length of data:', len(data))
                 q.text = str(base64.b64encode(data))
-                print('length of text:', len(q.text))
+                log('length of text:', len(q.text))
                 ## q.text = str(base64.encodebytes(data))
                 ## q.text = str(gzip.compress(data)) # let op: bdata, geen cdata !
             tree = ElementTree(rt)

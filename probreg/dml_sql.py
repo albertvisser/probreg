@@ -5,12 +5,29 @@ gebruikt
 from __future__ import print_function
 
 ## import sys
-## import os
+import os
 ## import pprint as pp
 import datetime as dt
 import sqlite3 as sql
 from contextlib import closing
-from probreg.config_sql import DBLOC, USER, kopdict, statdict, catdict
+import logging
+from probreg.config_sql import APPS, DBLOC, USER, kopdict, statdict, catdict
+
+
+def get_projnames():
+    data = []
+    with open(APPS) as f_in:
+        for line in f_in:
+            sel, naam, titel, oms = line.strip().split(";")
+            if sel == "X":
+                data.append((naam.capitalize(), titel.capitalize(), oms))
+    data = data
+    return sorted(data)
+
+
+def log(msg, *args, **kwargs):
+    if 'DEBUG' in os.environ and os.environ['DEBUG']:
+        logging.info(msg, *args, **kwargs)
 
 
 class DataError(Exception):
@@ -23,8 +40,8 @@ def getsql(con, cmd, item=None):
 
     resultaat = []: query mislukt
     """
-    print("getsql tweede argument: {0}".format(cmd))
-    print("getsql derde  argument: {0}".format(item))
+    log("getsql tweede argument: {0}".format(cmd))
+    log("getsql derde  argument: {0}".format(item))
     if item is None:
         item = ()
     try:
@@ -39,8 +56,8 @@ def doesql(con, cmd, item=None):
 
     resultaat == "" : alles ok - anders foutmelding
     """
-    print("doesql tweede argument: {0}".format(cmd))
-    print("doesql derde  argument: {0}".format(item))
+    log("doesql tweede argument: {0}".format(cmd))
+    log("doesql derde  argument: {0}".format(item))
     if item is None:
         item = ()
     err = ""
@@ -116,7 +133,7 @@ def get_acties(naam, select=None, arch=""):
         sel = []
     item = select.pop("soort", "")
     if item:
-        print(item)
+        log(item)
         if len(item) == 1:
             sel.append("soort_id = ?")
             args.append(item[0])
@@ -129,7 +146,7 @@ def get_acties(naam, select=None, arch=""):
             args.append(item[-1])
     item = select.pop("status", "")
     if item:
-        print(item)
+        log(item)
         if len(item) == 1:
             sel.append("status_id = ?")
             args.append(item[0])
@@ -293,9 +310,9 @@ class Settings:
 
     def get_statusid(self, waarde):
         "geef id bij statuscode of -tekst"
-        print(waarde, type(waarde), sep=" ")
+        log(waarde, type(waarde), sep=" ")
         for code, value in self.stat.items():
-            print(code, type(code), value, sep=" ")
+            log(code, type(code), value, sep=" ")
             text, sortkey, row_id = value
             ## if int(waarde) == key or str(waarde) == key or waarde == value[0]:
             if waarde == code or waarde == text:
@@ -356,7 +373,7 @@ class Actie:
         self.id = id_
         self.over = self.titel = self.gewijzigd = ''
         self.status, self.soort, self.arch = 1, 1, False
-        self.melding, self.oorzaak, self.oplossing, self.vervolg = ''
+        self.melding = self.oorzaak = self.oplossing = self.vervolg = ''
         self.exists = False
         self.imagelist = []                     # compatibility
         self.con = sql.connect(DBLOC)
@@ -378,7 +395,7 @@ class Actie:
             ## last = item
         last = acties[-1]
         self.nieuw_id = last["id"] + 1
-        ## print(self.nieuw_id)
+        ## log(self.nieuw_id)
         jaar, volgnr = last["nummer"].split("-", 1)
         nieuwnummer = int(volgnr) + 1 if int(jaar) == nw_date.year else 1
         self.id = "{0}-{1:04}".format(nw_date.year, nieuwnummer)
@@ -396,7 +413,7 @@ class Actie:
                       " join {0}_status on {0}_status.id = {0}_actie.status_id"
                       " where nummer = ?".format(self.naam), (self.id,))
         ## for item in data:
-            ## print(item)
+            ## log(item)
         ## return
         if len(data) == 0:
             self.exists = False
@@ -404,7 +421,7 @@ class Actie:
         elif not data:
             raise DataError(self.naam + " bestaat niet")
         for item in data:
-            ## print(item)
+            ## log(item)
             (actie, self.id, self.datum, self.over, self.titel, self.updated,
              self.status, self.soort, self.arch, self.melding, self.oorzaak,
              self.oplossing, self.vervolg) = item
@@ -418,7 +435,7 @@ class Actie:
 
     def get_statustext(self):
         "geef tekst bij statuscode"
-        print(self.status)
+        log(self.status)
         return self.settings.get_statustext(self.status)
 
     def get_soorttext(self):
@@ -428,14 +445,14 @@ class Actie:
     def set_status(self, waarde):
         "stel status in (code of tekst) met controle a.h.v. project settings"
         self.status = self.settings.get_statusid(waarde)
-        ## print(waarde, self.status, sep = " ")
+        ## log(waarde, self.status, sep = " ")
         self.events.append((dt.datetime.today().isoformat(' '),  # [:19],
                             'status gewijzigd in "{0}"'.format(self.get_statustext())))
 
     def set_soort(self, waarde):
         "stel soort in (code of tekst) met controle a.h.v. project settings"
         self.soort = self.settings.get_soortid(waarde)
-        ## print(waarde, self.soort, sep = " ")
+        ## log(waarde, self.soort, sep = " ")
         self.events.append((dt.datetime.today().isoformat(' '),  # [:19],
                             'soort gewijzigd in "{0}"'.format(self.get_soorttext())))
 
@@ -453,22 +470,22 @@ class Actie:
     def write(self):
         "actiegegevens (terug)schrijven"
         if self.exists:
-            print("write: update actie {0}".format(self.id))
+            log("write: update actie {0}".format(self.id))
             data = getsql(self.con,
                           "select nummer, start, about, title, gewijzigd, status_id, "
                           "soort_id, arch, melding, oorzaak, oplossing, vervolg, id "
                           "from {0}_actie where nummer = ?".format(self.naam), (self.id,))
             if data:
                 for item in data:
-                    print("write: item", item, sep=" ")
+                    log("write: item", item, sep=" ")
                     data = [x for x in item]
                     actie_id = data.pop()
-                print("write: data", data, sep=" ")
+                log("write: data", data, sep=" ")
             else:
                 raise DataError("Current record not found")
         else:
             # FIXME: dit wordt niet altijd aangeroepen volgend op self.nieuw() waarin nieuw_id wordt ingesteld
-            print("write: nieuwe actie {0}".format(self.nieuw_id))
+            log("write: nieuwe actie {0}".format(self.nieuw_id))
             actie_id = self.nieuw_id
             ## data = self.new_data
         update = []
@@ -516,8 +533,8 @@ class Actie:
         items.append(dt.datetime.today().isoformat(' '))  # [:19])
         if self.exists:
             items.append(self.id)
-            print("write update:", insert, sep=" ")
-            print("write update:", items, sep=" ")
+            log("write update:", insert, sep=" ")
+            log("write update:", items, sep=" ")
             rtn = doesql(self.con, "update {}_actie set {} where nummer = ?".format(
                 self.naam, ", ".join(update)), items)
         else:
@@ -525,8 +542,8 @@ class Actie:
                       "behandelaar_id"] + insert
             mask = ", ".join(["?" for x in insert])
             items = [self.nieuw_id, self.id, self.datum, USER, USER, USER] + items
-            print("write nieuw:", insert, sep=" ")
-            print("write nieuw:", items, sep=" ")
+            log("write nieuw:", insert, sep=" ")
+            log("write nieuw:", items, sep=" ")
             rtn = doesql(self.con, "insert into {0}_actie ({1}) values ({2})".format(
                 self.naam, ", ".join(insert), mask), items)
         if rtn:
@@ -544,7 +561,7 @@ class Actie:
         for item in data:
             last_id = item[0]
             break
-            ## print(last_id, end=",")
+            ## log(last_id, end=",")
         ## last_id = data[0][1]
         for idx, item in enumerate(self.events):
             start, text = item
@@ -579,7 +596,7 @@ class Actie:
         result.append("Oorzaak: {}".format(self.oorzaak))
         result.append("Oplossing: {}".format(self.oplossing))
         result.append("Vervolg: {}".format(self.vervolg))
-        print("Verslag:")
+        result.append("Verslag:")
         for date, text in self.events:
             result.append("\t {} - {}".format(date, text))
         if self.arch:

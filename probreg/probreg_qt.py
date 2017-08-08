@@ -5,21 +5,37 @@
 from __future__ import print_function
 import os
 import sys
+import enum
 from datetime import datetime
 ## import pprint
 import collections
-import logging
 import functools
+import logging
 import PyQt5.QtWidgets as qtw
 import PyQt5.QtPrintSupport as qtp
 import PyQt5.QtGui as gui
 import PyQt5.QtCore as core
 from mako.template import Template
 ## import probreg.pr_globals as pr
+import probreg.dml_sql as dmls
+import probreg.dml_xml as dmlx
+DataType = enum.Enum('DataType', 'XML SQL')
+checkfile = dmlx.checkfile
+DataError = dmlx.DataError # doesn't matter which
+get_acties = {DataType.XML.name: dmlx.get_acties, DataType.SQL.name: dmls.get_acties}
+Actie = {DataType.XML.name: dmlx.Actie, DataType.SQL.name: dmls.Actie}
+Settings = {DataType.XML.name: dmlx.Settings, DataType.SQL.name: dmls.Settings}
 LIN = True if os.name == 'posix' else False
-XML_VERSION = SQL_VERSION = False
-sortorder = {"A": core.Qt.AscendingOrder, "D": core.Qt.DescendingOrder}
+Order = enum.Enum('Order', 'A D')
+sortorder = {Order.A.name: core.Qt.AscendingOrder, Order.D.name: core.Qt.DescendingOrder}
 HERE = os.path.dirname(__file__)
+logging.basicConfig(filename='/tmp/apropos_qt.log', level=logging.DEBUG,
+                    format='%(asctime)s %(module)s %(message)s')
+
+
+def log(msg, *args, **kwargs):
+    if 'DEBUG' in os.environ and os.environ['DEBUG']:
+        logging.info(msg, *args, **kwargs)
 
 
 def get_dts():
@@ -498,20 +514,20 @@ class Page(qtw.QFrame):
         "lezen van een actie"
         if self.parent.pagedata:  # spul van de vorige actie opruimen
             self.parent.pagedata.clear()
-        self.parent.pagedata = Actie(self.parent.fnaam, pid)
+        self.parent.pagedata = Actie[self.parent.parent.datatype](self.parent.fnaam, pid)
         self.parent.parent.imagelist = self.parent.pagedata.imagelist
         self.parent.old_id = self.parent.pagedata.id
         self.parent.newitem = False
 
     def nieuwp(self):
         """voorbereiden opvoeren nieuwe actie"""
-        print('opvoeren nieuwe actie')
+        log('opvoeren nieuwe actie')
         self.parent.newitem = True
         if self.leavep():
             if self.parent.current_tab == 0:
                 for i in range(1, self.parent.count()):
                     self.parent.setTabEnabled(i, True)
-            self.parent.pagedata = Actie(self.parent.fnaam, 0)
+            self.parent.pagedata = Actie[self.parent.parent.datatype](self.parent.fnaam, 0)
             self.parent.parent.imagelist = self.parent.pagedata.imagelist
             self.parent.newitem = True
             if self.parent.current_tab == 1:
@@ -521,7 +537,7 @@ class Page(qtw.QFrame):
                 self.goto_page(1, check=False)
         else:
             self.parent.newitem = False
-            print("leavep() geeft False: nog niet klaar met huidige pagina")
+            log("leavep() geeft False: nog niet klaar met huidige pagina")
 
     def leavep(self):
         "afsluitende acties uit te voeren alvorens de pagina te verlaten"
@@ -529,11 +545,12 @@ class Page(qtw.QFrame):
         if self.parent.current_tab == 1 and self.parent.newitem and newbuf[0] == "" \
                 and newbuf[1] == "" and not self.parent.parent.exiting:
             self.parent.newitem = False
-            self.parent.pagedata = Actie(self.parent.fnaam, self.parent.old_id)
+            self.parent.pagedata = Actie[self.parent.parent.datatype](self.parent.fnaam,
+                self.parent.old_id)
         ok_to_leave = True
         self.parent.checked_for_leaving = True
         if self.parent.current_tab == 0:
-            print(self.parent.parent.mag_weg, self.parent.newitem)
+            log('%s %s', self.parent.parent.mag_weg, self.parent.newitem)
             if not self.parent.parent.mag_weg and not self.parent.newitem:
                 ok_to_leave = False
         elif newbuf != self.oldbuf:
@@ -709,7 +726,7 @@ class Page0(Page):
         self.sorted = (0, "A")
 
         widths = [94, 24, 146, 90, 400] if LIN else [64, 24, 114, 72, 292]
-        if SQL_VERSION:
+        if self.parent.parent.datatype == DataType.SQL.name:
             widths[4] = 90 if LIN else 72
             extra = 310 if LIN else 220
             widths.append(extra)
@@ -768,13 +785,14 @@ class Page0(Page):
             if "arch" in select:
                 arch = select.pop("arch")
             try:
-                data = get_acties(self.parent.fnaam, select, arch)
+                data = get_acties[self.parent.parent.datatype](self.parent.fnaam,
+                    select, arch)
             except DataError as msg:
                 print("samenstellen lijst mislukt: " + str(msg))
                 raise
             else:
                 for idx, item in enumerate(data):
-                    if XML_VERSION:
+                    if self.parent.parent.datatype == DataType.XML.name:
                         # nummer, start, stat, cat, titel, gewijzigd = item
                         self.parent.data[idx] = (item[0],
                                                  item[1],
@@ -782,7 +800,7 @@ class Page0(Page):
                                                  ".".join((item[2][1], item[2][0])),
                                                  item[5],
                                                  item[4])
-                    elif SQL_VERSION:
+                    elif self.parent.parent.datatype == DataType.SQL.name:
                         # nummer, start, stat_title, stat_value, cat_title, cat_value, \
                         # about, titel, gewijzigd = item
                         self.parent.data[idx] = (item[0],
@@ -825,9 +843,9 @@ class Page0(Page):
             self.parent.setTabEnabled(i, True)
         self.enable_buttons(True)
         for key, data in items:
-            if XML_VERSION:
+            if self.parent.parent.datatype == DataType.XML.name:
                 actie, _, soort, status, l_wijz, titel = data
-            elif SQL_VERSION:
+            elif self.parent.parent.datatype == DataType.SQL.name:
                 actie, _, soort, status, l_wijz, over, titel = data
                 l_wijz = l_wijz[:19]
             new_item = qtw.QTreeWidgetItem()
@@ -838,9 +856,9 @@ class Page0(Page):
             pos = status.index(".") + 1
             new_item.setText(2, status[pos:])
             new_item.setText(3, l_wijz)
-            if XML_VERSION:
+            if self.parent.parent.datatype == DataType.XML.name:
                 new_item.setText(4, titel)
-            elif SQL_VERSION:
+            elif self.parent.parent.datatype == DataType.SQL.name:
                 new_item.setText(4, over)
                 new_item.setText(5, titel)
             self.p0list.addTopLevelItem(new_item)
@@ -873,7 +891,7 @@ class Page0(Page):
         instelling. Maar misschien heb ik dat wel helemaal niet nodig.
         """
         column, order = self.sorted
-        print('order is', column, order)
+        log('order is', column, order)
         if column == colno:
             order = 'A' if order == 'D' else 'D'
         else:
@@ -910,13 +928,13 @@ class Page0(Page):
     def archiveer(self):
         "archiveren of herleven van het geselecteerde item"
         selindx = self.parent.current_item.data(0, core.Qt.UserRole)
-        selindx = data2str(selindx) if XML_VERSION else data2int(selindx)
+        selindx = data2str(selindx) if self.parent.parent.datatype == DataType.XML else data2int(selindx)
         self.readp(selindx)
-        if XML_VERSION:
+        if self.parent.parent.datatype == DataType.XML.name:
             self.parent.pagedata.arch = not self.parent.pagedata.arch
             hlp = "gearchiveerd" if self.parent.pagedata.arch else "herleefd"
             self.parent.pagedata.events.append((get_dts(), "Actie {0}".format(hlp)))
-        elif SQL_VERSION:
+        elif self.parent.parent.datatype == DataType.SQL.name:
             self.parent.pagedata.set_arch(not self.parent.pagedata.arch)
         self.update_actie()  # self.parent.pagedata.write()
         self.parent.rereadlist = True
@@ -1067,7 +1085,7 @@ class Page1(Page):
             self.id_text.setText(str(self.parent.pagedata.id))
             self.date_text.setText(self.parent.pagedata.datum)
             self.parch = self.parent.pagedata.arch
-            if XML_VERSION:
+            if self.parent.parent.datatype == DataType.XML.name:
                 if self.parent.pagedata.titel is not None:
                     if " - " in self.parent.pagedata.titel:
                         hlp = self.parent.pagedata.titel.split(" - ", 1)
@@ -1076,7 +1094,7 @@ class Page1(Page):
                     self.proc_entry.setText(hlp[0])
                     if len(hlp) > 1:
                         self.desc_entry.setText(hlp[1])
-            elif SQL_VERSION:
+            elif self.parent.parent.datatype == DataType.SQL.name:
                 self.proc_entry.setText(self.parent.pagedata.over)
                 self.desc_entry.setText(self.parent.pagedata.titel)
             for x in range(len(self.parent.stats)):
@@ -1127,9 +1145,9 @@ class Page1(Page):
         wijzig = False
         procdesc = " - ".join((proc, desc))
         if procdesc != self.parent.pagedata.titel:
-            if XML_VERSION:
+            if self.parent.parent.datatype == DataType.XML.name:
                 self.parent.pagedata.titel = procdesc
-            elif SQL_VERSION:
+            elif self.parent.parent.datatype == DataType.SQL.name:
                 self.parent.pagedata.over = proc
                 self.parent.pagedata.titel = desc
             self.parent.pagedata.events.append(
@@ -1185,10 +1203,10 @@ class Page1(Page):
                 2, self.parent.pagedata.get_statustext())
             self.parent.page0.p0list.currentItem().setText(
                 3, self.parent.pagedata.updated)
-            if XML_VERSION:
+            if self.parent.parent.datatype == DataType.XML.name:
                 self.parent.page0.p0list.currentItem().setText(
                     4, self.parent.pagedata.titel)
-            elif SQL_VERSION:
+            elif self.parent.parent.datatype == DataType.SQL.name:
                 self.parent.page0.p0list.currentItem().setText(
                     4, self.parent.pagedata.over)
                 self.parent.page0.p0list.currentItem().setText(
@@ -1296,7 +1314,7 @@ class Page6(Page):
             first_item.setData(core.Qt.UserRole, -1)
             self.progress_list.addItem(first_item)
             for idx, datum in enumerate(self.event_list):
-                if SQL_VERSION:
+                if self.parent.parent.datatype == DataType.SQL.name:
                     datum = datum[:19]
                 # convert to HTML (if needed) and back
                 self.progress_text.set_contents(self.event_data[idx])
@@ -1329,7 +1347,7 @@ class Page6(Page):
             short_text = hlp.split("\n")[0]
             if len(short_text) < 80:
                 short_text = short_text[:80] + "..."
-            if XML_VERSION:
+            if self.parent.parent.datatype == DataType.XML.name:
                 short_text = short_text.encode('latin-1')
             self.progress_list.item(idx + 1).setText("{} - {}".format(
                 self.event_list[idx], short_text))
@@ -1506,6 +1524,7 @@ class SelectOptionsDialog(qtw.QDialog):
     'id': 'and', 'idgt': '2005-0019'}"""
     def __init__(self, parent, sel_args):
         self.parent = parent
+        self.datatype = self.parent.parent.parent.datatype
         super().__init__(parent)
         self.setWindowTitle("Selecteren")
 
@@ -1656,9 +1675,9 @@ class SelectOptionsDialog(qtw.QDialog):
         if "idlt" in sel_args:
             self.text_lt.setText(sel_args["idlt"])
 
-        if XML_VERSION:
+        if self.datatype == DataType.XML.name:
             itemindex = 1
-        elif SQL_VERSION:
+        elif self.datatype == DataType.SQL.name:
             itemindex = 2
         if "soort" in sel_args:
             for x in self.parent.parent.cats.keys():
@@ -1730,17 +1749,17 @@ class SelectOptionsDialog(qtw.QDialog):
                 sel_args["id"] = "and"
             elif self.radio_id.buttons()[1].isChecked():
                 sel_args["id"] = "or"
-        if XML_VERSION:
+        if self.datatype == DataType.XML.name:
             itemindex = 1
-        elif SQL_VERSION:
+        elif self.datatype == DataType.SQL.name:
             itemindex = 2
         if self.check_options.buttons()[1].isChecked():
             selection = '(gefilterd)'
-            if XML_VERSION:
+            if self.datatype == DataType.XML.name:
                 lst = [self.parent.parent.cats[x][itemindex]
                        for x in range(len(self.parent.parent.cats.keys()))
                        if self.check_cats.buttons()[x].isChecked()]
-            elif SQL_VERSION:
+            elif self.datatype == DataType.SQL.name:
                 lst = [self.parent.parent.cats[x][itemindex]
                        for x in range(len(self.parent.parent.cats.keys()))
                        if self.check_cats.buttons()[x].isChecked()]
@@ -1748,11 +1767,11 @@ class SelectOptionsDialog(qtw.QDialog):
                 sel_args["soort"] = lst
         if self.check_options.buttons()[2].isChecked():
             selection = '(gefilterd)'
-            if XML_VERSION:
+            if self.datatype == DataType.XML.name:
                 lst = [self.parent.parent.stats[x][itemindex]
                        for x in range(len(self.parent.parent.stats.keys()))
                        if self.check_stats.buttons()[x].isChecked()]
-            elif SQL_VERSION:
+            elif self.datatype == DataType.SQL.name:
                 lst = [self.parent.parent.stats[x][itemindex]
                        for x in range(len(self.parent.parent.stats.keys()))
                        if self.check_stats.buttons()[x].isChecked()]
@@ -1946,10 +1965,10 @@ class StatOptions(OptionsDialog):
         self.titel = "Status codes en waarden"
         self.data = []
         for key in sorted(self.parent.book.stats.keys()):
-            if XML_VERSION:
+            if self.parent.datatype == DataType.XML.name:
                 item_text, item_value = self.parent.book.stats[key]
                 self.data.append(": ".join((item_value, item_text)))
-            elif SQL_VERSION:
+            elif self.parent.datatype == DataType.SQL.name:
                 item_text, item_value, row_id = self.parent.book.stats[key]
                 self.data.append(": ".join((item_value, item_text, row_id)))
         self.tekst = ["De waarden voor de status worden getoond in dezelfde volgorde",
@@ -1979,10 +1998,10 @@ class CatOptions(OptionsDialog):
         self.titel = "Soort codes en waarden"
         self.data = []
         for key in sorted(self.parent.book.cats.keys()):
-            if XML_VERSION:
+            if self.parent.datatype == DataType.XML.name:
                 item_value, item_text = self.parent.book.cats[key]
                 self.data.append(": ".join((item_text, item_value)))
-            elif SQL_VERSION:
+            elif self.parent.datatype == DataType.SQL.name:
                 item_value, item_text, row_id = self.parent.book.cats[key]
                 self.data.append(": ".join((item_text, item_value, str(row_id))))
         self.tekst = ["De waarden voor de soorten worden getoond in dezelfde volgorde",
@@ -2007,29 +2026,33 @@ class CatOptions(OptionsDialog):
 
 class MainWindow(qtw.QMainWindow):
     """Hoofdscherm met menu, statusbalk, notebook en een "quit" button"""
-    def __init__(self, parent, fnaam=""):
+    def __init__(self, parent, fnaam="", version=None):
+        if not version:
+            raise ValueError('No data method specified')
         self.parent = parent
+        self.datatype = version
         self.title = 'Actieregistratie'
         self.initializing = True
         self.exiting = False
         self.mag_weg = True
         self.helptext = ''
         self.pagedata = self.oldbuf = None
-        self.newfile = self.newitem = False
+        self.is_newfile = self.newitem = False
         self.oldsort = -1
         self.idlist = self.actlist = self.alist = []
-        if XML_VERSION:
-            self.filepad = fnaam
+        log('fnaam is %s', fnaam)
+        if fnaam and not os.path.exists(fnaam):
+            log('switched to SQL')
+            self.datatype = DataType.SQL.name
+        if self.datatype == DataType.XML.name:
             if fnaam:
-                ext = os.path.splitext(self.filepad)[1]
-                if ext == "" and not os.path.isdir(self.filepad):
-                    self.filepad += ".xml"
-                elif ext != ".xml":
-                    self.filepad = ""
-            self.dirname, self.filename = os.path.split(self.filepad)
-        elif SQL_VERSION:
-            self.filename = ""
-
+                self.dirname, self.filename = os.path.split(fnaam)
+            else:
+                self.dirname = self.filename = ''
+            log('XML: %s %s', self.dirname, self.filename)
+        elif self.datatype == DataType.SQL.name:
+            self.filename = fnaam or ""
+            log('SQL: %s', self.filename)
         if LIN:
             wide, high, left, top = 864, 720, 2, 2
         else:
@@ -2051,15 +2074,21 @@ class MainWindow(qtw.QMainWindow):
         self.exit_button.clicked.connect(self.exit_app)
         self.doelayout(pnl)
         self.book.page6._out = open("probreg_page6.log", "w")
-        if self.filename:
-            test = self.startfile()
-            if test:
-                self.filename = ""
-        if self.filename == "":
-            if XML_VERSION:
+        ## if self.filename:
+            ## test = self.startfile()
+            ## if test:
+                ## self.filename = ""
+        if self.datatype == DataType.XML.name:
+            if self.filename == "":
                 self.open_xml()
-            elif SQL_VERSION:
-                self.open_sql()
+            else:
+                self.startfile()
+        elif self.datatype == DataType.SQL.name:
+            self.projnames = dmls.get_projnames()
+            if fnaam and fnaam.capitalize() not in [x[0] for x in self.projnames]:
+                raise ValueError('Nonexistant file/project name specified')
+            self.filename = fnaam.capitalize()
+            self.open_sql()
         self.initializing = False
         self.zetfocus(0)
 
@@ -2098,9 +2127,9 @@ class MainWindow(qtw.QMainWindow):
             ("&Help", (
                 ("&About", self.about_help, 'F1', " Information about this program"),
                 ("&Keys", self.hotkey_help, 'Ctrl+H', " List of shortcut keys"))))
-        if XML_VERSION:
+        if self.datatype == DataType.XML.name:
             del menudata[0][1][2]
-        elif SQL_VERSION:
+        elif self.datatype == DataType.SQL.name:
             del menudata[0][1][0:1]
 
         def add_to_menu(menu, menuitem):
@@ -2177,9 +2206,9 @@ class MainWindow(qtw.QMainWindow):
         self.book.rereadlist = True
         self.lees_settings()
         self.book.ctitels = ["actie", " ", "status", "L.wijz."]
-        if XML_VERSION:
+        if self.datatype == DataType.XML.name:
             self.book.ctitels.append("titel")
-        elif SQL_VERSION:
+        elif self.datatype == DataType.SQL.name:
             self.book.ctitels.extend(("betreft", "omschrijving"))
         self.book.current_tab = -1
         self.book.newitem = False
@@ -2230,22 +2259,22 @@ class MainWindow(qtw.QMainWindow):
 
     def new_file(self):
         "Menukeuze: nieuw file"
-        self.newfile = False
-        self.dirname = os.getcwd()
+        self.is_newfile = False
+        self.dirname = self.dirname or os.getcwd()
         fname, pattern = qtw.QFileDialog.getSaveFileName(
             self, self.title + " - nieuw gegevensbestand",
             self.dirname, "XML files (*.xml);;all files (*.*)")
         if fname:
             self.dirname, self.filename = os.path.split(str(fname))
-            self.newfile = True
+            self.is_newfile = True
             self.startfile()
-            self.newfile = False
+            self.is_newfile = False
             for i in range(1, self.book.count()):
                 self.book.setTabEnabled(i, False)
 
     def open_xml(self):
         "Menukeuze: open file"
-        self.dirname = os.getcwd()
+        self.dirname = self.dirname or os.getcwd()
         fname, pattern = qtw.QFileDialog.getOpenFileName(
             self, self.title + " - kies een gegevensbestand",
             self.dirname, "XML files (*.xml);;all files (*.*)")
@@ -2255,25 +2284,19 @@ class MainWindow(qtw.QMainWindow):
 
     def open_sql(self):
         "Menukeuze: open project"
-        data = []
-        with open(APPS) as f_in:
-            for line in f_in:
-                sel, naam, titel, oms = line.strip().split(";")
-                if sel == "X":
-                    data.append((naam.capitalize(), titel.capitalize(), oms))
-        data = data
-        data.sort()
-        print(self.filename)
+        log('in open_sql: %s', self.filename)
         choice = 0
+        data = self.projnames
         for idx, h in enumerate(data):
-            print(h)
+            log(h)
             if h[0] == self.filename or (self.filename == "_basic" and h[0] == "Demo"):
-                choice = idx
+                choice, ok = h[0], True # idx, True
                 break
-        choice, ok = qtw.QInputDialog.getItem(self, 'Probreg SQL versie',
-                                              'Kies een project om te openen',
-                                              [": ".join((h[1], h[2])) for h in data],
-                                              current=choice, editable=False)
+        if not choice:
+            choice, ok = qtw.QInputDialog.getItem(
+                self, 'Probreg SQL versie', 'Kies een project om te openen',
+                [": ".join((h[1], h[2])) for h in data],
+                current=choice, editable=False)
         if ok:
             self.filename = str(choice).split(': ')[0]
             if self.filename == "Demo":
@@ -2302,7 +2325,7 @@ class MainWindow(qtw.QMainWindow):
                 status = str(item.text(2))
                 l_wijz = str(item.text(3))
                 titel = str(item.text(4))
-                if SQL_VERSION:
+                if self.datatype == DataType.SQL.name:
                     over = titel
                     titel = str(item.text(5))
                     l_wijz = l_wijz[:19]
@@ -2343,7 +2366,7 @@ class MainWindow(qtw.QMainWindow):
         elif self.book.current_tab == 6:
             events = []
             for idx, data in enumerate(self.book.page6.event_list):
-                if SQL_VERSION:
+                if self.datatype == DataType.SQL.name:
                     data = data[:19]
                 events.append((data, self.book.page6.event_data[idx].replace('\n',
                                                                              '<br>')))
@@ -2470,10 +2493,10 @@ class MainWindow(qtw.QMainWindow):
                     "    Alt-Ctrl-Z overal: wijzigingen ongedaan maken",
                     "    Shift-Ctrl-N op tab 6: nieuwe regel opvoeren",
                     "    Ctrl-up/down op tab 6: move in list"]
-            if XML_VERSION:
+            if self.datatype == DataType.XML.name:
                 help.insert(8, "    Ctrl-O: _o_pen een (ander) actiebestand")
                 help.insert(8, "    Ctrl-N: maak een _n_ieuw actiebestand")
-            elif SQL_VERSION:
+            elif self.datatype == DataType.SQL.name:
                 help.insert(8, "    Ctrl-O: selecteer een (ander) pr_o_ject")
             self.helptext = "\n".join(help)
         qtw.QMessageBox.information(self, 'Help', self.helptext)
@@ -2485,15 +2508,15 @@ class MainWindow(qtw.QMainWindow):
 
     def startfile(self):
         "initialisatie t.b.v. nieuw bestand"
-        if XML_VERSION:
+        if self.datatype == DataType.XML.name:
             fullname = os.path.join(self.dirname, self.filename)
-            retval = checkfile(fullname, self.newfile)
+            retval = checkfile(fullname, self.is_newfile)
             if retval != '':
                 qtw.QMessageBox.information(self, "Oeps", retval)
                 return retval
             self.book.fnaam = fullname
             self.title = self.filename
-        elif SQL_VERSION:
+        elif self.datatype == DataType.SQL.name:
             self.book.fnaam = self.title = self.filename
         self.book.rereadlist = True
         self.book.sorter = None
@@ -2511,7 +2534,7 @@ class MainWindow(qtw.QMainWindow):
     def lees_settings(self):
         """instellingen (tabnamen, actiesoorten en actiestatussen) inlezen"""
         try:
-            data = Settings(self.book.fnaam)
+            data = Settings[self.datatype](self.book.fnaam)
         except DataError as err:
             qtw.QMessageBox.information(self, "Oh-oh!", str(err))
             return
@@ -2527,23 +2550,23 @@ class MainWindow(qtw.QMainWindow):
                               "Eventuele vervolgactie(s)",
                               "Overzicht stand van zaken"]
         for item_value, item in data.stat.items():
-            if XML_VERSION:
+            if self.datatype == DataType.XML.name:
                 item_text, sortkey = item
                 self.book.stats[int(sortkey)] = (item_text, item_value)
-            elif SQL_VERSION:
+            elif self.datatype == DataType.SQL.name:
                 item_text, sortkey, row_id = item
                 self.book.stats[int(sortkey)] = (item_text, item_value, row_id)
         for item_value, item in data.cat.items():
-            if XML_VERSION:
+            if self.datatype == DataType.XML.name:
                 item_text, sortkey = item
                 self.book.cats[int(sortkey)] = (item_text, item_value)
-            elif SQL_VERSION:
+            elif self.datatype == DataType.SQL.name:
                 item_text, sortkey, row_id = item
                 self.book.cats[int(sortkey)] = (item_text, item_value, row_id)
         for tab_num, tab_text in data.kop.items():
-            if XML_VERSION:
+            if self.datatype == DataType.XML.name:
                 self.book.tabs[int(tab_num)] = " ".join((tab_num, tab_text))
-            elif SQL_VERSION:
+            elif self.datatype == DataType.SQL.name:
                 tab_text, tab_adr = tab_text
                 self.book.tabs[int(tab_num)] = " ".join((tab_num, tab_text.title()))
 
@@ -2553,7 +2576,7 @@ class MainWindow(qtw.QMainWindow):
         argumenten: soort, data
         data is een dictionary die in een van de dialogen TabOptions, CatOptions
         of StatOptions wordt opgebouwd"""
-        settings = Settings(self.book.fnaam)
+        settings = Settings[self.datatype](self.book.fnaam)
         if srt == "tab":
             settings.kop = data
             settings.write()
@@ -2567,10 +2590,10 @@ class MainWindow(qtw.QMainWindow):
             settings.write()
             self.book.stats = {}
             for item_value, item in data.items():
-                if XML_VERSION:
+                if self.datatype == DataType.XML.name:
                     item_text, sortkey = item
                     self.book.stats[sortkey] = (item_text, item_value)
-                elif SQL_VERSION:
+                elif self.datatype == DataType.SQL.name:
                     item_text, sortkey, row_id = item
                     self.book.stats[sortkey] = (item_text, item_value, row_id)
         elif srt == "cat":
@@ -2578,10 +2601,10 @@ class MainWindow(qtw.QMainWindow):
             settings.write()
             self.book.cats = {}
             for item_value, item in data.items():
-                if XML_VERSION:
+                if self.datatype == DataType.XML.name:
                     item_text, sortkey = item
                     self.book.cats[sortkey] = (item_text, item_value)
-                elif SQL_VERSION:
+                elif self.datatype == DataType.SQL.name:
                     item_text, sortkey, row_id = item
                     self.book.cats[sortkey] = (item_text, item_value, row_id)
         self.book.page1.vul_combos()
@@ -2655,29 +2678,17 @@ class MainWindow(qtw.QMainWindow):
         self.print_dlg.done(True)
 
 
-def main(arg=None, log=False):
+def main(arg=None):
     "opstart routine"
-    if log:
-        logging.basicConfig(filename='apropos_qt.log', level=logging.DEBUG,
-                            format='%(asctime)s %(message)s')
-    else:
-        logging.basicConfig(level=logging.DEBUG,
-                            format='%(asctime)s %(message)s')
     if arg is None:
-        globals()["SQL_VERSION"] = True
-        from probreg.dml_sql import DataError, get_acties, Actie, Settings
-        from probreg.config_sql import APPS
-        globals()["APPS"] = APPS
+        version = DataType.SQL.name
     else:
-        globals()["XML_VERSION"] = True
-        from probreg.dml_xml import DataError, checkfile, get_acties, Actie, Settings
-        globals()["checkfile"] = checkfile
-    globals()["DataError"] = DataError
-    globals()["get_acties"] = get_acties
-    globals()["Actie"] = Actie
-    globals()["Settings"] = Settings
+        version = DataType.XML.name
     app = qtw.QApplication(sys.argv)
-    print('\n** {} **\n'.format(get_dts()))
-    frame = MainWindow(None, arg)
-    frame.show()
-    sys.exit(app.exec_())
+    try:
+        frame = MainWindow(None, arg, version)
+    except ValueError as err:
+        print(err)
+    else:
+        frame.show()
+        sys.exit(app.exec_())
