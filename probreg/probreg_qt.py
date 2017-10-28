@@ -5,6 +5,7 @@
 from __future__ import print_function
 import os
 import sys
+import pathlib
 import enum
 from datetime import datetime
 ## import pprint
@@ -17,11 +18,11 @@ import PyQt5.QtGui as gui
 import PyQt5.QtCore as core
 from mako.template import Template
 ## import probreg.pr_globals as pr
+from probreg.shared import DataError
 import probreg.dml_sql as dmls
 import probreg.dml_xml as dmlx
 DataType = enum.Enum('DataType', 'XML SQL')
-checkfile = dmlx.checkfile
-DataError = dmlx.DataError # doesn't matter which
+## checkfile = dmlx.checkfile
 get_acties = {DataType.XML.name: dmlx.get_acties, DataType.SQL.name: dmls.get_acties}
 Actie = {DataType.XML.name: dmlx.Actie, DataType.SQL.name: dmls.Actie}
 Settings = {DataType.XML.name: dmlx.Settings, DataType.SQL.name: dmls.Settings}
@@ -2045,10 +2046,8 @@ class MainWindow(qtw.QMainWindow):
             log('switched to SQL')
             self.datatype = DataType.SQL.name
         if self.datatype == DataType.XML.name:
-            if fnaam:
-                self.dirname, self.filename = os.path.split(fnaam)
-            else:
-                self.dirname = self.filename = ''
+            test = pathlib.Path(fnaam)
+            self.dirname, self.filename = test.parent, test.name
             log('XML: %s %s', self.dirname, self.filename)
         elif self.datatype == DataType.SQL.name:
             self.filename = fnaam or ""
@@ -2260,12 +2259,13 @@ class MainWindow(qtw.QMainWindow):
     def new_file(self):
         "Menukeuze: nieuw file"
         self.is_newfile = False
-        self.dirname = self.dirname or os.getcwd()
+        self.dirname = str(self.dirname)  # defaults to '.' so no need for `or os.getcwd()`
         fname, pattern = qtw.QFileDialog.getSaveFileName(
             self, self.title + " - nieuw gegevensbestand",
             self.dirname, "XML files (*.xml);;all files (*.*)")
         if fname:
-            self.dirname, self.filename = os.path.split(str(fname))
+            test = pathlib.Path(fname)
+            self.dirname, self.filename = test.parent, test.name
             self.is_newfile = True
             self.startfile()
             self.is_newfile = False
@@ -2277,9 +2277,10 @@ class MainWindow(qtw.QMainWindow):
         self.dirname = self.dirname or os.getcwd()
         fname, pattern = qtw.QFileDialog.getOpenFileName(
             self, self.title + " - kies een gegevensbestand",
-            self.dirname, "XML files (*.xml);;all files (*.*)")
+            str(self.dirname), "XML files (*.xml);;all files (*.*)")
         if fname:
-            self.dirname, self.filename = os.path.split(str(fname))
+            test = pathlib.Path(fname)
+            self.dirname, self.filename = test.parent, test.name
             self.startfile()
 
     def open_sql(self):
@@ -2509,8 +2510,8 @@ class MainWindow(qtw.QMainWindow):
     def startfile(self):
         "initialisatie t.b.v. nieuw bestand"
         if self.datatype == DataType.XML.name:
-            fullname = os.path.join(self.dirname, self.filename)
-            retval = checkfile(fullname, self.is_newfile)
+            fullname = self.dirname / self.filename
+            retval = dmlx.checkfile(fullname, self.is_newfile)
             if retval != '':
                 qtw.QMessageBox.information(self, "Oeps", retval)
                 return retval

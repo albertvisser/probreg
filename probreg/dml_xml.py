@@ -4,13 +4,14 @@ from __future__ import print_function
 
 ## import sys
 import os
+import pathlib
 ## import pprint
 import base64  # gzip
 import datetime as dt
 from shutil import copyfile
 from xml.etree.ElementTree import ElementTree, Element, SubElement
 import logging
-from probreg.config_xml import kopdict, statdict, catdict
+from probreg.shared import DataError, kopdict, statdict, catdict
 
 datapad = os.getcwd()
 
@@ -20,28 +21,25 @@ def log(msg, *args, **kwargs):
         logging.info(msg, *args, **kwargs)
 
 
-class DataError(Exception):
-    "Eigen all-purpose exception - maakt resultaat testen eenvoudiger"
-    pass
-
-
 def check_filename(fnaam):
     """check for correct filename and return short and long version
+
+    fnaam is a pathlib.Path object
     """
     fn = meld = ''
-    if os.path.splitext(fnaam)[1] != ".xml":
+    if fnaam.suffix != ".xml":
         meld = "Filename incorrect (must end in .xml)"
-    if os.path.dirname(fnaam) != "":
-        fn, fnaam = fnaam, os.path.basename(fnaam)
+    if fnaam.parent != "":
+        fn, fnaam = fnaam, fnaam.name
     else:
-        fn = os.path.join(datapad, fnaam)
-    exists = os.path.exists(fn)
-    return fn, fnaam, exists, meld
+        fn = Pathlib.Path('') / fnaam
+    return fn, fnaam, fn.exists(), meld
 
 
 def checkfile(fn, new=False):
     "controleer of projectbestand bestaat, maak indien aangegeven nieuwe aan"
     r = ''
+    fnaam = str(fn)
     if new:
         root = Element("acties")
         s = SubElement(root, "settings", imagecount="0")
@@ -56,26 +54,28 @@ def checkfile(fn, new=False):
         t = SubElement(s, "koppen")
         for x, y in list(kopdict.items()):
             u = SubElement(t, "kop", value=x)
-            u.text = y
-        ElementTree(root).write(fn, encoding='utf-8', xml_declaration=True)
+            u.text = y[0]
+        ElementTree(root).write(fnaam, encoding='utf-8', xml_declaration=True)
     else:
-        if not os.path.exists(fn):
-            r = fn + " bestaat niet"
+        if not fn.exists():
+            r = fnaam + " bestaat niet"
         else:
-            tree = ElementTree(file=fn)
+            tree = ElementTree(file=fnaam)
             if tree.getroot().tag != "acties":
-                r = fn + " is geen bruikbaar xml bestand"
+                r = fnaam + " is geen bruikbaar xml bestand"
     return r
 
 
 def get_nieuwetitel(fnaam, jaar=None):
     "bepaal nieuw uit te geven actienummer"
-    if os.path.exists(fnaam):
-        dnaam = fnaam
-    elif os.path.exists(os.path.join(datapad, fnaam)):
-        dnaam = os.path.join(datapad, fnaam)
+    if fnaam.exists():
+        dnaam = str(fnaam)
     else:
-        raise DataError("datafile bestaat niet")
+        test = pathlib.Path('') / str(fnaam)
+        if test.exists():
+            dnaam = str(test)
+        else:
+            raise DataError("datafile bestaat niet")
     if jaar is None:
         jaar = str(dt.date.today().year)
     tree = ElementTree(file=dnaam)
@@ -126,8 +126,8 @@ def get_acties(fnaam, select=None, arch=""):
         raise DataError("Foutieve waarde voor archief opgegeven "
                         "(moet niks, 'arch'  of 'alles' zijn)")
     sett = Settings(fnaam)
-    if os.path.exists(fnaam):
-        dnaam = fnaam
+    if fnaam.exists():
+        dnaam = str(fnaam)
     elif os.path.exists(os.path.join(datapad, fnaam)):
         dnaam = os.path.join(datapad, fnaam)
     else:
@@ -193,15 +193,15 @@ def get_acties(fnaam, select=None, arch=""):
 class Settings:
     """
         argument = filenaam
-        mag leeg zijn, moet eindingen op ".xml" (anders: DataError exception)
+        mag leeg zijn, pathlib.Path object met suffix ".xml" (anders: DataError exception)
         de soorten hebben een numeriek id en alfanumerieke code
         de categorieen hebben een numeriek id en een numerieke code
         de id's bepalen de volgorde in de listboxen en de codes worden in de xml opgeslagen
     """
     def __init__(self, fnaam=""):
-        self.kop = kopdict
-        self.stat = statdict
-        self.cat = catdict
+        self.kop = {x: y[0] for x, y in kopdict.items()}
+        self.stat = {x: (y[0], y[1]) for x, y in statdict.items()}
+        self.cat = {x: (y[0], y[1]) for x, y in catdict.items()}
         self.imagecount = 0
         self.meld = ''
         if fnaam == "":
@@ -215,7 +215,7 @@ class Settings:
 
     def read(self):
         "settings lezen"
-        tree = ElementTree(file=self.fn)
+        tree = ElementTree(file=str(self.fn))
         rt = tree.getroot()
         ## found = False  # wordt niet gebruikt
         x = rt.find("settings")
@@ -240,11 +240,12 @@ class Settings:
 
     def write(self, srt=None):  # extra argument ivm compat sql-versie
         "settings terugschrijven"
+        fnaam = str(self.fn)
         if not self.exists:
             rt = Element('acties')
             tree = ElementTree(rt)
         else:
-            tree = ElementTree(file=self.fn)
+            tree = ElementTree(file=fnaam)
             rt = tree.getroot()
         el = rt.find("settings")
         if el is None:
@@ -278,8 +279,8 @@ class Settings:
                 x = str(x)
             j = SubElement(h, "kop", value=x)
             j.text = self.kop[x]
-        copyfile(self.fn, self.fn + ".old")
-        tree.write(self.fn, encoding='utf-8', xml_declaration=True)
+        copyfile(fnaam, fnaam + ".old")
+        tree.write(fnaam, encoding='utf-8', xml_declaration=True)
         self.exists = True
 
     def set(self, naam, key=None, waarde=None):
@@ -345,7 +346,10 @@ class Settings:
 
 
 class Actie:
-    """lijst alle gegevens van een bepaald item"""
+    """lijst alle gegevens van een bepaald item
+
+    fnaam is a pathlib.Path object
+    """
     def __init__(self, fnaam, _id):
         self.fn, self.fnaam, self.file_exists, self.meld = check_filename(fnaam)
         if self.meld:
@@ -358,7 +362,7 @@ class Actie:
         self.status, self.arch = '0', False
         self.melding = self.oorzaak = self.oplossing = self.vervolg = self.stand = ''
         self.events = []
-        self.fno = self.fn + ".old"     # naam van de backup van het xml bestand
+        ## self.fno = str(self.fn) + ".old"     # naam van de backup van het xml bestand
         new_item = _id == 0 or _id == "0"
         if self.file_exists:
             if new_item:
@@ -374,9 +378,9 @@ class Actie:
 
     def nieuwfile(self):
         "nieuw projectbestand aanmaken"
-        f = open(self.fn, "w")
-        f.write('<?xml version="1.0" encoding="iso-8859-1"?>\n<acties>\n</acties>\n')
-        f.close()
+        f = self.fn.open("w")
+        with f:
+            f.write('<?xml version="1.0" encoding="utf-8"?>\n<acties>\n</acties>\n')
 
     def nieuw(self):
         "nieuwe actie initialiseren"
@@ -385,7 +389,7 @@ class Actie:
 
     def read(self):
         "gegevens lezen van een bepaalde actie"
-        tree = ElementTree(file=self.fn)
+        tree = ElementTree(file=str(self.fn))
         rt = tree.getroot()
         found = False
         log('%s %s', self.id, type(self.id))
@@ -518,7 +522,7 @@ class Actie:
     def write(self):
         "actiegegevens terugschrijven"
         if self.file_exists:     # os.path.exists(self.fn):
-            tree = ElementTree(file=self.fn)
+            tree = ElementTree(file=str(self.fn))
             rt = tree.getroot()
             sett = rt.find('settings')
         else:
@@ -595,11 +599,12 @@ class Actie:
                 ## q.text = str(base64.encodebytes(data))
                 ## q.text = str(gzip.compress(data)) # let op: bdata, geen cdata !
             tree = ElementTree(rt)
-            copyfile(self.fn, self.fn + ".old")
-            tree.write(self.fn, encoding='utf-8', xml_declaration=True)
+            copyfile(str(self.fn), str(self.fn) + ".old")
+            tree.write(str(self.fn), encoding='utf-8', xml_declaration=True)
             self.exists = True
-        else:
-            return False
+        ## else:
+            ## return False
+        return found
 
     def clear(self):
         "images opruimen"
@@ -633,5 +638,4 @@ class Actie:
         if self.arch:
             result.append("Actie is gearchiveerd.")
         # for now
-        for line in result:
-            print(line)
+        return result

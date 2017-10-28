@@ -1,4 +1,4 @@
-"""config.py - configuratie voor probreg sql versie
+"""configuration items and shared/gui-independent routines
 
 definieert een aantal constanten en de default waarden voor de settings dictionaries:
 DBLOC - waar de database staat
@@ -8,11 +8,11 @@ kopdict - dictionary van tabs in de vorm                 volgorde: (tab titel,  
 statdict: dictionary van mogelijke statussen in de vorm  volgorde: (omschrijving, code, id in tabel)
 catdict: dictionary van mogelijke soorten in de vorm     volgorde: (omschrijving, code, id in tabel)
 """
-import os
-root = "/home/albert/projects/actiereg/actiereg"
-DBLOC = os.path.join(root, "actiereg.db")
+import pathlib
+ROOT = pathlib.Path(__file__).parent  # "/home/albert/projects/actiereg/actiereg"
+DBLOC = ROOT / "actiereg.db"
 USER = 2
-APPS = os.path.join(root, "apps.dat")
+APPS = str(ROOT / "apps.dat")
 
 kopdict = {
     "0": ("Lijst", 'index'),
@@ -41,3 +41,10 @@ catdict = {
     "I": ("idee", 4, -1),
     "F": ("div. informatie", 5, -1)
 }
+
+
+class DataError(ValueError):    # Exception):
+    "Eigen all-purpose exception - maakt resultaat testen eenvoudiger"
+    pass
+
+

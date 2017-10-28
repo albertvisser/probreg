@@ -11,12 +11,12 @@ import datetime as dt
 import sqlite3 as sql
 from contextlib import closing
 import logging
-from probreg.config_sql import APPS, DBLOC, USER, kopdict, statdict, catdict
+from probreg.shared import DataError, APPS, DBLOC, USER, kopdict, statdict, catdict
 
 
 def get_projnames():
     data = []
-    with open(APPS) as f_in:
+    with APPS.open() as f_in:
         for line in f_in:
             sel, naam, titel, oms = line.strip().split(";")
             if sel == "X":
@@ -28,11 +28,6 @@ def get_projnames():
 def log(msg, *args, **kwargs):
     if 'DEBUG' in os.environ and os.environ['DEBUG']:
         logging.info(msg, *args, **kwargs)
-
-
-class DataError(Exception):
-    "Eigen all-purpose exception - maakt resultaat testen van getsql eenvoudiger"
-    pass
 
 
 def getsql(con, cmd, item=None):
@@ -602,5 +597,4 @@ class Actie:
         if self.arch:
             result.append("Actie is gearchiveerd.")
         # for now
-        for line in result:
-            print(line)
+        return result
