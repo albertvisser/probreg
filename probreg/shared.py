@@ -8,11 +8,14 @@ kopdict - dictionary van tabs in de vorm                 volgorde: (tab titel,  
 statdict: dictionary van mogelijke statussen in de vorm  volgorde: (omschrijving, code, id in tabel)
 catdict: dictionary van mogelijke soorten in de vorm     volgorde: (omschrijving, code, id in tabel)
 """
+import sys
 import pathlib
-ROOT = pathlib.Path(__file__).parent  # "/home/albert/projects/actiereg/actiereg"
-DBLOC = ROOT / "actiereg.db"
+ROOT = pathlib.Path("/home/albert/projects/actiereg/actiereg")
+sys.path.append(str(ROOT))
+from settings import DATABASES
+DBLOC = DATABASES['default']['NAME']    # str(ROOT / "actiereg.db")
 USER = 2
-APPS = str(ROOT / "apps.dat")
+APPS = ROOT / "apps.dat"
 
 kopdict = {
     "0": ("Lijst", 'index'),

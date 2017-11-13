@@ -2045,6 +2045,8 @@ class MainWindow(qtw.QMainWindow):
         if fnaam and not os.path.exists(fnaam):
             log('switched to SQL')
             self.datatype = DataType.SQL.name
+            if fnaam == 'sql':
+                fnaam = ''
         if self.datatype == DataType.XML.name:
             test = pathlib.Path(fnaam)
             self.dirname, self.filename = test.parent, test.name
@@ -2084,9 +2086,11 @@ class MainWindow(qtw.QMainWindow):
                 self.startfile()
         elif self.datatype == DataType.SQL.name:
             self.projnames = dmls.get_projnames()
-            if fnaam and fnaam.capitalize() not in [x[0] for x in self.projnames]:
-                raise ValueError('Nonexistant file/project name specified')
-            self.filename = fnaam.capitalize()
+            if fnaam:
+                test = fnaam.capitalize()
+                if test not in [x[0] for x in self.projnames]:
+                    raise ValueError('Nonexistant file/project name specified')
+                self.filename = test
             self.open_sql()
         self.initializing = False
         self.zetfocus(0)
