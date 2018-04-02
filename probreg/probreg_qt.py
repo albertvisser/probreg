@@ -153,7 +153,6 @@ class EditorPanel(qtw.QTextEdit):
 
     def text_strikethrough(self):
         "selectie doorstrepen"
-        # TODO make this accessible (define an action for it)
         if not self.hasFocus():
             return
         fmt = gui.QTextCharFormat()
@@ -340,10 +339,10 @@ class Page(qtw.QFrame):
         self.create_text_field(pageno)
         self.save_button = qtw.QPushButton('Sla wijzigingen op (Ctrl-S)', self)
         self.save_button.clicked.connect(self.savep)
-        action = qtw.QShortcut('Ctrl+S', self, self.savepfromkey)
+        action = qtw.QShortcut('Ctrl+S', self, self.savep)
         self.saveandgo_button = qtw.QPushButton('Sla op en ga verder (Ctrl-G)', self)
         self.saveandgo_button.clicked.connect(self.savepgo)
-        action = qtw.QShortcut('Ctrl+G', self, self.savepgofromkey)
+        action = qtw.QShortcut('Ctrl+G', self, self.savepgo)
         self.cancel_button = qtw.QPushButton('Zet originele tekst terug (Alt-Ctrl-Z)',
                                              self)
         self.cancel_button.clicked.connect(self.restorep)
@@ -573,6 +572,8 @@ class Page(qtw.QFrame):
 
     def savep(self):
         "gegevens van een actie opslaan afhankelijk van pagina"
+        if not self.save_button.isEnabled():
+            return
         self.enable_buttons(False)
         if self.parent.current_tab <= 1 or self.parent.current_tab == 6:
             return
@@ -601,26 +602,12 @@ class Page(qtw.QFrame):
 
     def savepgo(self):
         "opslaan en naar de volgende pagina"
+        if not self.saveandgo_button.isEnabled():
+            return
         if self.savep():
             self.goto_next()
         else:
             self.enable_buttons()
-
-    def savepfromkey(self):
-        """save_contents when started from keyboard accelerator
-
-        TODO: combine with button action
-        """
-        if self.save_button.isEnabled():
-            self.savep()
-
-    def savepgofromkey(self):
-        """save_contents_and_leave when started from keyboard accelerator
-
-        TODO: combine with button action
-        """
-        if self.saveandgo_button.isEnabled():
-            self.savepgo()
 
     def restorep(self):
         "oorspronkelijke (laatst opgeslagen) inhoud van de pagina herstellen"
