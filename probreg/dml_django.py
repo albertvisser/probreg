@@ -18,17 +18,7 @@ import pathlib
 ROOT = pathlib.Path("/home/albert/projects/actiereg")
 sys.path.append(str(ROOT))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "actiereg.settings")
-
-
-def get_projnames():
-    data = []
-    with APPS.open() as f_in:
-        for line in f_in:
-            sel, naam, titel, oms = line.strip().split(";")
-            if sel == "X":
-                data.append((naam, titel.capitalize(), oms))
-    data = data
-    return sorted(data)
+from probreg.shared import get_projnames
 
 import importlib
 APPS = ROOT / 'actiereg' / "apps.dat"
@@ -38,7 +28,6 @@ for proj in get_projnames():
     if name == 'basic':
         name = '_basic'
     MY[name] = importlib.import_module('actiereg.{}.models'.format(name))
-
 
 import django
 django.setup()
@@ -66,10 +55,12 @@ def get_acties(naam, select=None, arch=""):
     eigenijk zijn deze argumenten overbodig doordat de selectie in de database
     opgeslagen wordt en tijdens de aangeroepen functie vanzelf toegepast wordt
     """
-    my = MY[naam]
+    try:
+        my = MY[naam]
+    except KeyError:
+        raise
 
     data = core.get_acties(my, USER.id)
-    print([x.nummer for x in data])
     if data:
         actiedata = []
         for actie in data:
@@ -273,10 +264,7 @@ class Settings:
             self.my = MY['_basic']
             self.meld = "Standaard waarden opgehaald"
         else:
-            try:
-                self.my = MY[fnaam]
-            except KeyError as err:
-                raise DataError("{} bestaat niet ({})".format(fnaam, err))
+            self.my = MY[fnaam]
         for page in self.my.Page.objects.all().order_by('order'):
             self.kop[str(page.order)] = (page.title, page.link)
         for stat in self.my.Status.objects.all().order_by('order'):

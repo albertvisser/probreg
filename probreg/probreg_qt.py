@@ -2123,7 +2123,14 @@ class MainWindow(qtw.QMainWindow):
             self.dirname, self.filename = test.parent, test.name
             log('XML: %s %s', self.dirname, self.filename)
         elif self.datatype == DataType.SQL.name:
-            self.filename = fnaam or ""
+            self.filename = ""
+            self.projnames = dmls.get_projnames()
+            if fnaam:
+                test = fnaam.lower()
+                for x in self.projnames:
+                    if x[0].lower() == test:
+                        self.filename = x[0]
+                        break
             log('SQL: %s', self.filename)
         if LIN:
             wide, high, left, top = 864, 720, 2, 2
@@ -2142,6 +2149,7 @@ class MainWindow(qtw.QMainWindow):
         self.setCentralWidget(pnl)
         self.toolbar = None
         self.create_book(pnl)
+        print('book has been created')
         self.exit_button = qtw.QPushButton('&Quit', pnl)
         self.exit_button.clicked.connect(self.exit_app)
         self.doelayout(pnl)
@@ -2156,17 +2164,8 @@ class MainWindow(qtw.QMainWindow):
             else:
                 self.startfile()
         elif self.datatype == DataType.SQL.name:
-            self.projnames = dmls.get_projnames()
-            if fnaam:
-                test = fnaam.lower()
-                for x in self.projnames:
-                    if x[0].lower() == test:
-                        self.filename = x[0]
-                        self.open_sql(do_sel=False)
-                        break
-                else:
-                    raise ValueError('Nonexistant file/project name specified: '
-                                     '{}'.format(test))
+            if self.filename:
+                self.open_sql(do_sel=False)
             else:
                 self.open_sql()
         self.initializing = False
@@ -2288,7 +2287,9 @@ class MainWindow(qtw.QMainWindow):
         self.book.current_item = None
         self.book.data = {}
         self.book.rereadlist = True
+        print('reading settings')
         self.lees_settings()
+        print('settings are read')
         self.book.ctitels = ["actie", " ", "status", "L.wijz."]
         if self.datatype == DataType.XML.name:
             self.book.ctitels.append("titel")
@@ -2370,25 +2371,23 @@ class MainWindow(qtw.QMainWindow):
 
     def open_sql(self, do_sel=True):
         "Menukeuze: open project"
-        ## log('in open_sql: %s', self.filename)
-        print('in open_sql:', self.filename, do_sel)
+        log('in open_sql: %s', self.filename)
         choice = 0
         data = self.projnames
         if do_sel:
             choice, ok = qtw.QInputDialog.getItem(
                 self, 'Probreg SQL versie', 'Kies een project om te openen',
-                [": ".join((h[1], h[2])) for h in data],
+                [": ".join((h[0], h[2])) for h in data],
                 current=choice, editable=False)
         else:
             for idx, h in enumerate(data):
-                ## log(h)
-                print(h)
+                log(h)
                 if h[0] == self.filename or (self.filename == "_basic"
                                              and h[0] == "Demo"):
                     choice, ok = h[0], True # idx, True
                     break
         if ok:
-            self.filename = choice # str(choice).split(': ')[0]
+            self.filename = choice.split(': ')[0]
             if self.filename == "Demo":
                 self.filename = "_basic"
             self.startfile()
@@ -2626,8 +2625,9 @@ class MainWindow(qtw.QMainWindow):
         try:
             data = Settings[self.datatype](self.book.fnaam)
         except (DataError, KeyError) as err:
-            qtw.QMessageBox.information(self, "Oh-oh!", str(err))
-            return
+            raise
+            ## qtw.QMessageBox.information(self, "Oh-oh!", str(err))
+            ## return
         ## print(data.meld)     # "Standaard waarden opgehaald"
         self.imagecount = data.imagecount
         self.book.stats = {}
