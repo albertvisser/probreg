@@ -987,10 +987,10 @@ class Page1(Page):
 
         self.save_button = qtw.QPushButton('Sla wijzigingen op (Ctrl-S)', self)
         self.save_button.clicked.connect(self.savep)
-        action = qtw.QShortcut('Ctrl+S', self, self.savepfromkey)
+        action = qtw.QShortcut('Ctrl+S', self, self.savep)
         self.saveandgo_button = qtw.QPushButton('Sla op en ga verder (Ctrl-G)', self)
         self.saveandgo_button.clicked.connect(self.savepgo)
-        action = qtw.QShortcut('Ctrl+G', self, self.savepgofromkey)
+        action = qtw.QShortcut('Ctrl+G', self, self.savepgo)
         self.cancel_button = qtw.QPushButton('Maak wijzigingen ongedaan (Alt-Ctrl-Z)',
                                              self)
         self.cancel_button.clicked.connect(self.restorep)
@@ -1269,7 +1269,7 @@ class Page6(Page):
         self.pnl.setSizes(sizes)
         self.save_button = qtw.QPushButton('Sla wijzigingen op (Ctrl-S)', self)
         self.save_button.clicked.connect(self.savep)
-        action = qtw.QShortcut('Ctrl+S', self, self.savepfromkey)
+        action = qtw.QShortcut('Ctrl+S', self, self.savep)
         self.cancel_button = qtw.QPushButton('Maak wijzigingen ongedaan (Alt-Ctrl-Z)',
                                              self)
         self.cancel_button.clicked.connect(self.restorep)
