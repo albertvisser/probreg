@@ -19,7 +19,8 @@ import PyQt5.QtCore as core
 from mako.template import Template
 ## import probreg.pr_globals as pr
 from probreg.shared import DataError
-import probreg.dml_sql as dmls
+## import probreg.dml_sql as dmls
+import probreg.dml_django as dmls
 import probreg.dml_xml as dmlx
 DataType = enum.Enum('DataType', 'XML SQL')
 ## checkfile = dmlx.checkfile
@@ -743,6 +744,8 @@ class Page0(Page):
         self.p0list.setAlternatingRowColors(True)
         self.p0hdr = self.p0list.header()
         self.p0hdr.setSectionsClickable(True)
+        # TODO p0hdr.sectionClicked gebruiken om te checken op welke kolomheader
+        # geklikt is (om het sorteren te synchroniseren)
         for indx, wid in enumerate(widths):
             self.p0hdr.resizeSection(indx, wid)
         self.p0hdr.setStretchLastSection(True)
@@ -791,28 +794,28 @@ class Page0(Page):
             except DataError as msg:
                 print("samenstellen lijst mislukt: " + str(msg))
                 raise
-            else:
-                for idx, item in enumerate(data):
-                    if self.parent.parent.datatype == DataType.XML.name:
-                        # nummer, start, stat, cat, titel, gewijzigd = item
-                        self.parent.data[idx] = (item[0],
-                                                 item[1],
-                                                 ".".join((item[3][1], item[3][0])),
-                                                 ".".join((item[2][1], item[2][0])),
-                                                 item[5],
-                                                 item[4])
-                    elif self.parent.parent.datatype == DataType.SQL.name:
-                        # nummer, start, stat_title, stat_value, cat_title, cat_value, \
-                        # about, titel, gewijzigd = item
-                        self.parent.data[idx] = (item[0],
-                                                 item[1],
-                                                 ".".join((item[5], item[4])),
-                                                 ".".join((str(item[3]), item[2])),
-                                                 item[8],
-                                                 item[6],
-                                                 item[7])
+            for idx, item in enumerate(data):
+                if self.parent.parent.datatype == DataType.XML.name:
+                    # nummer, start, stat, cat, titel, gewijzigd = item
+                    self.parent.data[idx] = (item[0],
+                                             item[1],
+                                             ".".join((item[3][1], item[3][0])),
+                                             ".".join((item[2][1], item[2][0])),
+                                             item[5],
+                                             item[4])
+                elif self.parent.parent.datatype == DataType.SQL.name:
+                    # nummer, start, stat_title, stat_value, cat_title, cat_value, \
+                    # about, titel, gewijzigd = item
+                    self.parent.data[idx] = (item[0],
+                                             item[1],
+                                             ".".join((item[5], item[4])),
+                                             ".".join((str(item[3]), item[2])),
+                                             item[8],
+                                             item[6],
+                                             item[7])
             self.populate_list()
-            self.p0list.sortItems(self.sorted[0], sortorder[self.sorted[1]])  # , True)
+            if self.parent.parent.datatype == DataType.XML.name:
+                self.p0list.sortItems(self.sorted[0], sortorder[self.sorted[1]])  # , True)
             self.parent.current_item = self.p0list.topLevelItem(0)
             self.parent.rereadlist = False
         self.parent.parent.setToolTip("{0} - {1} items".format(
@@ -923,8 +926,16 @@ class Page0(Page):
         2x4 comboboxjes waarin je de volgorde van de rubrieken en de sorteervolgorde
         per rubriek kunt aangeven"""
         test = SortOptionsDialog(self).exec_()
-        if test == qtw.QDialog.Accepted:
-            qtw.QMessageBox.information(self, 'Oeps', "Sorry, werkt nog niet")
+        ## if test == qtw.QDialog.Accepted:
+            ## qtw.QMessageBox.information(self, 'Oeps', "Sorry, werkt nog niet")
+        if test != qtw.QDialog.Accepted:
+            return
+        self.parent.rereadlist = True
+        try:
+            self.vulp()
+        except DataError as msg:
+            self.parent.rereadlist = False
+            qtw.QMessageBox.information(self, "Oeps", str(msg))
 
     def archiveer(self):
         "archiveren of herleven van het geselecteerde item"
@@ -1467,15 +1478,38 @@ class Page6(Page):
 
 
 class SortOptionsDialog(qtw.QDialog):
-    "dialoog om de sorteer opties in te stellen"
+    """dialoog om de sorteer opties in te stellen
+    """
+    _asc_id = 1
+    _desc_id = 2
+
     def __init__(self, parent):
         self.parent = parent
-        lijst = ["(geen)"]
-        for idx, text in enumerate(parent.parent.ctitels):
-            if idx == 1:
-                lijst.append("Soort")
-            else:
-                lijst.append(text)
+        self.sortopts = {}
+        self._data = None
+
+        lijst = []
+        if self.parent.parent.parent.datatype == DataType.SQL.name:
+            try:
+                ## "fields": [("nummer", "nummer"),
+                        ## ("gewijzigd", "laatst gewijzigd"), dmls:
+                        ## ("soort", "soort"),
+                        ## ("status", "status"),
+                        ## ("behandelaar", "behandelaar"),
+                        ## ("title", "omschrijving")],
+                lijst = [x[0] for x in dmls.SORTFIELDS]
+            except AttributeError:
+                print("no dmls.sortfields found")
+                pass
+        if not lijst:
+            lijst = [x for x in parent.parent.ctitels]
+            lijst[1] = "Soort"
+            ## for idx, text in enumerate(parent.parent.ctitels):
+                ## if idx == 1:
+                    ## lijst.append("Soort")
+                ## else:
+                    ## lijst.append(text)
+        lijst.insert(0, "(geen)")
         ## wid = 600  # if LIN else 450
         ## hig = 600  # if LIN else 450
         super().__init__(parent)
@@ -1483,21 +1517,23 @@ class SortOptionsDialog(qtw.QDialog):
 
         sizer = qtw.QVBoxLayout()
         grid = qtw.QGridLayout()
-        for num in range(1, 5):
-            row = num - 1
-            grid.addWidget(qtw.QLabel("  {}.".format(num), self), row, 0)
+        self._widgets = []
+        for row in range(len(lijst) - 1):
+            grid.addWidget(qtw.QLabel("  {}.".format(row + 1), self), row, 0)
             cmb = qtw.QComboBox(self)
             cmb.setEditable(False)
             cmb.addItems(lijst)
             cmb.setCurrentIndex(0)
-            grid.addWidget(cmb, row, 1)
+            grid.addWidget(cmb, row, self._asc_id)
             rbg = qtw.QButtonGroup(self)
             rba = qtw.QRadioButton(" Asc ", self)
-            rbg.addButton(rba)
-            grid.addWidget(rba, row, 2)
+            rbg.addButton(rba, 1)
+            grid.addWidget(rba, row, self._desc_id)
             rbd = qtw.QRadioButton(" Desc ", self)
-            rbg.addButton(rbd)
+            rbg.addButton(rbd, 2)
+            rbg.button(self._asc_id).setChecked(True)
             grid.addWidget(rbd, row, 3)
+            self._widgets.append((cmb, rbg))
 
         sizer.addLayout(grid)
 
@@ -1506,14 +1542,54 @@ class SortOptionsDialog(qtw.QDialog):
         sizer.addWidget(buttonbox)
         self.setLayout(sizer)
 
+        self.set_defaults()
+
         buttonbox.accepted.connect(self.accept)
         buttonbox.rejected.connect(self.reject)
 
+    def set_defaults(self):
+        if self.parent.parent.parent.datatype == DataType.SQL.name:
+            try:
+                self._data = dmls.SortOptions(self.parent.parent.parent.filename)
+                self.sortopts = self._data.load_options()
+            except AttributeError as err:
+                print(err)
+        for ix, line in enumerate(self._widgets):
+            combobox, rbgroup = line
+            if ix in sorted(self.sortopts):
+                fieldname, orient = self.sortopts[ix]
+                combobox.setCurrentText(fieldname)
+                if orient == 'desc':
+                    rbgroup.button(self._desc_id).setChecked(True)
+                else:
+                    rbgroup.button(self._asc_id).setChecked(True)
+
+
     def accept(self):
         """sorteerkolommen en -volgordes teruggeven aan hoofdscherm
-
-        moet nog bedenken hoe dit te implementeren dus doet voorlopig niks extra
         """
+        if self.parent.parent.parent.datatype == DataType.XML.name:
+            qtw.QMessageBox.information(self, 'Probreg', 'Sorry, werkt nog niet')
+            return
+        new_sortopts = {}
+        for ix, line in enumerate(self._widgets):
+            combobox, rbgroup = line
+            fieldname = combobox.currentText()
+            checked_id = rbgroup.checkedId()
+            if fieldname and fieldname != '(geen)':
+                if checked_id == self._asc_id:
+                    orient = 'asc'
+                elif checked_id == self._desc_id:
+                    orient = 'desc'
+                new_sortopts[ix] = (fieldname, orient)
+        print('in accept: old values:', self.sortopts)
+        print('in accept: new values:', new_sortopts)
+        if new_sortopts == self.sortopts:
+            qtw.QMessageBox.information(self, 'Probreg', 'U heeft niets gewijzigd')
+            return
+        if self._data:      # alleen SQL versie
+            print("sort opties bijwerken")
+            self._data.save_options(new_sortopts)
         super().accept()
 
 
@@ -1665,6 +1741,12 @@ class SelectOptionsDialog(qtw.QDialog):
     def set_defaults(self, sel_args):
         """get search settings and present them in the dialog
         """
+        try:
+            self._data = dmls.SelectOptions(self.parent.fnaam)
+        except AttributeError:
+            self._data = None
+        else:
+            sel_args = self._data.load_options()
         if "idgt" in sel_args:
             self.text_gt.setText(sel_args["idgt"])
         if "id" in sel_args:
@@ -1792,6 +1874,8 @@ class SelectOptionsDialog(qtw.QDialog):
                     selection = ''
         self.parent.selection = selection
         self.parent.sel_args = sel_args
+        if self._data:
+            self._data.save_options(sel_args)
         super().accept()
 
 
@@ -2087,23 +2171,53 @@ class MainWindow(qtw.QMainWindow):
         elif self.datatype == DataType.SQL.name:
             self.projnames = dmls.get_projnames()
             if fnaam:
-                test = fnaam.capitalize()
-                if test not in [x[0] for x in self.projnames]:
-                    raise ValueError('Nonexistant file/project name specified')
-                self.filename = test
-            self.open_sql()
+                test = fnaam.lower()
+                for x in self.projnames:
+                    if x[0].lower() == test:
+                        self.filename = x[0]
+                        self.open_sql(do_sel=False)
+                        break
+                else:
+                    raise ValueError('Nonexistant file/project name specified: '
+                                     '{}'.format(test))
+            else:
+                self.open_sql()
         self.initializing = False
         self.zetfocus(0)
 
     def create_menu(self):
         """Create application menu
         """
+        def add_to_menu(menu, menuitem):
+            if len(menuitem) == 1:
+                menu.addSeparator()
+            elif len(menuitem) == 4:
+                caption, callback, keys, tip = menuitem
+                if self.datatype == DataType.SQL.name:
+                    if caption == "&Open":
+                        caption = "Rel&oad project"
+                        callback = functools.partial(self.open_sql, False)
+                    elif caption == "&New":
+                        caption = "Select &new project"
+                        callback = functools.partial(self.open_sql, True)
+                        tip = " Select a project"
+                action = menu.addAction(caption)
+                action.triggered.connect(callback)
+                if keys:
+                    action.setShortcut(keys)
+                if tip:
+                    action.setToolTip(tip)
+            elif len(menuitem) == 2:
+                title, items = menuitem
+                sub = menu.addMenu(title)
+                for subitem in items:
+                    add_to_menu(sub, subitem)
+
         menu_bar = self.menuBar()
         menudata = (
             ("&File", [
                 ("&Open", self.open_xml, 'Ctrl+O', " Open a new file"),
                 ("&New", self.new_file, 'Ctrl+N', " Create a new file"),
-                ("&Open project", self.open_sql, 'Ctrl+O', " Select a project"),
                 ('',),
                 ("&Print", (
                     ("Dit &Scherm", self.print_scherm, 'Shift+Ctrl+P',
@@ -2130,28 +2244,6 @@ class MainWindow(qtw.QMainWindow):
             ("&Help", (
                 ("&About", self.about_help, 'F1', " Information about this program"),
                 ("&Keys", self.hotkey_help, 'Ctrl+H', " List of shortcut keys"))))
-        if self.datatype == DataType.XML.name:
-            del menudata[0][1][2]
-        elif self.datatype == DataType.SQL.name:
-            del menudata[0][1][0:1]
-
-        def add_to_menu(menu, menuitem):
-            if len(menuitem) == 1:
-                menu.addSeparator()
-            elif len(menuitem) == 4:
-                caption, callback, keys, tip = menuitem
-                action = menu.addAction(caption)
-                action.triggered.connect(callback)
-                if keys:
-                    action.setShortcut(keys)
-                if tip:
-                    action.setToolTip(tip)
-            elif len(menuitem) == 2:
-                title, items = menuitem
-                sub = menu.addMenu(title)
-                for subitem in items:
-                    add_to_menu(sub, subitem)
-
         for title, items in menudata:
             menu = menu_bar.addMenu(title)
             for menuitem in items:
@@ -2203,6 +2295,8 @@ class MainWindow(qtw.QMainWindow):
         self.book.resize(300, 300)
         self.book.parent = self
         self.book.fnaam = ""
+        if self.filename and self.datatype == DataType.SQL.name:
+            self.book.fnaam = self.filename
         self.book.sorter = None
         self.book.current_item = None
         self.book.data = {}
@@ -2287,23 +2381,27 @@ class MainWindow(qtw.QMainWindow):
             self.dirname, self.filename = test.parent, test.name
             self.startfile()
 
-    def open_sql(self):
+    def open_sql(self, do_sel=True):
         "Menukeuze: open project"
-        log('in open_sql: %s', self.filename)
+        ## log('in open_sql: %s', self.filename)
+        print('in open_sql:', self.filename, do_sel)
         choice = 0
         data = self.projnames
-        for idx, h in enumerate(data):
-            log(h)
-            if h[0] == self.filename or (self.filename == "_basic" and h[0] == "Demo"):
-                choice, ok = h[0], True # idx, True
-                break
-        if not choice:
+        if do_sel:
             choice, ok = qtw.QInputDialog.getItem(
                 self, 'Probreg SQL versie', 'Kies een project om te openen',
                 [": ".join((h[1], h[2])) for h in data],
                 current=choice, editable=False)
+        else:
+            for idx, h in enumerate(data):
+                ## log(h)
+                print(h)
+                if h[0] == self.filename or (self.filename == "_basic"
+                                             and h[0] == "Demo"):
+                    choice, ok = h[0], True # idx, True
+                    break
         if ok:
-            self.filename = str(choice).split(': ')[0]
+            self.filename = choice # str(choice).split(': ')[0]
             if self.filename == "Demo":
                 self.filename = "_basic"
             self.startfile()
@@ -2540,9 +2638,10 @@ class MainWindow(qtw.QMainWindow):
         """instellingen (tabnamen, actiesoorten en actiestatussen) inlezen"""
         try:
             data = Settings[self.datatype](self.book.fnaam)
-        except DataError as err:
+        except (DataError, KeyError) as err:
             qtw.QMessageBox.information(self, "Oh-oh!", str(err))
             return
+        ## print(data.meld)     # "Standaard waarden opgehaald"
         self.imagecount = data.imagecount
         self.book.stats = {}
         self.book.cats = {}
