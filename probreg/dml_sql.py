@@ -11,18 +11,7 @@ import datetime as dt
 import sqlite3 as sql
 from contextlib import closing
 import logging
-from probreg.shared import DataError, APPS, DBLOC, USER, kopdict, statdict, catdict
-
-
-def get_projnames():
-    data = []
-    with APPS.open() as f_in:
-        for line in f_in:
-            sel, naam, titel, oms = line.strip().split(";")
-            if sel == "X":
-                data.append((naam.capitalize(), titel.capitalize(), oms))
-    data = data
-    return sorted(data)
+from probreg.shared import DataError, get_projnames, DBLOC, USER, kopdict, statdict, catdict
 
 
 def log(msg, *args, **kwargs):
@@ -227,7 +216,7 @@ class Settings:
         try:
             data = getsql(con, "select * from {0}_status".format(self.naam))
         except DataError as err:
-            self.meld = "Er is iets misgegaan ({})".format(self.naam, err)
+            self.meld = "Er is iets misgegaan ({})".format(err)
             return
         self.stat = {}
         for row in data:
@@ -236,7 +225,7 @@ class Settings:
         try:
             data = getsql(con, "select * from {0}_soort".format(self.naam))
         except DataError as err:
-            self.meld = "Er is iets misgegaan ({})".format(self.naam, err)
+            self.meld = "Er is iets misgegaan ({})".format(err)
             return
         self.cat = {}
         for row in data:
