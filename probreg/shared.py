@@ -51,3 +51,14 @@ class DataError(ValueError):    # Exception):
     pass
 
 
+def get_projnames():
+    data = []
+    with APPS.open() as f_in:
+        for line in f_in:
+            sel, naam, titel, oms = line.strip().split(";")
+            if sel == "X":
+                data.append((naam.capitalize(), titel.capitalize(), oms))
+    data = data
+    return sorted(data)
+
+
