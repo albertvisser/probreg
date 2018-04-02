@@ -726,13 +726,19 @@ class Page0(Page):
         self.archive_button = qtw.QPushButton('&Archiveer', self)
         self.new_button = qtw.QPushButton('Voer &Nieuwe melding op', self)
 
-        self.p0list.setSortingEnabled(True)
+        ## self.parent.sort_via_options = False # TODO: remove after testing
+        if self.parent.parent.datatype == DataType.SQL.name:
+            self._data = dmls.SortOptions(self.parent.parent.filename)
+            test = self._data.load_options()
+        else:
+            test = {}
+        test = bool(test)
+        self.sort_via_options = test
+        self.p0list.setSortingEnabled(not test)
         self.p0list.setHeaderLabels(self.parent.ctitels)
         self.p0list.setAlternatingRowColors(True)
         self.p0hdr = self.p0list.header()
         self.p0hdr.setSectionsClickable(True)
-        # TODO p0hdr.sectionClicked gebruiken om te checken op welke kolomheader
-        # geklikt is (om het sorteren te synchroniseren)
         for indx, wid in enumerate(widths):
             self.p0hdr.resizeSection(indx, wid)
         self.p0hdr.setStretchLastSection(True)
@@ -801,8 +807,10 @@ class Page0(Page):
                                              item[6],
                                              item[7])
             self.populate_list()
-            if self.parent.parent.datatype == DataType.XML.name:
-                self.p0list.sortItems(self.sorted[0], sortorder[self.sorted[1]])  # , True)
+            # nodig voor sorteren?
+            # if self.parent.parent.datatype == DataType.XML.name:
+            #     self.p0list.sortItems(self.sorted[0], sortorder[self.sorted[1]])  # , True)
+            #
             self.parent.current_item = self.p0list.topLevelItem(0)
             self.parent.rereadlist = False
         self.parent.parent.setToolTip("{0} - {1} items".format(
@@ -874,20 +882,21 @@ class Page0(Page):
         """
         self.goto_actie()
 
-    def sort_oncolumn(self, colno):  # unnecessary, not connected?
-        """callback voor klikken op column header
-
-        het werkt ook zonder deze te connecten, maar ik meende dat het nodig was
-        de sorteervolgorde te kennen en die is niet af te leiden vandaar een eigen
-        instelling. Maar misschien heb ik dat wel helemaal niet nodig.
-        """
-        column, order = self.sorted
-        log('order is', column, order)
-        if column == colno:
-            order = 'A' if order == 'D' else 'D'
-        else:
-            order = 'A'
-        self.sorted = colno, order
+    # nodig voor sorteren?
+    # def sort_oncolumn(self, colno):  # unnecessary, not connected?
+    #     """callback voor klikken op column header
+    #
+    #     het werkt ook zonder deze te connecten, maar ik meende dat het nodig was
+    #     de sorteervolgorde te kennen en die is niet af te leiden vandaar een eigen
+    #     instelling. Maar misschien heb ik dat wel helemaal niet nodig.
+    #     """
+    #     column, order = self.sorted
+    #     log('order is', column, order)
+    #     if column == colno:
+    #         order = 'A' if order == 'D' else 'D'
+    #     else:
+    #         order = 'A'
+    #     self.sorted = colno, order
 
     def select_items(self):
         """tonen van de selectie dialoog
@@ -917,12 +926,18 @@ class Page0(Page):
             ## qtw.QMessageBox.information(self, 'Oeps', "Sorry, werkt nog niet")
         if test != qtw.QDialog.Accepted:
             return
-        self.parent.rereadlist = True
-        try:
-            self.vulp()
-        except DataError as msg:
-            self.parent.rereadlist = False
-            qtw.QMessageBox.information(self, "Oeps", str(msg))
+        print('returning from sort options dialog')
+        if self.sort_via_options:
+            self.p0list.setSortingEnabled(False)
+            self.parent.rereadlist = True
+            print('rereading data after changing sort options')
+            try:
+                self.vulp()
+            except DataError as msg:
+                self.parent.rereadlist = False
+                qtw.QMessageBox.information(self, "Oeps", str(msg))
+        else:
+            self.p0list.setSortingEnabled(True)
 
     def archiveer(self):
         "archiveren of herleven van het geselecteerde item"
@@ -1478,12 +1493,6 @@ class SortOptionsDialog(qtw.QDialog):
         lijst = []
         if self.parent.parent.parent.datatype == DataType.SQL.name:
             try:
-                ## "fields": [("nummer", "nummer"),
-                        ## ("gewijzigd", "laatst gewijzigd"), dmls:
-                        ## ("soort", "soort"),
-                        ## ("status", "status"),
-                        ## ("behandelaar", "behandelaar"),
-                        ## ("title", "omschrijving")],
                 lijst = [x[0] for x in dmls.SORTFIELDS]
             except AttributeError:
                 print("no dmls.sortfields found")
@@ -1491,22 +1500,23 @@ class SortOptionsDialog(qtw.QDialog):
         if not lijst:
             lijst = [x for x in parent.parent.ctitels]
             lijst[1] = "Soort"
-            ## for idx, text in enumerate(parent.parent.ctitels):
-                ## if idx == 1:
-                    ## lijst.append("Soort")
-                ## else:
-                    ## lijst.append(text)
         lijst.insert(0, "(geen)")
-        ## wid = 600  # if LIN else 450
-        ## hig = 600  # if LIN else 450
         super().__init__(parent)
         self.setWindowTitle("Sorteren op meer dan 1 kolom")
 
         sizer = qtw.QVBoxLayout()
         grid = qtw.QGridLayout()
+        row = 0
+        tekst = 'Multi-sorteren mogelijk maken'
+        ## tekst = 'Sorteren via instellingen ipv. via control'
+        self.on_off = qtw.QCheckBox(tekst, self)
+        self.on_off.stateChanged.connect(self.enable_fields)
+        grid.addWidget(self.on_off, row, 0, 1, 4)
         self._widgets = []
-        for row in range(len(lijst) - 1):
-            grid.addWidget(qtw.QLabel("  {}.".format(row + 1), self), row, 0)
+        row += 1
+        while row < len(lijst):
+            lbl = qtw.QLabel("  {}.".format(row), self)
+            grid.addWidget(lbl, row, 0)
             cmb = qtw.QComboBox(self)
             cmb.setEditable(False)
             cmb.addItems(lijst)
@@ -1520,7 +1530,8 @@ class SortOptionsDialog(qtw.QDialog):
             rbg.addButton(rbd, 2)
             rbg.button(self._asc_id).setChecked(True)
             grid.addWidget(rbd, row, 3)
-            self._widgets.append((cmb, rbg))
+            self._widgets.append((lbl, cmb, rbg))
+            row += 1
 
         sizer.addLayout(grid)
 
@@ -1535,14 +1546,12 @@ class SortOptionsDialog(qtw.QDialog):
         buttonbox.rejected.connect(self.reject)
 
     def set_defaults(self):
+        self.enable_fields(False)
+        self.on_off.setChecked(self.parent.sort_via_options)
         if self.parent.parent.parent.datatype == DataType.SQL.name:
-            try:
-                self._data = dmls.SortOptions(self.parent.parent.parent.filename)
-                self.sortopts = self._data.load_options()
-            except AttributeError as err:
-                print(err)
+            self.sortopts = self.parent._data.load_options()
         for ix, line in enumerate(self._widgets):
-            combobox, rbgroup = line
+            _, combobox, rbgroup = line
             if ix in sorted(self.sortopts):
                 fieldname, orient = self.sortopts[ix]
                 combobox.setCurrentText(fieldname)
@@ -1551,6 +1560,12 @@ class SortOptionsDialog(qtw.QDialog):
                 else:
                     rbgroup.button(self._asc_id).setChecked(True)
 
+    def enable_fields(self, state):
+        for lbl, cmb, rbg in self._widgets:
+            lbl.setEnabled(state)
+            cmb.setEnabled(state)
+            for btn in rbg.buttons():
+                btn.setEnabled(state)
 
     def accept(self):
         """sorteerkolommen en -volgordes teruggeven aan hoofdscherm
@@ -1560,7 +1575,7 @@ class SortOptionsDialog(qtw.QDialog):
             return
         new_sortopts = {}
         for ix, line in enumerate(self._widgets):
-            combobox, rbgroup = line
+            _, combobox, rbgroup = line
             fieldname = combobox.currentText()
             checked_id = rbgroup.checkedId()
             if fieldname and fieldname != '(geen)':
@@ -1571,12 +1586,17 @@ class SortOptionsDialog(qtw.QDialog):
                 new_sortopts[ix] = (fieldname, orient)
         print('in accept: old values:', self.sortopts)
         print('in accept: new values:', new_sortopts)
-        if new_sortopts == self.sortopts:
+        via_options = self.on_off.isChecked()
+        if via_options == self.parent.sort_via_options and new_sortopts == self.sortopts:
             qtw.QMessageBox.information(self, 'Probreg', 'U heeft niets gewijzigd')
             return
-        if self._data:      # alleen SQL versie
-            print("sort opties bijwerken")
-            self._data.save_options(new_sortopts)
+        self.parent.sort_via_options = via_options
+        print(via_options)
+        if via_options:
+            print(self.parent._data)
+            if self.parent._data:      # alleen SQL versie
+                print("sort opties bijwerken")
+                self.parent._data.save_options(new_sortopts)
         super().accept()
 
 
@@ -2149,15 +2169,10 @@ class MainWindow(qtw.QMainWindow):
         self.setCentralWidget(pnl)
         self.toolbar = None
         self.create_book(pnl)
-        print('book has been created')
         self.exit_button = qtw.QPushButton('&Quit', pnl)
         self.exit_button.clicked.connect(self.exit_app)
         self.doelayout(pnl)
         self.book.page6._out = open("probreg_page6.log", "w")
-        ## if self.filename:
-            ## test = self.startfile()
-            ## if test:
-                ## self.filename = ""
         if self.datatype == DataType.XML.name:
             if self.filename == "":
                 self.open_xml()
@@ -2287,9 +2302,7 @@ class MainWindow(qtw.QMainWindow):
         self.book.current_item = None
         self.book.data = {}
         self.book.rereadlist = True
-        print('reading settings')
         self.lees_settings()
-        print('settings are read')
         self.book.ctitels = ["actie", " ", "status", "L.wijz."]
         if self.datatype == DataType.XML.name:
             self.book.ctitels.append("titel")
