@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """dml voor probreg met sql om dezelfde data te gebruiken die de Django versie
 gebruikt
+
+vervallen omdat we nu de versie gebruiken die met het Django ORM werkt
 """
 from __future__ import print_function
 
