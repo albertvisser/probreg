@@ -36,6 +36,7 @@ logging.basicConfig(filename='/tmp/apropos_qt.log', level=logging.DEBUG,
 
 
 def log(msg, *args, **kwargs):
+    "schrijf logregel indien debuggen gewenst"
     if 'DEBUG' in os.environ and os.environ['DEBUG']:
         logging.info(msg, *args, **kwargs)
 
@@ -547,7 +548,7 @@ class Page(qtw.QFrame):
                 and newbuf[1] == "" and not self.parent.parent.exiting:
             self.parent.newitem = False
             self.parent.pagedata = Actie[self.parent.parent.datatype](self.parent.fnaam,
-                self.parent.old_id)
+                                                                      self.parent.old_id)
         ok_to_leave = True
         self.parent.checked_for_leaving = True
         if self.parent.current_tab == 0:
@@ -783,7 +784,7 @@ class Page0(Page):
                 arch = select.pop("arch")
             try:
                 data = get_acties[self.parent.parent.datatype](self.parent.fnaam,
-                    select, arch)
+                                                               select, arch)
             except DataError as msg:
                 print("samenstellen lijst mislukt: " + str(msg))
                 raise
@@ -1495,7 +1496,7 @@ class SortOptionsDialog(qtw.QDialog):
             try:
                 lijst = [x[0] for x in dmls.SORTFIELDS]
             except AttributeError:
-                print("no dmls.sortfields found")
+                ## print("no dmls.sortfields found")
                 pass
         if not lijst:
             lijst = [x for x in parent.parent.ctitels]
@@ -1546,6 +1547,7 @@ class SortOptionsDialog(qtw.QDialog):
         buttonbox.rejected.connect(self.reject)
 
     def set_defaults(self):
+        "set atart values for dialog"
         self.enable_fields(False)
         self.on_off.setChecked(self.parent.sort_via_options)
         if self.parent.parent.parent.datatype == DataType.SQL.name:
@@ -1561,6 +1563,7 @@ class SortOptionsDialog(qtw.QDialog):
                     rbgroup.button(self._asc_id).setChecked(True)
 
     def enable_fields(self, state):
+        "enable/disable widgets"
         for lbl, cmb, rbg in self._widgets:
             lbl.setEnabled(state)
             cmb.setEnabled(state)
@@ -2011,7 +2014,6 @@ class OptionsDialog(qtw.QDialog):
         item.setText(text_to_replace)
         self.elb.setCurrentItem(item_to_replace)
 
-
     def leesuit(self):
         "pass changed options to parent"
         return "This method is implemented in the subclasses"
@@ -2190,6 +2192,7 @@ class MainWindow(qtw.QMainWindow):
         """Create application menu
         """
         def add_to_menu(menu, menuitem):
+            "parse line and create menu item"
             if len(menuitem) == 1:
                 menu.addSeparator()
             elif len(menuitem) == 4:
@@ -2395,9 +2398,9 @@ class MainWindow(qtw.QMainWindow):
         else:
             for idx, h in enumerate(data):
                 log(h)
-                if h[0] == self.filename or (self.filename == "_basic"
-                                             and h[0] == "Demo"):
-                    choice, ok = h[0], True # idx, True
+                if h[0] == self.filename or (
+                        self.filename == "_basic" and h[0] == "Demo"):
+                    choice, ok = h[0], True  # idx, True
                     break
         if ok:
             self.filename = choice.split(': ')[0]
@@ -2764,6 +2767,7 @@ class MainWindow(qtw.QMainWindow):
             self.book.page6.progress_list.setFocus()
 
     def preview(self):
+        "callback voor print preview"
         self.print_dlg = qtp.QPrintPreviewDialog(self)
         self.print_dlg.paintRequested.connect(self.afdrukken)
         self.print_dlg.exec_()

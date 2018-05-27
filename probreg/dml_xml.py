@@ -17,6 +17,7 @@ datapad = os.getcwd()
 
 
 def log(msg, *args, **kwargs):
+    "schrijf logregel indien debuggen gewenst"
     if 'DEBUG' in os.environ and os.environ['DEBUG']:
         logging.info(msg, *args, **kwargs)
 
@@ -32,7 +33,7 @@ def check_filename(fnaam):
     if fnaam.parent != "":
         fn, fnaam = fnaam, fnaam.name
     else:
-        fn = Pathlib.Path('') / fnaam
+        fn = pathlib.Path('') / fnaam
     return fn, fnaam, fn.exists(), meld
 
 
@@ -404,7 +405,7 @@ class Actie:
             self.status = x.get("status")
             try:
                 self.soort = x.get("soort")
-            except: # FIXME: which exception? Why not just test for None?
+            except:  # FIXME: which exception? Why not just test for None?
                 pass
             h = x.get("arch")
             if h is not None:
@@ -484,7 +485,7 @@ class Actie:
             found = False
             for x, y in list(statdict.values()):
                 log('%s %s %s', waarde, x, y)
-                if x == waarde: # FIXME: moet dit soms y zijn?
+                if x == waarde:  # FIXME: moet dit soms y zijn?
                     found = True
                     self.status = x
                     break

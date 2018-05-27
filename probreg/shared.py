@@ -52,6 +52,7 @@ class DataError(ValueError):    # Exception):
 
 
 def get_projnames():
+    "return a list of registered projects"
     data = []
     with APPS.open() as f_in:
         for line in f_in:
@@ -60,5 +61,3 @@ def get_projnames():
                 data.append((naam, titel.title(), oms))
     data = data
     return sorted(data)
-
-

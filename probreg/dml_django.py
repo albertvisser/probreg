@@ -37,11 +37,14 @@ import django.contrib.auth.models as aut
 USER = aut.User.objects.get(pk=2)
 
 import actiereg.core as core
-from actiereg._basic.sample_data import soort_list, stat_list, page_list
-from actiereg._basic.models import ORIENTS, SORTFIELDS, CHOICES, OP_CHOICES
+from actiereg._basic.sample_data import soort_list, stat_list, page_list  # unused
+from actiereg._basic.models import ORIENTS, SORTFIELDS, CHOICES, OP_CHOICES  # unused
 
 import logging
+
+
 def log(msg, *args, **kwargs):
+    "schrijf logregel indien debuggen gewenst"
     if 'DEBUG' in os.environ and os.environ['DEBUG']:
         logging.info(msg, *args, **kwargs)
 
@@ -76,6 +79,7 @@ def get_acties(naam, select=None, arch=""):
     else:
         raise DataError(naam + " bestaat niet")
 
+
 class SortOptions:
     """instellingen voor user m.b.t. sortering
     in de django database gerealiseerd d.m.v.
@@ -93,6 +97,7 @@ class SortOptions:
         self.olddata = {}
 
     def load_options(self):
+        "lees opties"
         data = {}
         for sorter in self.my.SortOrder.objects.filter(user=self.user):
             data[sorter.volgnr] = (sorter.veldnm, sorter.richting)
@@ -100,6 +105,7 @@ class SortOptions:
         return data
 
     def save_options(self, data):
+        "schrijf opties terug"
         print('in save_options')
         newdata = collections.OrderedDict({ix: sorter for ix, sorter in data.items()})
         print([(x, y[0], y[1]) for x, y in self.olddata.items()])
@@ -140,6 +146,7 @@ class SelectOptions:
         self.user = USER.id
 
     def load_options(self):
+        "lees opties"
         data = {"arch": 0, "gewijzigd": [], "nummer": [],
                 "soort": [], "status": [], "titel": []}
         for sel in self.my.Selection.objects.filter(user=self.user):
@@ -160,14 +167,15 @@ class SelectOptions:
         return data
 
     def save_options(self, data):
+        "schrijf opties terug"
         newdata = collections.OrderedDict({"arch": 0, "gewijzigd": [], "nummer": [],
-                                         "soort": [], "status": [], "titel": []})
+                                           "soort": [], "status": [], "titel": []})
 
         value = []
         min_value = data.get("idgt", '')
         if min_value:
             value.append((min_value, 'GT'))
-        oper = data.get("id", '') # waarde "and" of "or"
+        oper = data.get("id", '')  # waarde "and" of "or"
         if oper:
             value.append(oper.lower())
         max_value = data.get("idlt", '')
@@ -223,12 +231,12 @@ class SelectOptions:
                                                       extra=extra, value=stat)
                 extra = "OR"
         if about:
-                ok = self.my.Selection.objects.create(user=self.user, veldnm="about",
-                                                      operator="INCL",
-                                                      extra=no_extra, value=about)
-                ok = self.my.Selection.objects.create(user=self.user,
-                                                      veldnm="title", operator="INCL",
-                                                      extra='OF', value=about)
+            ok = self.my.Selection.objects.create(user=self.user, veldnm="about",
+                                                  operator="INCL",
+                                                  extra=no_extra, value=about)
+            ok = self.my.Selection.objects.create(user=self.user,
+                                                  veldnm="title", operator="INCL",
+                                                  extra='OF', value=about)
         if arch:
             ok = self.my.Selection.objects.create(user=self.user,
                                                   veldnm="arch", operator="EQ",
@@ -274,6 +282,7 @@ class Settings:
         self.naam = fnaam
 
     def write(self, srt, sett_id):
+        "schrijf alle settings terug"
         # als ik ze stuk voor stuk ga schrijven hier moet k verwijderen mogelijk maken
         if srt == 'kop':
             item = self.my.Page.objects.all.filter(order='{}'.format(sett_id))
@@ -342,7 +351,7 @@ class Settings:
         ## except KeyError:
             ## pass
         for text, sortkey, row_id in self.stat.values():
-            if waarde == sortkey:   #  or waarde == row_id:
+            if waarde == sortkey:   # or waarde == row_id:
                 return row_id   # text
         raise DataError("Geen omschrijving gevonden bij statuscode of -id '{}'".format(
             waarde))
@@ -354,7 +363,7 @@ class Settings:
         ## except KeyError:
             ## pass
         for text, sortkey, row_id in self.cat.values():
-            if waarde == sortkey:   #  or waarde == row_id:
+            if waarde == sortkey:   # or waarde == row_id:
                 return row_id   # text
         raise DataError("Geen omschrijving gevonden bij soortcode of -id '{}'".format(
             waarde))
@@ -404,7 +413,7 @@ class Actie:
             jaar, volgnr = last.nummer.split("-")
             volgnr = int(volgnr) if int(jaar) == nw_date.year else 0
         volgnr += 1
-        #end replace
+        # end replace
         self._actie.nummer = "{0}-{1:04}".format(nw_date.year, volgnr)
         try:
             self._actie.soort = self.my.Soort.objects.get(value="")
@@ -422,8 +431,8 @@ class Actie:
         if not self._actie:
             self.exists = False
             return
-        actie = self._actie.id
-        self.id = self._actie.nummer # verandert niet
+        ## actie = self._actie.id
+        self.id = self._actie.nummer  # verandert niet
         self.datum = self._actie.start.strftime('%x %X')  # .isoformat(' ') # verandert niet
         self.over = self.over_oud = self._actie.about
         self.titel = self.titel_oud = self._actie.title
@@ -477,25 +486,26 @@ class Actie:
         self.store_event(txt)
 
     def store_gewijzigd(self, msg, txt):
+        "voeg info over gewijzigde rubriek toe aan events"
         self.events.append((dt.datetime.today().isoformat(' '),  # [:19],
                             '{} gewijzigd in "{}"'.format(msg, txt)))
 
     def store_event(self, txt):
-        self.events.append((dt.datetime.today().isoformat(' '), txt)) # [:19],
+        "voeg tekstregel toe aan events"
+        self.events.append((dt.datetime.today().isoformat(' '), txt))  # [:19],
 
     def write(self):
         "actiegegevens (terug)schrijven"
-        mld = []
         if self.over != self.over_oud:
             self.store_gewijzigd('onderwerp', self.over)
         if self.titel != self.titel_oud:
-            self.store_gewijzigd(my, 'titel', self.title)
+            self.store_gewijzigd(self.my, 'titel', self.title)
         if self.status != self.status_oud:
-            self.store_gewijzigd(my, 'status', self.status)
+            self.store_gewijzigd(self.my, 'status', self.status)
         if self.soort != self.soort_oud:
-            self.store_gewijzigd(my, 'soort', self.soort)
+            self.store_gewijzigd(self.my, 'soort', self.soort)
         if self.arch != self.arch_oud:
-            self.store_gewijzigd(my, 'onderwerp', self.over)
+            self.store_gewijzigd(self.my, 'onderwerp', self.over)
         if self.melding != self.melding_oud:
             self.store_event("Meldingtekst aangepast")
         if self.oorzaak != self.oorzaak_oud:
@@ -530,7 +540,7 @@ class Actie:
         result.append("Vervolg: {}".format(self.vervolg))
         result.append("Verslag:")
         for item in self.events.all():
-            result.append("\t {} - {}".format(x.start, x.text))
+            result.append("\t {} - {}".format(item.start, item.text))
         if self.arch:
             result.append("Actie is gearchiveerd.")
         # for now
