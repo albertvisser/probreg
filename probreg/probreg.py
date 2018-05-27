@@ -7,4 +7,4 @@ redirect gui-insensitive import to gui-sensitive module
 
 ## from .probreg_wx import main
 ## from .probreg_qt4 import main
-from .probreg_qt import main
+from .probreg_qt import main    # imported symbol is passed on to the importing module
