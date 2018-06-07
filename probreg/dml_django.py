@@ -53,10 +53,10 @@ from probreg.shared import DataError
 
 def get_acties(naam, select=None, arch=""):
     """
+    de extra argumenten zijn alleen voor compatibiliteit met de xml versie.
     core.get_acties verwacht twee argumenten: my (de models module uit het actieve
-    project) en user (de aangelogde gebruiker).
-    eigenijk zijn deze argumenten overbodig doordat de selectie in de database
-    opgeslagen wordt en tijdens de aangeroepen functie vanzelf toegepast wordt
+    project) en user (de aangelogde gebruiker) en past zelf de in de selectie en
+    sortering toe die in de database zijn opgeslagen voor de betreffende gebruiker.
     """
     try:
         my = MY[naam]
@@ -106,13 +106,9 @@ class SortOptions:
 
     def save_options(self, data):
         "schrijf opties terug"
-        print('in save_options')
         newdata = collections.OrderedDict({ix: sorter for ix, sorter in data.items()})
-        print([(x, y[0], y[1]) for x, y in self.olddata.items()])
-        print([(x, y[0], y[1]) for x, y in newdata.items()])
         if newdata == self.olddata:
             return "no changes"
-        print('saving new options')
         self.my.SortOrder.objects.filter(user=self.user).delete()
         if newdata:
             for ix, sorter in newdata.items():
@@ -158,11 +154,12 @@ class SelectOptions:
                 data[sel.veldnm] += 1
             elif sel.veldnm == "nummer":
                 if sel.extra.strip():
-                    data["nummer"].append(sel.extra.lower())
+                    data["nummer"].append((sel.extra.lower(),))
                 data["nummer"].append((sel.value, sel.operator))
             elif sel.veldnm in ("about", "title"):
-                if not data['titel']:
-                    data["titel"].append((sel.value, sel.operator))
+                if sel.extra.strip():
+                    data["titel"].append((sel.extra.lower(),))
+                data["titel"].append((sel.veldnm, sel.value))
         self.olddata = collections.OrderedDict({x: y for x, y in sorted(data.items())})
         return data
 
@@ -231,12 +228,17 @@ class SelectOptions:
                                                       extra=extra, value=stat)
                 extra = "OR"
         if about:
-            ok = self.my.Selection.objects.create(user=self.user, veldnm="about",
-                                                  operator="INCL",
-                                                  extra=no_extra, value=about)
-            ok = self.my.Selection.objects.create(user=self.user,
-                                                  veldnm="title", operator="INCL",
-                                                  extra='OF', value=about)
+            #         [('about', '...'), '...', ('title', '...')]
+            extra = no_extra
+            for item in about:
+                if len(item) == 1:
+                    extra = item[0].upper()
+                elif item:
+                    ok = self.my.Selection.objects.create(user=self.user,
+                                                          veldnm=item[0],
+                                                          operator="INCL",
+                                                          extra=extra,
+                                                          value=item[1])
         if arch:
             ok = self.my.Selection.objects.create(user=self.user,
                                                   veldnm="arch", operator="EQ",

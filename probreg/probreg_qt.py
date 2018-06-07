@@ -727,15 +727,8 @@ class Page0(Page):
         self.archive_button = qtw.QPushButton('&Archiveer', self)
         self.new_button = qtw.QPushButton('Voer &Nieuwe melding op', self)
 
-        ## self.parent.sort_via_options = False # TODO: remove after testing
-        if self.parent.parent.datatype == DataType.SQL.name:
-            self._data = dmls.SortOptions(self.parent.parent.filename)
-            test = self._data.load_options()
-        else:
-            test = {}
-        test = bool(test)
-        self.sort_via_options = test
-        self.p0list.setSortingEnabled(not test)
+        self.sort_via_options = False
+        self.p0list.setSortingEnabled(True)
         self.p0list.setHeaderLabels(self.parent.ctitels)
         self.p0list.setAlternatingRowColors(True)
         self.p0hdr = self.p0list.header()
@@ -773,7 +766,17 @@ class Page0(Page):
     def vulp(self):
         """te tonen gegevens invullen in velden e.a. initialisaties
 
-        methode aan te roepen voorafgaand aan het tonen van de pagina"""
+        methode aan te roepen voorafgaand aan het tonen van de pagina
+        """
+        # Django versie: kijken of in de sortering in de database gedefinieerd is
+        if (self.parent.parent.datatype == DataType.SQL.name
+               and self.parent.parent.filename):
+            self._data = dmls.SortOptions(self.parent.parent.filename)
+            test = self._data.load_options()
+            test = bool(test)
+            self.sort_via_options = test
+            self.p0list.setSortingEnabled(not test)
+
         self.seltitel = 'alle meldingen ' + self.selection
         Page.vulp(self)
         if self.parent.rereadlist:
@@ -782,6 +785,7 @@ class Page0(Page):
             arch = ""  # "alles"
             if "arch" in select:
                 arch = select.pop("arch")
+
             try:
                 data = get_acties[self.parent.parent.datatype](self.parent.fnaam,
                                                                select, arch)
@@ -1547,7 +1551,8 @@ class SortOptionsDialog(qtw.QDialog):
         buttonbox.rejected.connect(self.reject)
 
     def set_defaults(self):
-        "set atart values for dialog"
+        """set atart values for dialog
+        """
         self.enable_fields(False)
         self.on_off.setChecked(self.parent.sort_via_options)
         if self.parent.parent.parent.datatype == DataType.SQL.name:
@@ -1587,8 +1592,6 @@ class SortOptionsDialog(qtw.QDialog):
                 elif checked_id == self._desc_id:
                     orient = 'desc'
                 new_sortopts[ix] = (fieldname, orient)
-        print('in accept: old values:', self.sortopts)
-        print('in accept: new values:', new_sortopts)
         via_options = self.on_off.isChecked()
         if via_options == self.parent.sort_via_options and new_sortopts == self.sortopts:
             qtw.QMessageBox.information(self, 'Probreg', 'U heeft niets gewijzigd')
@@ -1608,7 +1611,9 @@ class SelectOptionsDialog(qtw.QDialog):
 
     sel_args is de dictionary waarin de filterwaarden zitten, bv:
     {'status': ['probleem'], 'idlt': '2006-0009', 'titel': 'x', 'soort': ['gemeld'],
-    'id': 'and', 'idgt': '2005-0019'}"""
+     'id': 'and', 'idgt': '2005-0019'}
+    voor de Django versie is deze overbodig want de selectie ligt vast in de database
+    """
     def __init__(self, parent, sel_args):
         self.parent = parent
         self.datatype = self.parent.parent.parent.datatype
@@ -1648,10 +1653,21 @@ class SelectOptionsDialog(qtw.QDialog):
             check.toggled.connect(functools.partial(self.on_checked, 'stat'))
             self.check_stats.addButton(check)
 
-        self.check_options.addButton(qtw.QCheckBox(parent.parent.ctitels[4] + '   -',
-                                                   self))
-        self.text_zoek = qtw.QLineEdit(self)
-        self.text_zoek.textChanged.connect(functools.partial(self.on_text, 'zoek'))
+        if self.datatype == DataType.XML.name:
+            self.check_options.addButton(qtw.QCheckBox(parent.parent.ctitels[4] +
+                                                       '   -', self))
+            self.text_zoek = qtw.QLineEdit(self)
+            self.text_zoek.textChanged.connect(functools.partial(self.on_text, 'zoek'))
+        elif self.datatype == DataType.SQL.name:
+            self.check_options.addButton(qtw.QCheckBox('zoek in   -', self))
+            self.text_zoek = qtw.QLineEdit(self)
+            self.text_zoek.textChanged.connect(functools.partial(self.on_text, 'zoek'))
+            self.radio_id2 = qtw.QButtonGroup(self)
+            for text in ('en', 'of'):
+                radio = qtw.QRadioButton(text, self)
+                self.radio_id2.addButton(radio)
+            self.text_zoek2 = qtw.QLineEdit(self)
+            self.text_zoek2.textChanged.connect(functools.partial(self.on_text, 'zoek'))
 
         self.check_options.addButton(qtw.QCheckBox("Archief    -", self))
         self.radio_arch = qtw.QButtonGroup(self)
@@ -1690,7 +1706,6 @@ class SelectOptionsDialog(qtw.QDialog):
         hgrid.addWidget(qtw.QLabel('kleiner dan:', self), 2, 0)
         hgrid.addWidget(self.text_lt, 2, 1)
         vbox.addLayout(hgrid)
-        vbox.addStretch()
         grid.addLayout(vbox, 0, 2)
 
         vbox = qtw.QVBoxLayout()
@@ -1731,8 +1746,22 @@ class SelectOptionsDialog(qtw.QDialog):
         grid.addLayout(vbox, 3, 0)
 
         hbox = qtw.QHBoxLayout()
-        hbox.addWidget(qtw.QLabel('zoek naar:', self))
-        hbox.addWidget(self.text_zoek)
+        if self.datatype == DataType.XML.name:
+            hbox.addWidget(qtw.QLabel('zoek naar:', self))
+            hbox.addWidget(self.text_zoek)
+        elif self.datatype == DataType.SQL.name:
+            grid2 = qtw.QGridLayout()
+            grid2.addWidget(qtw.QLabel(self.parent.parent.ctitels[4] + ":", self),
+                0, 0)
+            grid2.addWidget(self.text_zoek, 0, 1)
+            hbox2 = qtw.QHBoxLayout()
+            for rb in self.radio_id2.buttons():
+                hbox2.addWidget(rb)
+            grid2.addLayout(hbox2, 1, 0)
+            grid2.addWidget(qtw.QLabel(self.parent.parent.ctitels[5] + ":", self),
+                2, 0)
+            grid2.addWidget(self.text_zoek2, 2, 1)
+            hbox.addLayout(grid2)
         grid.addLayout(hbox, 3, 2)
 
         vbox = qtw.QVBoxLayout()
@@ -1751,12 +1780,31 @@ class SelectOptionsDialog(qtw.QDialog):
     def set_defaults(self, sel_args):
         """get search settings and present them in the dialog
         """
+        print("selectoptions dialog: set defaults")
+        test = self.parent.parent.fnaam
+        print(sel_args)
         try:
-            self._data = dmls.SelectOptions(self.parent.fnaam)
+            self._data = dmls.SelectOptions(test)
         except AttributeError:
             self._data = None
         else:
-            sel_args = self._data.load_options()
+            args, sel_args = self._data.load_options(), {}
+            for key, value in args.items():
+                if key == 'nummer':
+                    "splitsen in idgt, id en idlt"
+                    for item in value:
+                        if len(item) == 1:
+                            sel_args['id'] = 'and' if item[0] == 'en' else 'or'
+                        elif item[1] == 'GT':
+                            sel_args['idgt'] = item[0]
+                        elif item[1] == 'LT':
+                            sel_args['idlt'] = item[0]
+                elif key == 'arch':
+                    sel_args[key] = {0: 'narch', 1: 'arch', 2: 'alles'}[value]
+                elif value:
+                    sel_args[key] = value
+        print(self._data)
+        print(sel_args)
         if "idgt" in sel_args:
             self.text_gt.setText(sel_args["idgt"])
         if "id" in sel_args:
@@ -1785,7 +1833,18 @@ class SelectOptionsDialog(qtw.QDialog):
             self.check_options.buttons()[2].setChecked(True)
 
         if "titel" in sel_args:
-            self.text_zoek.setText(sel_args["titel"])
+            try:
+                self.text_zoek.setText(sel_args["titel"])
+            except TypeError:
+                for item in sel_args["titel"]:
+                    if item[0] == 'about':
+                        self.text_zoek.setText(item[1])
+                    elif item[0] == 'title':
+                        self.text_zoek2.setText(item[1])
+                    elif item[0] == 'of':
+                        self.radio_id2.buttons()[0].setChecked(True)
+                    else:
+                        self.radio_id2.buttons()[1].setChecked(True)
             self.check_options.buttons()[3].setChecked(True)
 
         if "arch" in sel_args:
@@ -1872,7 +1931,18 @@ class SelectOptionsDialog(qtw.QDialog):
                 sel_args["status"] = lst
         if self.check_options.buttons()[3].isChecked():
             selection = '(gefilterd)'
-            sel_args["titel"] = str(self.text_zoek.text())
+            if self.datatype == DataType.XML.name:
+                sel_args["titel"] = str(self.text_zoek.text())
+            elif self.datatype == DataType.SQL.name:
+                sel_args["titel"] = [('about', str(self.text_zoek.text()))]
+                if self.radio_id2.buttons()[0].isChecked():
+                    sel_args["titel"].append(("and",))
+                elif self.radio_id2.buttons()[1].isChecked():
+                    sel_args["titel"].append(("or",))
+                else:
+                    sel_args["titel"].append((""))
+                sel_args["titel"].append(('title', str(self.text_zoek2.text())))
+
         if self.check_options.buttons()[4].isChecked():
             if self.radio_arch.buttons()[0].isChecked():
                 sel_args["arch"] = "arch"
