@@ -2269,12 +2269,13 @@ class MainWindow(qtw.QMainWindow):
                 caption, callback, keys, tip = menuitem
                 if self.datatype == DataType.SQL.name:
                     if caption == "&Open":
-                        caption = "Rel&oad project"
-                        callback = functools.partial(self.open_sql, False)
-                    elif caption == "&New":
-                        caption = "Select &new project"
+                        ## caption = "Rel&oad project"
+                        ## callback = functools.partial(self.open_sql, False)
+                        caption = "Select &Other project"
                         callback = functools.partial(self.open_sql, True)
                         tip = " Select a project"
+                    elif caption == "&New":
+                        tip = " Create a new project"
                 action = menu.addAction(caption)
                 action.triggered.connect(callback)
                 if keys:
@@ -2428,8 +2429,14 @@ class MainWindow(qtw.QMainWindow):
         sizer0.addLayout(sizer2)
         pnl.setLayout(sizer0)
 
+    def not_implemented_message(self):
+        qtw.QMessageBox.information(self, "Oeps", "Sorry, werkt nog niet")
+
     def new_file(self):
         "Menukeuze: nieuw file"
+        if self.datatype == DataType.SQL.name:
+            self.not_implemented_message()
+            return
         self.is_newfile = False
         self.dirname = str(self.dirname)  # defaults to '.' so no need for `or os.getcwd()`
         fname, pattern = qtw.QFileDialog.getSaveFileName(
@@ -2630,15 +2637,15 @@ class MainWindow(qtw.QMainWindow):
 
     def font_settings(self):
         "Menukeuze: settings - applicatie - lettertype"
-        qtw.QMessageBox.information(self, "Oeps", "Sorry, werkt nog niet")
+        self.not_implemented_message()
 
     def colour_settings(self):
         "Menukeuze: settings - applicatie - kleuren"
-        qtw.QMessageBox.information(self, "Oeps", "Sorry, werkt nog niet")
+        self.not_implemented_message()
 
     def hotkey_settings(self):
         "Menukeuze: settings - applicatie- hotkeys (niet geactiveerd)"
-        qtw.QMessageBox.information(self, "Oeps", "Sorry, werkt nog niet")
+        self.not_implemented_message()
 
     def about_help(self):
         "Menukeuze: help - about"
