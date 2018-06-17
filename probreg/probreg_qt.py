@@ -2201,7 +2201,6 @@ class MainWindow(qtw.QMainWindow):
             raise ValueError('No data method specified')
         self.parent = parent
         self.datatype = version
-        self.user, self.is_user, self.is_admin = None, False, False
         self.title = 'Actieregistratie'
         self.initializing = True
         self.exiting = False
@@ -2243,6 +2242,11 @@ class MainWindow(qtw.QMainWindow):
         self.sbar = self.statusBar()
         self.create_menu()
         self.create_actions()
+
+        self.user = None    # start without user
+        self.is_user = self.is_admin = False
+        if self.datatype == DataType.XML.name:
+            self.is_user = self.is_admin = True  # force editability
 
         pnl = qtw.QFrame(self)
         self.setCentralWidget(pnl)
