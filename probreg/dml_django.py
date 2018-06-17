@@ -34,12 +34,12 @@ django.setup()
 
 from django.core.exceptions import ObjectDoesNotExist
 import django.contrib.auth.models as aut
-USER = aut.User.objects.get(pk=2)
+import django.contrib.auth.hashers as hashers
 
 import actiereg.core as core
 from actiereg._basic.sample_data import soort_list, stat_list, page_list  # unused
 from actiereg._basic.models import ORIENTS, SORTFIELDS, CHOICES, OP_CHOICES  # unused
-
+# waren misschien bedoeld als domeincheck binnen settings (wat ik hier niet doe)?
 import logging
 
 
@@ -51,19 +51,43 @@ def log(msg, *args, **kwargs):
 from probreg.shared import DataError
 
 
-def get_acties(naam, select=None, arch=""):
+def get_user(inp):
+    """retrieve user by username
+    """
+    try:
+        test = aut.User.objects.get(username=inp)
+    except aut.User.DoesNotExist:
+        test = None
+    return test
+
+
+def validate_user(naam, passw, project):
+    """check username and password; if ok, return user and whether user is assigned to project
+    and whether user has admin rights
+    """
+    user = get_user(naam)
+    if not user:
+        return
+    if not hashers.check_password(passw, user.password):
+        return
+    return user, core.is_user(project, user), core.is_admin(project, user)
+
+
+def get_acties(naam, select=None, arch="", user=None):
     """
     de extra argumenten zijn alleen voor compatibiliteit met de xml versie.
     core.get_acties verwacht twee argumenten: my (de models module uit het actieve
     project) en user (de aangelogde gebruiker) en past zelf de in de selectie en
     sortering toe die in de database zijn opgeslagen voor de betreffende gebruiker.
+    Om die reden is ook de `user` parameter _als laatste_ toegevoegd
     """
     try:
         my = MY[naam]
     except KeyError:
         raise
 
-    data = core.get_acties(my, USER.id)
+    userid = user.id if user else 0
+    data = core.get_acties(my, userid)
     if data:
         actiedata = []
         for actie in data:
@@ -90,10 +114,10 @@ class SortOptions:
 
     zie methodes core.order/setorder
     """
-    def __init__(self, fnaam):
+    def __init__(self, fnaam, user=None):
         self.fnaam = fnaam
         self.my = MY[fnaam]
-        self.user = USER.id
+        self.user = user.id if user else 0
         self.olddata = {}
 
     def load_options(self):
@@ -136,10 +160,10 @@ class SelectOptions:
     zie methodes core.select/setsel
     """
 
-    def __init__(self, fnaam):
+    def __init__(self, fnaam, user=None):
         self.fnaam = fnaam
         self.my = MY[fnaam]
-        self.user = USER.id
+        self.user = user.id if user else 0
 
     def load_options(self):
         "lees opties"
@@ -289,7 +313,7 @@ class Settings:
         if srt == 'kop':
             item = self.my.Page.objects.all.filter(order='{}'.format(sett_id))
             item.order = int(sett_id)
-            item.title, item.link = self.page[sett_id]
+            item.title, item.link = self.kop[sett_id]
             item.save()
         elif srt == 'stat':
             item = self.my.Status.objects.all.filter(value='{}'.format(sett_id))
@@ -380,7 +404,7 @@ class Actie:
                 melding oorzaak oplossing vervolg
     Event       actie ('Actie') start starter (User) text
     """
-    def __init__(self, naam, id_):
+    def __init__(self, naam, actie_id, user):
         # self.my is gerelateerd aan naam
         self.my = MY[naam]
         self.meld = ''
@@ -388,21 +412,21 @@ class Actie:
         ## if naam == 'Demo':
             ## naam = '_basic'
         self.settings = Settings(naam)
-        self.id = id_
+        self.id = actie_id
         self.over = self.titel = self.gewijzigd = ''
         self.status, self.soort, self.arch = 1, 1, False
         self.melding = self.oorzaak = self.oplossing = self.vervolg = ''
         self.exists = False
         self.imagelist = []                     # compatibility
         if self.id in (0, "0"):
-            self.nieuw()
+            self.nieuw(user)
         else:
             self._actie = self.my.Actie.objects.filter(nummer='{}'.format(self.id))
             if self._actie:
                 self._actie = self._actie[0]
         self.read()
 
-    def nieuw(self):
+    def nieuw(self, user):
         "nieuwe actie initialiseren"
         self._actie = self.my.Actie()
         nw_date = dt.datetime.now()
@@ -423,8 +447,8 @@ class Actie:
             self._actie.soort = self.my.Soort.objects.get(value=" ")
         self._actie.status = self.my.Status.objects.get(value="0")
         self._actie.datum = nw_date.strftime('%x %X')  # .isoformat(' ')  # [:19]
-        self._actie.starter = self._actie.behandelaar = USER
-        self._actie.lasteditor = USER
+        self._actie.starter = self._actie.behandelaar = user
+        self._actie.lasteditor = user
         self._actie.save()
         self.events = [(self._actie.datum, "Actie opgevoerd")]
 
@@ -496,18 +520,18 @@ class Actie:
         "voeg tekstregel toe aan events"
         self.events.append((dt.datetime.today().isoformat(' '), txt))  # [:19],
 
-    def write(self):
+    def write(self, user):
         "actiegegevens (terug)schrijven"
         if self.over != self.over_oud:
             self.store_gewijzigd('onderwerp', self.over)
         if self.titel != self.titel_oud:
-            self.store_gewijzigd(self.my, 'titel', self.title)
+            self.store_gewijzigd('titel', self.titel)
         if self.status != self.status_oud:
-            self.store_gewijzigd(self.my, 'status', self.status)
+            self.store_gewijzigd('status', self.status)
         if self.soort != self.soort_oud:
-            self.store_gewijzigd(self.my, 'soort', self.soort)
+            self.store_gewijzigd('soort', self.soort)
         if self.arch != self.arch_oud:
-            self.store_gewijzigd(self.my, 'onderwerp', self.over)
+            self.store_gewijzigd('onderwerp', self.over)
         if self.melding != self.melding_oud:
             self.store_event("Meldingtekst aangepast")
         if self.oorzaak != self.oorzaak_oud:
@@ -521,7 +545,7 @@ class Actie:
             if item in self.events_oud:
                 continue
             date, msg = item
-            core.store_event_with_date(self.my, msg, self._actie, date, USER)
+            core.store_event_with_date(self.my, msg, self._actie, date, user)
         self.read()
 
     def clear(self):                            # compatibility with dml_xml.py
@@ -541,7 +565,7 @@ class Actie:
         result.append("Oplossing: {}".format(self.oplossing))
         result.append("Vervolg: {}".format(self.vervolg))
         result.append("Verslag:")
-        for item in self.events.all():
+        for item in self.events:
             result.append("\t {} - {}".format(item.start, item.text))
         if self.arch:
             result.append("Actie is gearchiveerd.")
