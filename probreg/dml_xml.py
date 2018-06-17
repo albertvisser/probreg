@@ -350,8 +350,9 @@ class Actie:
     """lijst alle gegevens van een bepaald item
 
     fnaam is a pathlib.Path object
+    user is only for compatibilty with the Django version
     """
-    def __init__(self, fnaam, _id):
+    def __init__(self, fnaam, _id, user=None):
         self.fn, self.fnaam, self.file_exists, self.meld = check_filename(fnaam)
         if self.meld:
             raise DataError(self.meld)
