@@ -2194,6 +2194,48 @@ class CatOptions(OptionsDialog):
         self.parent.save_settings("cat", self.newcats)
 
 
+class LoginBox(qtw.QDialog):
+    """Sign in with userid & password
+    """
+    def __init__(self, parent):
+        self.parent = parent
+        self.parent.dialog_data = ()
+        super().__init__(parent)
+        vbox = qtw.QVBoxLayout()
+        grid = qtw.QGridLayout()
+        grid.addWidget(qtw.QLabel('Userid', self), 0, 0)
+        self.t_username = qtw.QLineEdit(self)
+        grid.addWidget(self.t_username, 0, 1)
+        grid.addWidget(qtw.QLabel('Password', self), 1, 0)
+        self.t_password = qtw.QLineEdit(self)
+        self.t_password.setEchoMode(qtw.QLineEdit.Password)
+        grid.addWidget(self.t_password, 1, 1)
+        vbox.addLayout(grid)
+        bbox = qtw.QDialogButtonBox(qtw.QDialogButtonBox.Ok |
+                                    qtw.QDialogButtonBox.Cancel)
+        ## bbox.buttons()[1].setDefault(True)
+        vbox.addWidget(bbox)
+        self.setLayout(vbox)
+        bbox.accepted.connect(self.accept)
+        bbox.rejected.connect(self.reject)
+
+    def accept(self):
+        """check login credentials
+        """
+        print(self.t_username.text(),
+              self.t_password.text(),
+              self.parent.filename)
+        test = dmls.validate_user(self.t_username.text(),
+                                  self.t_password.text(),
+                                  self.parent.filename)
+        print(test)
+        if not test:
+            qtw.QMessageBox.information(self, self.parent.title, 'Login failed')
+            return
+        self.parent.dialog_data = test
+        super().accept()
+
+
 class MainWindow(qtw.QMainWindow):
     """Hoofdscherm met menu, statusbalk, notebook en een "quit" button"""
     def __init__(self, parent, fnaam="", version=None):
@@ -2314,6 +2356,7 @@ class MainWindow(qtw.QMainWindow):
                      "Print the contents of the current issue"))),
                 ('',),
                 ("&Quit", self.exit_app, 'Ctrl+Q', " Terminate the program")]),
+            ("&Login", [("&Go", self.sign_in, 'Ctrl+L', " Sign in to the database")]),
             ("&Settings", (
                 ("&Applicatie", (
                     ("&Lettertype", self.font_settings, '',
@@ -2334,6 +2377,8 @@ class MainWindow(qtw.QMainWindow):
                 ("&Keys", self.hotkey_help, 'Ctrl+H', " List of shortcut keys"))))
         for title, items in menudata:
             menu = menu_bar.addMenu(title)
+            if title == '&Login' and not self.datatype == DataType.SQL.name:
+                continue
             for menuitem in items:
                 add_to_menu(menu, menuitem)
 
@@ -2874,6 +2919,17 @@ class MainWindow(qtw.QMainWindow):
         printer.setOutputFileName(self.hdr)
         doc.print_(printer)
         self.print_dlg.done(True)
+
+
+    def sign_in(self):
+        """aanloggen in SQL/Django mode
+        """
+        dlg = LoginBox(self)
+        dlg.exec_()
+        if self.dialog_data:
+            self.user, self.is_user, self.is_admin = self.dialog_data
+            self.on_page_changing(0)
+
 
 
 def main(arg=None):
