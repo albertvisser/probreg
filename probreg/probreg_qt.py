@@ -481,6 +481,7 @@ class Page(qtw.QFrame):
 
         methode aan te roepen voorafgaand aan het tonen van de pagina"""
         self.initializing = True
+        self.parent.parent.settingsmenu.setEnabled(self.parent.parent.is_admin)
         if self.parent.current_tab == 0:
             text = self.seltitel
         else:
@@ -506,6 +507,8 @@ class Page(qtw.QFrame):
                     self.oldbuf = self.parent.pagedata.vervolg
                 self.text1.setReadOnly(self.parent.pagedata.arch)
             self.text1.set_contents(self.oldbuf)
+            self.text1.setReadOnly(not self.parent.parent.is_user)
+            self.toolbar.setEnabled(self.parent.parent.is_user)
             self.oldbuf = self.text1.get_contents()  # make sure it's rich text
         else:
             self.Editor = None
@@ -516,7 +519,8 @@ class Page(qtw.QFrame):
         "lezen van een actie"
         if self.parent.pagedata:  # spul van de vorige actie opruimen
             self.parent.pagedata.clear()
-        self.parent.pagedata = Actie[self.parent.parent.datatype](self.parent.fnaam, pid)
+        self.parent.pagedata = Actie[self.parent.parent.datatype](self.parent.fnaam, pid,
+                                                                  self.parent.parent.user)
         self.parent.parent.imagelist = self.parent.pagedata.imagelist
         self.parent.old_id = self.parent.pagedata.id
         self.parent.newitem = False
@@ -529,7 +533,8 @@ class Page(qtw.QFrame):
             if self.parent.current_tab == 0:
                 for i in range(1, self.parent.count()):
                     self.parent.setTabEnabled(i, True)
-            self.parent.pagedata = Actie[self.parent.parent.datatype](self.parent.fnaam, 0)
+            self.parent.pagedata = Actie[self.parent.parent.datatype](self.parent.fnaam, 0,
+                                                                      self.parent.parent.user)
             self.parent.parent.imagelist = self.parent.pagedata.imagelist
             self.parent.newitem = True
             if self.parent.current_tab == 1:
@@ -548,7 +553,8 @@ class Page(qtw.QFrame):
                 and newbuf[1] == "" and not self.parent.parent.exiting:
             self.parent.newitem = False
             self.parent.pagedata = Actie[self.parent.parent.datatype](self.parent.fnaam,
-                                                                      self.parent.old_id)
+                                                                      self.parent.old_id,
+                                                                      self.parent.parent.user)
         ok_to_leave = True
         self.parent.checked_for_leaving = True
         if self.parent.current_tab == 0:
@@ -658,7 +664,7 @@ class Page(qtw.QFrame):
         """
         self.parent.pagedata.imagecount = self.parent.parent.imagecount
         self.parent.pagedata.imagelist = self.parent.parent.imagelist
-        self.parent.pagedata.write()
+        self.parent.pagedata.write(self.parent.parent.user)
         self.parent.checked_for_leaving = True
         self.mag_weg = True
         self.parent.pagedata.read()    # om "updated" attribuut op te halen
@@ -771,11 +777,16 @@ class Page0(Page):
         # Django versie: kijken of in de sortering in de database gedefinieerd is
         if (self.parent.parent.datatype == DataType.SQL.name
                and self.parent.parent.filename):
-            self._data = dmls.SortOptions(self.parent.parent.filename)
-            test = self._data.load_options()
-            test = bool(test)
-            self.sort_via_options = test
-            self.p0list.setSortingEnabled(not test)
+            if self.parent.parent.is_user:
+                self._data = dmls.SortOptions(self.parent.parent.filename)
+                test = self._data.load_options()
+                test = bool(test)
+                self.sort_via_options = test
+                self.p0list.setSortingEnabled(not test)
+            else:
+                self.sort_button.setEnabled(False)
+                self.filter_button.setEnabled(False)
+                self.p0list.setSortingEnabled(True)
 
         self.seltitel = 'alle meldingen ' + self.selection
         Page.vulp(self)
@@ -829,9 +840,12 @@ class Page0(Page):
         self.p0list.clear()
         for i in range(1, self.parent.count()):
             self.parent.setTabEnabled(i, False)
-        self.filter_button.setEnabled(True)
-        self.new_button.setEnabled(True)
-        self.enable_buttons(False)
+        if self.parent.parent.is_user:
+            self.filter_button.setEnabled(True)
+            self.new_button.setEnabled(True)
+            self.enable_buttons(False)
+        else:
+            self.go_button.setEnabled(True)
 
         self.parent.rereadlist = False
         items = self.parent.data.items()
@@ -845,7 +859,8 @@ class Page0(Page):
 
         for i in range(1, self.parent.count()):
             self.parent.setTabEnabled(i, True)
-        self.enable_buttons(True)
+        if self.parent.parent.is_user:
+            self.enable_buttons(True)
         for key, data in items:
             if self.parent.parent.datatype == DataType.XML.name:
                 actie, _, soort, status, l_wijz, titel = data
@@ -886,22 +901,6 @@ class Page0(Page):
         tab gaan (misschien door de on key afhandeling?)
         """
         self.goto_actie()
-
-    # nodig voor sorteren?
-    # def sort_oncolumn(self, colno):  # unnecessary, not connected?
-    #     """callback voor klikken op column header
-    #
-    #     het werkt ook zonder deze te connecten, maar ik meende dat het nodig was
-    #     de sorteervolgorde te kennen en die is niet af te leiden vandaar een eigen
-    #     instelling. Maar misschien heb ik dat wel helemaal niet nodig.
-    #     """
-    #     column, order = self.sorted
-    #     log('order is', column, order)
-    #     if column == colno:
-    #         order = 'A' if order == 'D' else 'D'
-    #     else:
-    #         order = 'A'
-    #     self.sorted = colno, order
 
     def select_items(self):
         """tonen van de selectie dialoog
@@ -1137,13 +1136,15 @@ class Page1(Page):
             aanuit = True
             self.archive_text.setText("")
             self.archive_button.setText("Archiveren")
+        if not self.parent.parent.is_user:
+            aanuit = False
         self.id_text.setEnabled(False)
         self.date_text.setEnabled(False)
         self.proc_entry.setEnabled(aanuit)
         self.desc_entry.setEnabled(aanuit)
         self.cat_choice.setEnabled(aanuit)
         self.stat_choice.setEnabled(aanuit)
-        if self.parent.newitem:
+        if self.parent.newitem or not self.parent.parent.is_user:
             self.archive_button.setEnabled(False)
         else:
             self.archive_button.setEnabled(True)
@@ -1269,14 +1270,15 @@ class Page6(Page):
 
         self.progress_list = qtw.QListWidget(self)
         self.progress_list.currentItemChanged.connect(self.on_select_item)
-        self.progress_list.itemActivated.connect(self.on_activate_item)
-        action = qtw.QShortcut('Shift+Ctrl+N', self, functools.partial(
-            self.on_activate_item, self.progress_list.item(0)))
+        if self.parent.parent.is_user:
+            self.progress_list.itemActivated.connect(self.on_activate_item)
+            action = qtw.QShortcut('Shift+Ctrl+N', self, functools.partial(
+                self.on_activate_item, self.progress_list.item(0)))
         textpanel = qtw.QFrame()
         self.actiondict = collections.OrderedDict()
         Page.create_toolbar(self)
         Page.create_text_field(self, 6)
-        self.progress_text = self.text1  # to save modifying all references (TODO: fix)
+        self.progress_text = self.text1  # to save modifying all references (TODO: fix - why?)
         sizer0 = qtw.QHBoxLayout()
         sizer1 = qtw.QVBoxLayout()
         sizer1.addWidget(self.toolbar)
@@ -1328,8 +1330,11 @@ class Page6(Page):
             self.event_data.reverse()
             self.old_data = self.event_data[:]
             self.progress_list.clear()
-            first_item = qtw.QListWidgetItem(
-                '-- doubleclick or press Shift-Ctrl-N to add new item --')
+            if self.parent.parent.is_user:
+                text = '-- doubleclick or press Shift-Ctrl-N to add new item --'
+            else:
+                text = '-- adding new items is disabled --'
+            first_item = qtw.QListWidgetItem(text)
             first_item.setData(core.Qt.UserRole, -1)
             self.progress_list.addItem(first_item)
             for idx, datum in enumerate(self.event_list):
@@ -1347,6 +1352,8 @@ class Page6(Page):
                 newitem.setData(core.Qt.UserRole, idx)
                 self.progress_list.addItem(newitem)
         self.progress_text.clear()
+        self.progress_text.setReadOnly(not self.parent.parent.is_user)
+        self.toolbar.setEnabled(self.parent.parent.is_user)
         self.oldbuf = (self.old_list, self.old_data)
         self.oldtext = ''
         self.initializing = False
@@ -1467,12 +1474,12 @@ class Page6(Page):
         if tekst != self.oldtext:
             # stel de buffer in op de nieuwe tekst
             self.oldtext = tekst
-            # maakt er platte tekst van om straks in de listbox bij te werken
+            # maak er platte tekst van om straks in de listbox bij te werken
             tekst_plat = self.progress_text.toPlainText()
             # stel in dat we niet van dit scherm af kunnen zonder te updaten
-            self.enable_buttons()
-            # zorg ervoor dat we met het juiste item bezig zijn maar... dit helpt helemaal niet?
-            self.current_item = self.progress_list.currentRow()  # aha - was local (zonder self)
+            if self.parent.parent.is_user:
+                self.enable_buttons()
+            self.current_item = self.progress_list.currentRow()
             if self.current_item > 0:
                 indx = self.current_item - 1
                 self.event_data[indx] = tekst
@@ -1752,14 +1759,14 @@ class SelectOptionsDialog(qtw.QDialog):
         elif self.datatype == DataType.SQL.name:
             grid2 = qtw.QGridLayout()
             grid2.addWidget(qtw.QLabel(self.parent.parent.ctitels[4] + ":", self),
-                0, 0)
+                            0, 0)
             grid2.addWidget(self.text_zoek, 0, 1)
             hbox2 = qtw.QHBoxLayout()
             for rb in self.radio_id2.buttons():
                 hbox2.addWidget(rb)
             grid2.addLayout(hbox2, 1, 0)
             grid2.addWidget(qtw.QLabel(self.parent.parent.ctitels[5] + ":", self),
-                2, 0)
+                            2, 0)
             grid2.addWidget(self.text_zoek2, 2, 1)
             hbox.addLayout(grid2)
         grid.addLayout(hbox, 3, 2)
@@ -1791,8 +1798,7 @@ class SelectOptionsDialog(qtw.QDialog):
             args, sel_args = self._data.load_options(), {}
             for key, value in args.items():
                 if key == 'nummer':
-                    "splitsen in idgt, id en idlt"
-                    for item in value:
+                    for item in value:  # splitsen in idgt, id en idlt
                         if len(item) == 1:
                             sel_args['id'] = 'and' if item[0] == 'en' else 'or'
                         elif item[1] == 'GT':
@@ -2195,6 +2201,7 @@ class MainWindow(qtw.QMainWindow):
             raise ValueError('No data method specified')
         self.parent = parent
         self.datatype = version
+        self.user, self.is_user, self.is_admin = None, False, False
         self.title = 'Actieregistratie'
         self.initializing = True
         self.exiting = False
@@ -2285,6 +2292,8 @@ class MainWindow(qtw.QMainWindow):
             elif len(menuitem) == 2:
                 title, items = menuitem
                 sub = menu.addMenu(title)
+                if title == '&Data':
+                    self.settingsmenu = sub
                 for subitem in items:
                     add_to_menu(sub, subitem)
 
@@ -2430,6 +2439,7 @@ class MainWindow(qtw.QMainWindow):
         pnl.setLayout(sizer0)
 
     def not_implemented_message(self):
+        "information"
         qtw.QMessageBox.information(self, "Oeps", "Sorry, werkt nog niet")
 
     def new_file(self):
@@ -2558,9 +2568,8 @@ class MainWindow(qtw.QMainWindow):
     def print_actie(self):
         "Menukeuze: print deze actie"
         if self.book.pagedata is None or self.book.newitem:
-            dlg = qtw.QMessageBox.information(
-                self, self.parent.parent.title,
-                "Wel eerst een actie kiezen om te printen")
+            qtw.QMessageBox.information(self, self.parent.parent.title,
+                                        "Wel eerst een actie kiezen om te printen")
             return
         self.hdr = ("Actie: {} {}".format(self.book.pagedata.id, self.book.pagedata.titel))
         tekst = self.book.pagedata.titel
@@ -2717,7 +2726,7 @@ class MainWindow(qtw.QMainWindow):
         """instellingen (tabnamen, actiesoorten en actiestatussen) inlezen"""
         try:
             data = Settings[self.datatype](self.book.fnaam)
-        except (DataError, KeyError) as err:
+        except (DataError, KeyError):  #  as err:
             raise
             ## qtw.QMessageBox.information(self, "Oh-oh!", str(err))
             ## return
