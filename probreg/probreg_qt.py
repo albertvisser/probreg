@@ -774,7 +774,6 @@ class Page0(Page):
 
         methode aan te roepen voorafgaand aan het tonen van de pagina
         """
-        # Django versie: kijken of in de sortering in de database gedefinieerd is
         if (self.parent.parent.datatype == DataType.SQL.name
                and self.parent.parent.filename):
             if self.parent.parent.is_user:
@@ -784,9 +783,9 @@ class Page0(Page):
                 self.sort_via_options = test
                 self.p0list.setSortingEnabled(not test)
             else:
-                self.sort_button.setEnabled(False)
-                self.filter_button.setEnabled(False)
-                self.p0list.setSortingEnabled(True)
+                self.p0list.setSortingEnabled(False)
+            self.sort_button.setEnabled(self.parent.parent.is_user)
+            self.filter_button.setEnabled(self.parent.parent.is_user)
 
         self.seltitel = 'alle meldingen ' + self.selection
         Page.vulp(self)
@@ -1352,8 +1351,6 @@ class Page6(Page):
                 newitem.setData(core.Qt.UserRole, idx)
                 self.progress_list.addItem(newitem)
         self.progress_text.clear()
-        self.progress_text.setReadOnly(not self.parent.parent.is_user)
-        self.toolbar.setEnabled(self.parent.parent.is_user)
         self.oldbuf = (self.old_list, self.old_data)
         self.oldtext = ''
         self.initializing = False
@@ -1456,7 +1453,8 @@ class Page6(Page):
         self.initializing = False
         if not self.parent.pagedata.arch:
             if indx > -1:
-                self.progress_text.setReadOnly(False)
+                self.progress_text.setReadOnly(not self.parent.parent.is_user)
+                self.toolbar.setEnabled(self.parent.parent.is_user)
             self.progress_text.moveCursor(gui.QTextCursor.End,
                                           gui.QTextCursor.MoveAnchor)
         self.progress_text.setFocus()
@@ -2213,7 +2211,7 @@ class LoginBox(qtw.QDialog):
         vbox.addLayout(grid)
         bbox = qtw.QDialogButtonBox(qtw.QDialogButtonBox.Ok |
                                     qtw.QDialogButtonBox.Cancel)
-        ## bbox.buttons()[1].setDefault(True)
+        ## bbox.button(qtw.QDialogButtonBox.Ok).setDefault(True)  # -- werkt ook al niet
         vbox.addWidget(bbox)
         self.setLayout(vbox)
         bbox.accepted.connect(self.accept)
@@ -2232,6 +2230,7 @@ class LoginBox(qtw.QDialog):
         if not test:
             qtw.QMessageBox.information(self, self.parent.title, 'Login failed')
             return
+        qtw.QMessageBox.information(self, self.parent.title, 'Login accepted')
         self.parent.dialog_data = test
         super().accept()
 
@@ -2881,7 +2880,11 @@ class MainWindow(qtw.QMainWindow):
         elif new == 5:
             self.book.page5.vulp()
         elif new == 6:
+            if old == new:
+                item = self.book.page6.progress_list.currentRow() # remember current item 
             self.book.page6.vulp()
+            if old == new:
+                self.book.page6.progress_list.setCurrentRow(item) # reselect item
         self.zetfocus(self.book.current_tab)
 
     def zetfocus(self, tabno):
@@ -2919,7 +2922,6 @@ class MainWindow(qtw.QMainWindow):
         printer.setOutputFileName(self.hdr)
         doc.print_(printer)
         self.print_dlg.done(True)
-
 
     def sign_in(self):
         """aanloggen in SQL/Django mode
