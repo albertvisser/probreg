@@ -1788,11 +1788,9 @@ class SelectOptionsDialog(qtw.QDialog):
         print("selectoptions dialog: set defaults")
         test = self.parent.parent.fnaam
         print(sel_args)
-        try:
+        self._data = None
+        if self.parent.parent.parent.datatype == DataType.SQL.name:
             self._data = dmls.SelectOptions(test)
-        except AttributeError:
-            self._data = None
-        else:
             args, sel_args = self._data.load_options(), {}
             for key, value in args.items():
                 if key == 'nummer':
@@ -2376,7 +2374,7 @@ class MainWindow(qtw.QMainWindow):
                 ("&Keys", self.hotkey_help, 'Ctrl+H', " List of shortcut keys"))))
         for title, items in menudata:
             menu = menu_bar.addMenu(title)
-            if title == '&Login' and not self.datatype == DataType.SQL.name:
+            if title == '&Login' and self.datatype != DataType.SQL.name:
                 continue
             for menuitem in items:
                 add_to_menu(menu, menuitem)
@@ -2774,10 +2772,8 @@ class MainWindow(qtw.QMainWindow):
         """instellingen (tabnamen, actiesoorten en actiestatussen) inlezen"""
         try:
             data = Settings[self.datatype](self.book.fnaam)
-        except (DataError, KeyError):  #  as err:
+        except (DataError, KeyError):
             raise
-            ## qtw.QMessageBox.information(self, "Oh-oh!", str(err))
-            ## return
         ## print(data.meld)     # "Standaard waarden opgehaald"
         self.imagecount = data.imagecount
         self.book.stats = {}
@@ -2881,10 +2877,10 @@ class MainWindow(qtw.QMainWindow):
             self.book.page5.vulp()
         elif new == 6:
             if old == new:
-                item = self.book.page6.progress_list.currentRow() # remember current item 
+                item = self.book.page6.progress_list.currentRow()  # remember current item
             self.book.page6.vulp()
             if old == new:
-                self.book.page6.progress_list.setCurrentRow(item) # reselect item
+                self.book.page6.progress_list.setCurrentRow(item)  # reselect item
         self.zetfocus(self.book.current_tab)
 
     def zetfocus(self, tabno):
@@ -2931,7 +2927,6 @@ class MainWindow(qtw.QMainWindow):
         if self.dialog_data:
             self.user, self.is_user, self.is_admin = self.dialog_data
             self.on_page_changing(0)
-
 
 
 def main(arg=None):
