@@ -5,7 +5,6 @@ from __future__ import print_function
 ## import sys
 import os
 import pathlib
-## import pprint
 import base64  # gzip
 import datetime as dt
 from shutil import copyfile
@@ -260,7 +259,6 @@ class Settings:
             elif x.tag == "koppen":
                 el.remove(x)
         h = SubElement(el, "stats")
-        ## print self.stat
         for x in list(self.stat.keys()):
             if x is int:
                 x = str(x)
@@ -268,13 +266,11 @@ class Settings:
             j.set("order", str(self.stat[x][1]))
             j.text = self.stat[x][0]
         h = SubElement(el, "cats")
-        ## print self.cat
         for x in list(self.cat.keys()):
             j = SubElement(h, "cat", value=x)
             j.set("order", str(self.cat[x][1]))
             j.text = self.cat[x][0]
         h = SubElement(el, "koppen")
-        ## print self.kop
         for x in list(self.kop.keys()):
             if x is int:
                 x = str(x)

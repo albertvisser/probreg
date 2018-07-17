@@ -8,7 +8,6 @@ from __future__ import print_function
 
 ## import sys
 import os
-## import pprint as pp
 import datetime as dt
 import sqlite3 as sql
 from contextlib import closing
@@ -158,8 +157,6 @@ def get_acties(naam, select=None, arch=""):
         raise DataError("Foutieve waarde voor archief opgegeven "
                         "(moet niks, 'arch'  of 'alles' zijn)")
     con = sql.connect(DBLOC)
-    ## print "dml_sql.get_acties.sel:",sel
-    ## print "dml_sql.get_acties.args:",args
     cmd = "select nummer, start, {0}_status.title, {0}_status.value, {0}_soort.title, " \
         "{0}_soort.value, about, {0}_actie.title, gewijzigd from {0}_actie " \
         "join {0}_soort on {0}_soort.id = {0}_actie.soort_id " \
