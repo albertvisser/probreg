@@ -494,7 +494,6 @@ class Page(qtw.QFrame):
         self.parent.parent.sbar.showMessage(
             self.parent.pagehelp[self.parent.current_tab])
         if 1 < self.parent.current_tab < 6:
-            self.parent.editor = self.text1
             self.oldbuf = ''
             if self.parent.pagedata is not None:
                 if self.parent.current_tab == 2 and self.parent.pagedata.melding:
@@ -510,8 +509,6 @@ class Page(qtw.QFrame):
             self.text1.setReadOnly(not self.parent.parent.is_user)
             self.toolbar.setEnabled(self.parent.parent.is_user)
             self.oldbuf = self.text1.get_contents()  # make sure it's rich text
-        else:
-            self.Editor = None
         self.initializing = False
         self.parent.checked_for_leaving = True
 
@@ -664,7 +661,10 @@ class Page(qtw.QFrame):
         """
         self.parent.pagedata.imagecount = self.parent.parent.imagecount
         self.parent.pagedata.imagelist = self.parent.parent.imagelist
-        self.parent.pagedata.write(self.parent.parent.user)
+        if self.parent.parent.datatype == DataType.SQL.name:
+            self.parent.pagedata.write(self.parent.parent.user)
+        else:
+            self.parent.pagedata.write()
         self.parent.checked_for_leaving = True
         self.mag_weg = True
         self.parent.pagedata.read()    # om "updated" attribuut op te halen
@@ -866,6 +866,7 @@ class Page0(Page):
             elif self.parent.parent.datatype == DataType.SQL.name:
                 actie, _, soort, status, l_wijz, over, titel = data
                 l_wijz = l_wijz[:19]
+                l_wijz = '{}{}{}'.format(l_wijz[3:6], l_wijz[:3], l_wijz[6:])
             new_item = qtw.QTreeWidgetItem()
             new_item.setText(0, actie)
             new_item.setData(0, core.Qt.UserRole, actie)
@@ -925,15 +926,11 @@ class Page0(Page):
         2x4 comboboxjes waarin je de volgorde van de rubrieken en de sorteervolgorde
         per rubriek kunt aangeven"""
         test = SortOptionsDialog(self).exec_()
-        ## if test == qtw.QDialog.Accepted:
-            ## qtw.QMessageBox.information(self, 'Oeps', "Sorry, werkt nog niet")
         if test != qtw.QDialog.Accepted:
             return
-        print('returning from sort options dialog')
         if self.sort_via_options:
             self.p0list.setSortingEnabled(False)
             self.parent.rereadlist = True
-            print('rereading data after changing sort options')
             try:
                 self.vulp()
             except DataError as msg:
@@ -1149,7 +1146,7 @@ class Page1(Page):
             self.archive_button.setEnabled(True)
         self.initializing = False
 
-    def savep(self):  # Done, untested
+    def savep(self):
         "opslaan van de paginagegevens"
         Page.savep(self)
         proc = str(self.proc_entry.text())
@@ -1168,15 +1165,18 @@ class Page1(Page):
                 self.parent.pagedata.titel = procdesc
             elif self.parent.parent.datatype == DataType.SQL.name:
                 self.parent.pagedata.over = proc
-                self.parent.pagedata.titel = desc
+                self.parent.pagedata.events.append(
+                    (get_dts(), 'Onderwerp gewijzigd in "{0}"'.format(proc)))
+                self.parent.pagedata.titel = procdesc = desc
             self.parent.pagedata.events.append(
                 (get_dts(), 'Titel gewijzigd in "{0}"'.format(procdesc)))
             wijzig = True
         idx = self.stat_choice.currentIndex()
-        newstat = data2str(self.stat_choice.itemData(idx))
+        # newstat = data2str(self.stat_choice.itemData(idx))  # xml versie?
+        newstat = data2int(self.stat_choice.itemData(idx))
         if newstat != self.parent.pagedata.status:
             self.parent.pagedata.status = newstat
-            sel = str(self.stat_choice.currentText())
+            sel = self.stat_choice.currentText()
             self.parent.pagedata.events.append(
                 (get_dts(), 'Status gewijzigd in "{0}"'.format(sel)))
             wijzig = True
@@ -1195,7 +1195,6 @@ class Page1(Page):
                 (get_dts(), "Actie {0}".format(hlp)))
             wijzig = True
         if wijzig:
-            # wijzigen/toevoegen in de database
             self.update_actie()
             if self.parent.newitem:
                 # nieuwe entry maken in de tabel voor panel 0
@@ -1235,14 +1234,14 @@ class Page1(Page):
                            int(self.cat_choice.currentIndex()))
         return True
 
-    def archiveer(self):  # Done, untested
+    def archiveer(self):
         "archiveren/herleven"
         self.parch = not self.parch
         self.savep()
         self.parent.rereadlist = True
         self.vulp()
 
-    def vul_combos(self):  # Done
+    def vul_combos(self):
         "vullen comboboxen"
         self.initializing = True
         self.stat_choice.clear()
@@ -1269,11 +1268,14 @@ class Page6(Page):
 
         self.progress_list = qtw.QListWidget(self)
         self.progress_list.currentItemChanged.connect(self.on_select_item)
-        if self.parent.parent.is_user:
+        self.new_action = qtw.QShortcut('Shift+Ctrl+N', self)
+        if self.parent.parent.datatype == DataType.XML.name:
             self.progress_list.itemActivated.connect(self.on_activate_item)
-            action = qtw.QShortcut('Shift+Ctrl+N', self, functools.partial(
-                self.on_activate_item, self.progress_list.item(0)))
-        textpanel = qtw.QFrame()
+            # action = qtw.QShortcut('Shift+Ctrl+N', self, functools.partial(
+            #     self.on_activate_item, self.progress_list.item(0)))
+            self.new_action.activated.connect(functools.partial(self.on_activate_item,
+                                                                self.progress_list.item(0)))
+        textpanel = qtw.QFrame(self)
         self.actiondict = collections.OrderedDict()
         Page.create_toolbar(self)
         Page.create_text_field(self, 6)
@@ -1339,6 +1341,7 @@ class Page6(Page):
             for idx, datum in enumerate(self.event_list):
                 if self.parent.parent.datatype == DataType.SQL.name:
                     datum = datum[:19]
+                    datum = '{}{}{}'.format(datum[3:6], datum[:3], datum[6:])
                 # convert to HTML (if needed) and back
                 self.progress_text.set_contents(self.event_data[idx])
                 tekst_plat = self.progress_text.toPlainText()
@@ -1350,6 +1353,16 @@ class Page6(Page):
                 newitem = qtw.QListWidgetItem('{} - {}'.format(datum, text))
                 newitem.setData(core.Qt.UserRole, idx)
                 self.progress_list.addItem(newitem)
+        if self.parent.parent.datatype == DataType.SQL.name:
+            if self.parent.parent.is_user:
+                self.progress_list.itemActivated.connect(self.on_activate_item)
+                # action = qtw.QShortcut('Shift+Ctrl+N', self, functools.partial(
+                #     self.on_activate_item, self.progress_list.item(0)))
+                self.new_action.activated.connect(functools.partial(self.on_activate_item,
+                                                                    self.progress_list.item(0)))
+            else:
+                self.progress_list.itemActivated.disconnect()
+                self.new_action.activated.disconnect()
         self.progress_text.clear()
         self.oldbuf = (self.old_list, self.old_data)
         self.oldtext = ''
@@ -1505,7 +1518,6 @@ class SortOptionsDialog(qtw.QDialog):
             try:
                 lijst = [x[0] for x in dmls.SORTFIELDS]
             except AttributeError:
-                ## print("no dmls.sortfields found")
                 pass
         if not lijst:
             lijst = [x for x in parent.parent.ctitels]
@@ -1602,11 +1614,8 @@ class SortOptionsDialog(qtw.QDialog):
             qtw.QMessageBox.information(self, 'Probreg', 'U heeft niets gewijzigd')
             return
         self.parent.sort_via_options = via_options
-        print(via_options)
         if via_options:
-            print(self.parent._data)
             if self.parent._data:      # alleen SQL versie
-                print("sort opties bijwerken")
                 self.parent._data.save_options(new_sortopts)
         super().accept()
 
@@ -1785,9 +1794,7 @@ class SelectOptionsDialog(qtw.QDialog):
     def set_defaults(self, sel_args):
         """get search settings and present them in the dialog
         """
-        print("selectoptions dialog: set defaults")
         test = self.parent.parent.fnaam
-        print(sel_args)
         self._data = None
         if self.parent.parent.parent.datatype == DataType.SQL.name:
             self._data = dmls.SelectOptions(test)
@@ -1805,8 +1812,6 @@ class SelectOptionsDialog(qtw.QDialog):
                     sel_args[key] = {0: 'narch', 1: 'arch', 2: 'alles'}[value]
                 elif value:
                     sel_args[key] = value
-        print(self._data)
-        print(sel_args)
         if "idgt" in sel_args:
             self.text_gt.setText(sel_args["idgt"])
         if "id" in sel_args:
@@ -1959,6 +1964,7 @@ class SelectOptionsDialog(qtw.QDialog):
         if self._data:
             self._data.save_options(sel_args)
         super().accept()
+
 
 
 class OptionsDialog(qtw.QDialog):
@@ -2218,13 +2224,9 @@ class LoginBox(qtw.QDialog):
     def accept(self):
         """check login credentials
         """
-        print(self.t_username.text(),
-              self.t_password.text(),
-              self.parent.filename)
         test = dmls.validate_user(self.t_username.text(),
                                   self.t_password.text(),
                                   self.parent.filename)
-        print(test)
         if not test:
             qtw.QMessageBox.information(self, self.parent.title, 'Login failed')
             return
@@ -2266,7 +2268,10 @@ class MainWindow(qtw.QMainWindow):
                 test = fnaam.lower()
                 for x in self.projnames:
                     if x[0].lower() == test:
-                        self.filename = x[0]
+                        if test == 'basic':
+                            self.filename = '_basic'
+                        else:
+                            self.filename = x[0]
                         break
             log('SQL: %s', self.filename)
         if LIN:
@@ -2294,7 +2299,6 @@ class MainWindow(qtw.QMainWindow):
         self.exit_button = qtw.QPushButton('&Quit', pnl)
         self.exit_button.clicked.connect(self.exit_app)
         self.doelayout(pnl)
-        self.book.page6._out = open("probreg_page6.log", "w")
         if self.datatype == DataType.XML.name:
             if self.filename == "":
                 self.open_xml()
@@ -2531,13 +2535,12 @@ class MainWindow(qtw.QMainWindow):
         else:
             for idx, h in enumerate(data):
                 log(h)
-                if h[0] == self.filename or (
-                        self.filename == "_basic" and h[0] == "Demo"):
+                if h[0] == self.filename or (h[0] == 'basic' and self.filename == "_basic"):
                     choice, ok = h[0], True  # idx, True
                     break
         if ok:
             self.filename = choice.split(': ')[0]
-            if self.filename == "Demo":
+            if self.filename in ("Demo", 'basic'):
                 self.filename = "_basic"
             self.startfile()
 
@@ -2675,7 +2678,6 @@ class MainWindow(qtw.QMainWindow):
         elif self.book.current_tab == 6:
             ok_to_leave = self.book.page6.leavep()
         if ok_to_leave:
-            self.book.page6._out.close()
             self.close()
 
     def tab_settings(self):

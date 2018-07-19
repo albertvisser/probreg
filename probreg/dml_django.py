@@ -10,7 +10,6 @@ from __future__ import print_function
 
 import sys
 import os
-## import pprint as pp
 import datetime as dt
 import collections
 
@@ -478,7 +477,8 @@ class Actie:
         for x in self._actie.events.all():
             start = x.start.strftime('%x %X') if x.start else '(data/time unknown)'
             self.events.append((start, x.text))
-        self.events_oud = self.events
+        print(self.events)
+        self.events_oud = self.events[:]
         self.exists = True
 
     def get_statustext(self):
@@ -511,42 +511,56 @@ class Actie:
             txt = "Actie herleefd"
         self.store_event(txt)
 
-    def store_gewijzigd(self, msg, txt):
+    def store_gewijzigd(self, item, value, user):
         "voeg info over gewijzigde rubriek toe aan events"
-        self.events.append((dt.datetime.today().isoformat(' '),  # [:19],
-                            '{} gewijzigd in "{}"'.format(msg, txt)))
+        self.store_event('{} gewijzigd in "{}"'.format(item, value), user)
 
-    def store_event(self, txt):
+    def store_event(self, txt, user):
         "voeg tekstregel toe aan events"
-        self.events.append((dt.datetime.today().isoformat(' '), txt))  # [:19],
+        now = dt.datetime.today()
+        self.events.append((now.isoformat(' '), txt))
+        # core.store_event_with_date(self.my, txt, self._actie, now, user)
 
     def write(self, user):
         "actiegegevens (terug)schrijven"
+        print('new events:', self.events)
         if self.over != self.over_oud:
-            self.store_gewijzigd('onderwerp', self.over)
+            self._actie.about = self.over
+            # self.store_gewijzigd('onderwerp', self.over, user)
         if self.titel != self.titel_oud:
-            self.store_gewijzigd('titel', self.titel)
+            self._actie.title = self.titel
+            # self.store_gewijzigd('titel', self.titel, user)
         if self.status != self.status_oud:
-            self.store_gewijzigd('status', self.status)
+            self._actie.status = self.my.Status.objects.get(value=self.status)
+            # self.store_gewijzigd('status', self.status, user)
         if self.soort != self.soort_oud:
-            self.store_gewijzigd('soort', self.soort)
+            self._actie.soort = self.my.Soort.objects.get(value=self.soort)
+            # self.store_gewijzigd('soort', self.soort, user)
         if self.arch != self.arch_oud:
-            self.store_gewijzigd('onderwerp', self.over)
+            self._actie.arch = self.arch
+            # self.store_gewijzigd('Gearchiveerd', self.arch, user)
         if self.melding != self.melding_oud:
-            self.store_event("Meldingtekst aangepast")
+            self._actie.melding = self.melding
+            # self.store_event("Meldingtekst aangepast", user)
         if self.oorzaak != self.oorzaak_oud:
-            msg = self.store_event("Beschrijving oorzaak aangepast")
+            self._actie.oorzaak = self.oorzaak
+            # self.store_event("Beschrijving oorzaak aangepast", user)
         if self.oplossing != self.oplossing_oud:
-            self.store_event("Beschrijving oplossing aangepast")
+            self._actie.oplossing = self.oplossing
+            # self.store_event("Beschrijving oplossing aangepast", user)
         if self.vervolg != self.vervolg_oud:
-            self.store_event("Beschrijving vervolgactie aangepast")
+            self._actie.vervolg = self.vervolg
+            # self.store_event("Beschrijving vervolgactie aangepast", user)
+        self._actie.lasteditor = user
         self._actie.save()
+        print('old events:', self.events_oud)
+        print()
         for item in self.events:
             if item in self.events_oud:
                 continue
             date, msg = item
             core.store_event_with_date(self.my, msg, self._actie, date, user)
-        self.read()
+        # self.read()
 
     def clear(self):                            # compatibility with dml_xml.py
         "images opruimen"
