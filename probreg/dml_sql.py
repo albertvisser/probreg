@@ -12,10 +12,11 @@ import datetime as dt
 import sqlite3 as sql
 from contextlib import closing
 import logging
-from probreg.shared import DataError, get_projnames, DBLOC, USER, kopdict, statdict, catdict
+from probreg.shared import DataError, DBLOC, USER, kopdict, statdict, catdict
 
 
 def log(msg, *args, **kwargs):
+    "write message to log depending on DEBUG setting"
     if 'DEBUG' in os.environ and os.environ['DEBUG']:
         logging.info(msg, *args, **kwargs)
 
@@ -77,7 +78,7 @@ def complete_ids(dic):
         dic[key] = (dic[key][0], dic[key][1], last_id)
 
 
-def get_acties(naam, select=None, arch=""):
+def get_acties(naam, select=None, arch="", user=None):
     """selecteer acties; geef het resultaat terug of throw an exception
 
     selectie mogelijk op id (groter dan / kleiner dan), soort, status, (deel van) titel
@@ -91,6 +92,7 @@ def get_acties(naam, select=None, arch=""):
         als de string niet begint met een * dan moet de titel ermee beginnen
         als de string niet eindigt met een * dan moet de titel ermee eindigen
         als er een * in zit moet wat ervoor zit en erna komt in de titel zitten
+    het laatste argument `user` wordt niet gebruikt maar is voor compatibiliteit met de django versie
     """
     if select is None:
         select = {}

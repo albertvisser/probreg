@@ -26,7 +26,7 @@ def check_filename(fnaam):
 
     fnaam is a pathlib.Path object
     """
-    fn = meld = ''
+    meld = ''
     if fnaam.suffix != ".xml":
         meld = "Filename incorrect (must end in .xml)"
     if fnaam.parent != "":
@@ -90,9 +90,8 @@ def get_nieuwetitel(fnaam, jaar=None):
     return "%s-%04i" % (jaar, nummer + 1)
 
 
-def get_acties(fnaam, select=None, arch=""):
-    """
-    lijst alle items van een bepaald soort
+def get_acties(fnaam, select=None, arch="", user=None):
+    """ lijst alle items van een bepaald soort
     selectie meegeven mogelijk maken
     zoeken mogelijk op id (groter dan / kleiner dan), soort, status, (deel van) titel
     een selecteer-key mag een van de volgejde waarden zijn:
@@ -104,8 +103,9 @@ def get_acties(fnaam, select=None, arch=""):
     eventueel wildcards:
         als de string niet begint met een * dan moet de titel ermee beginnen
         als de string niet eindigt met een * dan moet de titel ermee eindigen
-        als er een * in zitmoet wat ervoor zit en erna komt in de titel zitten
-     """
+        als er een * in zit moet wat ervoor zit en erna komt in de titel zitten
+    het laatste argument `user` wordt niet gebruikt maar is voor compatibiliteit met de django versie
+    """
     if select is None:
         select = {}
         if not arch:
@@ -191,7 +191,7 @@ def get_acties(fnaam, select=None, arch=""):
 
 
 class Settings:
-    """
+    """instellingen voor pagina's, soorten en statussen
         argument = filenaam
         mag leeg zijn, pathlib.Path object met suffix ".xml" (anders: DataError exception)
         de soorten hebben een numeriek id en alfanumerieke code
@@ -400,10 +400,7 @@ class Actie:
             if h is not None:
                 self.datum = h
             self.status = x.get("status")
-            try:
-                self.soort = x.get("soort")
-            except:  # FIXME: which exception? Why not just test for None?
-                pass
+            self.soort = x.get("soort")
             h = x.get("arch")
             if h is not None:
                 if h == "arch":
@@ -482,7 +479,8 @@ class Actie:
             found = False
             for x, y in list(statdict.values()):
                 log('%s %s %s', waarde, x, y)
-                if x == waarde:  # FIXME: moet dit soms y zijn?
+                # if x == waarde:  # FIXME: moet dit soms y zijn?
+                if y == waarde:
                     found = True
                     self.status = x
                     break
@@ -512,10 +510,9 @@ class Actie:
 
     def set_arch(self, waarde):
         "stel archiefstatus in"
-        if type(waarde) is bool:
-            self.arch = waarde
-        else:
+        if not isinstance(waarde, bool):
             raise DataError("Foutief datatype voor archiveren")
+        self.arch = waarde
 
     def write(self):
         "actiegegevens terugschrijven"
