@@ -18,7 +18,7 @@ import PyQt5.QtGui as gui
 import PyQt5.QtCore as core
 from mako.template import Template
 ## import probreg.pr_globals as pr
-from probreg.shared import DataError
+from probreg.shared import DataError, get_projnames
 ## import probreg.dml_sql as dmls
 import probreg.dml_django as dmls
 import probreg.dml_xml as dmlx
@@ -489,10 +489,8 @@ class Page(qtw.QFrame):
             text = self.parent.tabs[self.parent.current_tab].split(None, 1)
             if self.parent.pagedata:
                 text = str(self.parent.pagedata.id) + ' ' + self.parent.pagedata.titel
-        self.parent.parent.setWindowTitle("{} | {}".format(self.parent.parent.title,
-                                                           text))
-        self.parent.parent.sbar.showMessage(
-            self.parent.pagehelp[self.parent.current_tab])
+        self.parent.parent.setWindowTitle("{} | {}".format(self.parent.parent.title, text))
+        self.parent.parent.set_statusmessage()
         if 1 < self.parent.current_tab < 6:
             self.oldbuf = ''
             if self.parent.pagedata is not None:
@@ -775,7 +773,7 @@ class Page0(Page):
         methode aan te roepen voorafgaand aan het tonen van de pagina
         """
         if (self.parent.parent.datatype == DataType.SQL.name
-               and self.parent.parent.filename):
+                and self.parent.parent.filename):
             if self.parent.parent.is_user:
                 self._data = dmls.SortOptions(self.parent.parent.filename)
                 test = self._data.load_options()
@@ -789,6 +787,7 @@ class Page0(Page):
 
         self.seltitel = 'alle meldingen ' + self.selection
         Page.vulp(self)
+        msg = ''
         if self.parent.rereadlist:
             self.parent.data = {}
             select = self.sel_args.copy()
@@ -797,8 +796,8 @@ class Page0(Page):
                 arch = select.pop("arch")
 
             try:
-                data = get_acties[self.parent.parent.datatype](self.parent.fnaam,
-                                                               select, arch)
+                data = get_acties[self.parent.parent.datatype](self.parent.fnaam, select,
+                                                               arch, self.parent.parent.user)
             except DataError as msg:
                 print("samenstellen lijst mislukt: " + str(msg))
                 raise
@@ -821,45 +820,40 @@ class Page0(Page):
                                              item[8],
                                              item[6],
                                              item[7])
-            self.populate_list()
+            msg = self.populate_list()
             # nodig voor sorteren?
             # if self.parent.parent.datatype == DataType.XML.name:
             #     self.p0list.sortItems(self.sorted[0], sortorder[self.sorted[1]])  # , True)
             #
             self.parent.current_item = self.p0list.topLevelItem(0)
-            self.parent.rereadlist = False
+            # self.parent.rereadlist = False  # (wordt al uitgezet in rereadlist)
+        for i in range(1, self.parent.count()):
+            self.parent.setTabEnabled(i, False)
+        self.enable_buttons(self.parent.parent.is_user)
+        if self.p0list.has_selection:
+            for i in range(1, self.parent.count()):
+                self.parent.setTabEnabled(i, True)
         self.parent.parent.setToolTip("{0} - {1} items".format(
             self.parent.pagehelp[self.parent.current_tab], len(self.parent.data)))
         if self.parent.current_item is not None:
             self.p0list.setCurrentItem(self.parent.current_item)
         self.p0list.scrollToItem(self.parent.current_item)
+        self.parent.parent.set_statusmessage(msg)
 
     def populate_list(self):
         "list control vullen"
         self.p0list.clear()
-        for i in range(1, self.parent.count()):
-            self.parent.setTabEnabled(i, False)
-        if self.parent.parent.is_user:
-            self.filter_button.setEnabled(True)
-            self.new_button.setEnabled(True)
-            self.enable_buttons(False)
-        else:
-            self.go_button.setEnabled(True)
+        self.p0list.has_selection = False
 
         self.parent.rereadlist = False
         items = self.parent.data.items()
         if items is None:
-            self.parent.parent.sbar.showMessage('No selection?')
-            return
-        if len(items) == 0:
-            self.parent.parent.sbar.showMessage('Selection is empty, '
-                                                'try adjusting the filter')
+            self.parent.parent.sbar.showMessage('Selection is None?', 1000)
+        if not items:
+            self.new_button.setEnabled(self.parent.parent.is_user)
             return
 
-        for i in range(1, self.parent.count()):
-            self.parent.setTabEnabled(i, True)
-        if self.parent.parent.is_user:
-            self.enable_buttons(True)
+        self.p0list.has_selection = True
         for key, data in items:
             if self.parent.parent.datatype == DataType.XML.name:
                 actie, _, soort, status, l_wijz, titel = data
@@ -962,12 +956,13 @@ class Page0(Page):
 
     def enable_buttons(self, state=True, all=False):
         "buttons wel of niet bruikbaar maken"
-        self.sort_button.setEnabled(state)
-        self.go_button.setEnabled(state)
-        self.archive_button.setEnabled(state)
-        if all:
-            self.filter_button.setEnabled(state)
-            self.new_button.setEnabled(state)
+        self.new_button.setEnabled(state)
+        if self.parent.parent.user:
+            self.sort_button.setEnabled(True)
+            self.filter_button.setEnabled(True)
+        if all or self.p0list.has_selection:
+            self.go_button.setEnabled(state)
+            self.archive_button.setEnabled(state)
 
 
 class Page1(Page):
@@ -1797,7 +1792,7 @@ class SelectOptionsDialog(qtw.QDialog):
         test = self.parent.parent.fnaam
         self._data = None
         if self.parent.parent.parent.datatype == DataType.SQL.name:
-            self._data = dmls.SelectOptions(test)
+            self._data = dmls.SelectOptions(test, self.parent.parent.parent.user)
             args, sel_args = self._data.load_options(), {}
             for key, value in args.items():
                 if key == 'nummer':
@@ -1808,8 +1803,8 @@ class SelectOptionsDialog(qtw.QDialog):
                             sel_args['idgt'] = item[0]
                         elif item[1] == 'LT':
                             sel_args['idlt'] = item[0]
-                elif key == 'arch':
-                    sel_args[key] = {0: 'narch', 1: 'arch', 2: 'alles'}[value]
+                # elif key == 'arch':
+                #     sel_args[key] = {0: 'narch', 1: 'arch', 2: 'alles'}[value]
                 elif value:
                     sel_args[key] = value
         if "idgt" in sel_args:
@@ -1964,7 +1959,6 @@ class SelectOptionsDialog(qtw.QDialog):
         if self._data:
             self._data.save_options(sel_args)
         super().accept()
-
 
 
 class OptionsDialog(qtw.QDialog):
@@ -2263,7 +2257,7 @@ class MainWindow(qtw.QMainWindow):
             log('XML: %s %s', self.dirname, self.filename)
         elif self.datatype == DataType.SQL.name:
             self.filename = ""
-            self.projnames = dmls.get_projnames()
+            self.projnames = get_projnames()
             if fnaam:
                 test = fnaam.lower()
                 for x in self.projnames:
@@ -2284,6 +2278,10 @@ class MainWindow(qtw.QMainWindow):
         self.move(left, top)
         self.resize(wide, high)
         self.sbar = self.statusBar()
+        self.statusmessage = qtw.QLabel(self)
+        self.sbar.addWidget(self.statusmessage, stretch=2)
+        self.showuser = qtw.QLabel(self)
+        self.sbar.addPermanentWidget(self.showuser, stretch=1)
         self.create_menu()
         self.create_actions()
 
@@ -2921,6 +2919,21 @@ class MainWindow(qtw.QMainWindow):
         doc.print_(printer)
         self.print_dlg.done(True)
 
+    def set_statusmessage(self, msg=''):
+        """stel tekst in statusbar in
+        """
+        if not msg:
+            msg = self.book.pagehelp[self.book.current_tab]
+            if self.book.current_tab == 0:
+                msg += ' - {} items'.format(len(self.book.data))
+        self.statusmessage.setText(msg)
+        if self.datatype == DataType.SQL.name:
+            if self.user:
+                msg = 'Aangemeld als {}'.format(self.user.username)
+            else:
+                msg = 'Niet aangemeld'
+        self.showuser.setText(msg)
+
     def sign_in(self):
         """aanloggen in SQL/Django mode
         """
@@ -2928,6 +2941,7 @@ class MainWindow(qtw.QMainWindow):
         dlg.exec_()
         if self.dialog_data:
             self.user, self.is_user, self.is_admin = self.dialog_data
+            self.book.rereadlist = True
             self.on_page_changing(0)
 
 

@@ -17,7 +17,7 @@ import pathlib
 ROOT = pathlib.Path("/home/albert/projects/actiereg")
 sys.path.append(str(ROOT))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "actiereg.settings")
-from probreg.shared import get_projnames
+from probreg.shared import DataError, get_projnames
 
 import importlib
 APPS = ROOT / 'actiereg' / "apps.dat"
@@ -36,9 +36,6 @@ import django.contrib.auth.models as aut
 import django.contrib.auth.hashers as hashers
 
 import actiereg.core as core
-from actiereg._basic.sample_data import soort_list, stat_list, page_list  # unused
-from actiereg._basic.models import ORIENTS, SORTFIELDS, CHOICES, OP_CHOICES  # unused
-# waren misschien bedoeld als domeincheck binnen settings (wat ik hier niet doe)?
 import logging
 
 
@@ -46,8 +43,6 @@ def log(msg, *args, **kwargs):
     "schrijf logregel indien debuggen gewenst"
     if 'DEBUG' in os.environ and os.environ['DEBUG']:
         logging.info(msg, *args, **kwargs)
-
-from probreg.shared import DataError
 
 
 def get_user(inp):
@@ -73,8 +68,8 @@ def validate_user(naam, passw, project):
 
 
 def get_acties(naam, select=None, arch="", user=None):
-    """
-    de extra argumenten zijn alleen voor compatibiliteit met de xml versie.
+    """lees acties voor een bepaald project
+    de extra argumenten select en arch zijn alleen voor compatibiliteit met de xml versie.
     core.get_acties verwacht twee argumenten: my (de models module uit het actieve
     project) en user (de aangelogde gebruiker) en past zelf de in de selectie en
     sortering toe die in de database zijn opgeslagen voor de betreffende gebruiker.
@@ -183,6 +178,7 @@ class SelectOptions:
                 if sel.extra.strip():
                     data["titel"].append((sel.extra.lower(),))
                 data["titel"].append((sel.veldnm, sel.value))
+        data['arch'] = {0: '', 1: "arch", 2: "alles"}[data['arch']]
         self.olddata = collections.OrderedDict({x: y for x, y in sorted(data.items())})
         return data
 
@@ -215,9 +211,8 @@ class SelectOptions:
         about = data.get(name, [])
         newdata[name] = about
 
-        # django view
         name = 'arch'
-        arch = data.get(name, 0)  # "arch" of "alles"
+        arch = data.get(name, '')
         newdata[name] = arch
 
         if newdata and newdata == self.olddata:
@@ -251,22 +246,19 @@ class SelectOptions:
                                                       extra=extra, value=stat)
                 extra = "OR"
         if about:
-            #         [('about', '...'), '...', ('title', '...')]
             extra = no_extra
             for item in about:
                 if len(item) == 1:
                     extra = item[0].upper()
                 elif item:
                     ok = self.my.Selection.objects.create(user=self.user,
-                                                          veldnm=item[0],
-                                                          operator="INCL",
-                                                          extra=extra,
-                                                          value=item[1])
+                                                          veldnm=item[0], operator="INCL",
+                                                          extra=extra, value=item[1])
         if arch:
             ok = self.my.Selection.objects.create(user=self.user,
                                                   veldnm="arch", operator="EQ",
                                                   extra=no_extra, value=False)
-            if arch == "alles":
+            if arch == 'alles':
                 ok = self.my.Selection.objects.create(user=self.user,
                                                       veldnm="arch", operator="EQ",
                                                       extra=no_extra, value=True)
@@ -477,7 +469,6 @@ class Actie:
         for x in self._actie.events.all():
             start = x.start.strftime('%x %X') if x.start else '(data/time unknown)'
             self.events.append((start, x.text))
-        print(self.events)
         self.events_oud = self.events[:]
         self.exists = True
 
@@ -494,12 +485,12 @@ class Actie:
         "stel status in (code of tekst) met controle a.h.v. project settings"
         self.status = self.settings.get_statusid(waarde)
         ## log(waarde, self.status, sep = " ")
-        self.store_event('status gewijzigd in "{}"'.format(self.get_statustext()))
+        self.add_event('status gewijzigd in "{}"'.format(self.get_statustext()))
 
     def set_soort(self, waarde):
         "stel soort in (code of tekst) met controle a.h.v. project settings"
         self.soort = self.settings.get_soortid(waarde)
-        self.store_event('status gewijzigd in "{}"'.format(self.get_soorttext()))
+        self.add_event('status gewijzigd in "{}"'.format(self.get_soorttext()))
 
     def set_arch(self, waarde):
         "stel archiefstatus in - garandeert dat dat een boolean waarde wordt"
@@ -509,58 +500,40 @@ class Actie:
         else:
             self.arch = False
             txt = "Actie herleefd"
-        self.store_event(txt)
+        self.add_event(txt)
 
-    def store_gewijzigd(self, item, value, user):
-        "voeg info over gewijzigde rubriek toe aan events"
-        self.store_event('{} gewijzigd in "{}"'.format(item, value), user)
-
-    def store_event(self, txt, user):
+    def add_event(self, txt):
         "voeg tekstregel toe aan events"
         now = dt.datetime.today()
         self.events.append((now.isoformat(' '), txt))
-        # core.store_event_with_date(self.my, txt, self._actie, now, user)
 
     def write(self, user):
         "actiegegevens (terug)schrijven"
-        print('new events:', self.events)
         if self.over != self.over_oud:
             self._actie.about = self.over
-            # self.store_gewijzigd('onderwerp', self.over, user)
         if self.titel != self.titel_oud:
             self._actie.title = self.titel
-            # self.store_gewijzigd('titel', self.titel, user)
         if self.status != self.status_oud:
             self._actie.status = self.my.Status.objects.get(value=self.status)
-            # self.store_gewijzigd('status', self.status, user)
         if self.soort != self.soort_oud:
             self._actie.soort = self.my.Soort.objects.get(value=self.soort)
-            # self.store_gewijzigd('soort', self.soort, user)
         if self.arch != self.arch_oud:
             self._actie.arch = self.arch
-            # self.store_gewijzigd('Gearchiveerd', self.arch, user)
         if self.melding != self.melding_oud:
             self._actie.melding = self.melding
-            # self.store_event("Meldingtekst aangepast", user)
         if self.oorzaak != self.oorzaak_oud:
             self._actie.oorzaak = self.oorzaak
-            # self.store_event("Beschrijving oorzaak aangepast", user)
         if self.oplossing != self.oplossing_oud:
             self._actie.oplossing = self.oplossing
-            # self.store_event("Beschrijving oplossing aangepast", user)
         if self.vervolg != self.vervolg_oud:
             self._actie.vervolg = self.vervolg
-            # self.store_event("Beschrijving vervolgactie aangepast", user)
         self._actie.lasteditor = user
         self._actie.save()
-        print('old events:', self.events_oud)
-        print()
         for item in self.events:
             if item in self.events_oud:
                 continue
             date, msg = item
             core.store_event_with_date(self.my, msg, self._actie, date, user)
-        # self.read()
 
     def clear(self):                            # compatibility with dml_xml.py
         "images opruimen"
