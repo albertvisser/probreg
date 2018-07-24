@@ -1356,8 +1356,12 @@ class Page6(Page):
                 self.new_action.activated.connect(functools.partial(self.on_activate_item,
                                                                     self.progress_list.item(0)))
             else:
-                self.progress_list.itemActivated.disconnect()
-                self.new_action.activated.disconnect()
+                try:
+                    self.progress_list.itemActivated.disconnect()
+                    self.new_action.activated.disconnect()
+                except TypeError:
+                    # avoid "disconnect() failed between 'itemActivated' and all its connections"
+                    pass
         self.progress_text.clear()
         self.oldbuf = (self.old_list, self.old_data)
         self.oldtext = ''
