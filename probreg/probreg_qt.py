@@ -748,7 +748,6 @@ class Page0(Page):
         self.go_button.clicked.connect(self.goto_actie)
         self.archive_button.clicked.connect(self.archiveer)
         self.new_button.clicked.connect(self.nieuwp)
-        self.enable_buttons(False, all=True)
 
     def doelayout(self):
         "layout page"
@@ -782,8 +781,6 @@ class Page0(Page):
                 self.p0list.setSortingEnabled(not test)
             else:
                 self.p0list.setSortingEnabled(False)
-            self.sort_button.setEnabled(self.parent.parent.is_user)
-            self.filter_button.setEnabled(self.parent.parent.is_user)
 
         self.seltitel = 'alle meldingen ' + self.selection
         Page.vulp(self)
@@ -829,7 +826,7 @@ class Page0(Page):
             # self.parent.rereadlist = False  # (wordt al uitgezet in rereadlist)
         for i in range(1, self.parent.count()):
             self.parent.setTabEnabled(i, False)
-        self.enable_buttons(self.parent.parent.is_user)
+        self.enable_buttons()
         if self.p0list.has_selection:
             for i in range(1, self.parent.count()):
                 self.parent.setTabEnabled(i, True)
@@ -850,7 +847,6 @@ class Page0(Page):
         if items is None:
             self.parent.parent.sbar.showMessage('Selection is None?', 1000)
         if not items:
-            self.new_button.setEnabled(self.parent.parent.is_user)
             return
 
         self.p0list.has_selection = True
@@ -859,8 +855,6 @@ class Page0(Page):
                 actie, _, soort, status, l_wijz, titel = data
             elif self.parent.parent.datatype == DataType.SQL.name:
                 actie, _, soort, status, l_wijz, over, titel = data
-                l_wijz = l_wijz[:19]
-                l_wijz = '{}{}{}'.format(l_wijz[3:6], l_wijz[:3], l_wijz[6:])
             new_item = qtw.QTreeWidgetItem()
             new_item.setText(0, actie)
             new_item.setData(0, core.Qt.UserRole, actie)
@@ -954,15 +948,17 @@ class Page0(Page):
             hlp = "&Herleef" if self.parent.pagedata.arch else "&Archiveer"
             self.archive_button.setText(hlp)
 
-    def enable_buttons(self, state=True, all=False):
+    def enable_buttons(self):
         "buttons wel of niet bruikbaar maken"
-        self.new_button.setEnabled(state)
-        if self.parent.parent.user:
-            self.sort_button.setEnabled(True)
-            self.filter_button.setEnabled(True)
-        if all or self.p0list.has_selection:
-            self.go_button.setEnabled(state)
-            self.archive_button.setEnabled(state)
+        self.filter_button.setEnabled(bool(self.parent.parent.user))
+        self.go_button.setEnabled(self.p0list.has_selection)
+        self.new_button.setEnabled(self.parent.parent.is_user)
+        if self.p0list.has_selection:
+            self.sort_button.setEnabled(bool(self.parent.parent.user))
+            self.archive_button.setEnabled(self.parent.parent.is_user)
+        else:
+            self.sort_button.setEnabled(False)
+            self.archive_button.setEnabled(False)
 
 
 class Page1(Page):
@@ -1334,9 +1330,6 @@ class Page6(Page):
             first_item.setData(core.Qt.UserRole, -1)
             self.progress_list.addItem(first_item)
             for idx, datum in enumerate(self.event_list):
-                if self.parent.parent.datatype == DataType.SQL.name:
-                    datum = datum[:19]
-                    datum = '{}{}{}'.format(datum[3:6], datum[:3], datum[6:])
                 # convert to HTML (if needed) and back
                 self.progress_text.set_contents(self.event_data[idx])
                 tekst_plat = self.progress_text.toPlainText()

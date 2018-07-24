@@ -37,6 +37,7 @@ import django.contrib.auth.hashers as hashers
 
 import actiereg.core as core
 import logging
+dtformat = '%d-%m-%Y %H:%I:%S'  # was '%x %X' en daarvoor .isoformat(' ')
 
 
 def log(msg, *args, **kwargs):
@@ -85,7 +86,8 @@ def get_acties(naam, select=None, arch="", user=None):
     if data:
         actiedata = []
         for actie in data:
-            gewijzigd = actie.gewijzigd.strftime('%x %X') if actie.gewijzigd else ''
+            # gewijzigd = actie.gewijzigd.strftime('%x %X') if actie.gewijzigd else ''
+            gewijzigd = actie.gewijzigd.strftime(dtformat) if actie.gewijzigd else ''
             linedata = (actie.nummer, actie.start,
                         actie.status.title, actie.status.value,
                         actie.soort.title, actie.soort.value,
@@ -450,11 +452,11 @@ class Actie:
             return
         ## actie = self._actie.id
         self.id = self._actie.nummer  # verandert niet
-        self.datum = self._actie.start.strftime('%x %X')  # .isoformat(' ') # verandert niet
+        self.datum = self._actie.start.strftime(dtformat)
         self.over = self.over_oud = self._actie.about
         self.titel = self.titel_oud = self._actie.title
         if self._actie.gewijzigd:
-            self.updated = self._actie.gewijzigd.strftime('%x %X')  # .isoformat()[:19]
+            self.updated = self._actie.gewijzigd.strftime(dtformat)
         else:
             self.updated = ''
         self.status = self.status_oud = self._actie.status.value
@@ -467,7 +469,7 @@ class Actie:
         ## self.events = [(x.start, x.text) for x in self._actie.events.all()]
         self.events = []
         for x in self._actie.events.all():
-            start = x.start.strftime('%x %X') if x.start else '(data/time unknown)'
+            start = x.start.strftime(dtformat) if x.start else '(data/time unknown)'
             self.events.append((start, x.text))
         self.events_oud = self.events[:]
         self.exists = True
@@ -505,7 +507,7 @@ class Actie:
     def add_event(self, txt):
         "voeg tekstregel toe aan events"
         now = dt.datetime.today()
-        self.events.append((now.isoformat(' '), txt))
+        self.events.append((now.strftime(dtformat), txt))
 
     def write(self, user):
         "actiegegevens (terug)schrijven"
