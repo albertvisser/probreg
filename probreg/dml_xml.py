@@ -440,11 +440,8 @@ class Actie:
                         self.imagelist.append(fname)
                         with open(fname, 'wb') as _out:
                             log('length of text:', len(z.text))
-                            ## data = bytes(z.text, encoding='utf-8')
-                            ## data = gzip.decompress(data)
-                            data = base64.b64decode(eval(z.text))  # FIXME: why eval?
-                            ## data = base64.decodebytes(bytes(z.text, encoding='utf-8')) # .decode('ascii')
-                            ## data = base64.b64decode(bytes(z.text, encoding='utf-8'))
+                            data = base64.b64decode(eval(z.text))  # eval is nodig omdat anders
+                            # de quotes eromheen meegecodeerd worden
                             _out.write(data)
             self.exists = True
 
