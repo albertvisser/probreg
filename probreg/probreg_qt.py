@@ -2844,8 +2844,7 @@ class MainWindow(qtw.QMainWindow):
         self.book.page1.vul_combos()
 
     def on_page_changing(self, newtabnum):
-        """
-        deze methode is bedoeld om wanneer er van pagina gewisseld gaat worden
+        """deze methode is bedoeld om wanneer er van pagina gewisseld gaat worden
         te controleren of dat wel mogelijk is en zo niet, te melden waarom en de
         paginawissel tegen te houden (ok, terug te gaan naar de vorige pagina).
         PyQT4 kent geen aparte beforechanging methode, daarom is deze methode
