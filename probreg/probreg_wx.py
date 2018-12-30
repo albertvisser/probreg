@@ -4,22 +4,27 @@
 """
 
 from __future__ import print_function
-import sys, os
+import os
 LIN = True if os.name == 'posix' else False
+import sys
 from datetime import datetime
-import pprint
+# import pprint
 import wx
 import wx.html as html
-import wx.lib.mixins.listctrl  as  listmix
-import wx.gizmos   as  gizmos
-import images
-import pr_globals as pr
-from dml import get_config_objects
+import wx.lib.mixins.listctrl as listmix
+import wx.adv
+# import wx.gizmos as gizmos
+# import probreg.images
+import probreg.pr_globals as pr
+from probreg.dml import get_config_objects
 XML_VERSION = SQL_VERSION = False
+HERE = os.path.abspath(os.path.dirname(__file__))
+
 
 def get_dts():
     "routine om een geformatteerd date/time stamp te verkrijgen"
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
 
 class MyListCtrl(wx.ListCtrl, listmix.ListCtrlAutoWidthMixin):
     "list control mixed in with width adapter"
@@ -28,9 +33,10 @@ class MyListCtrl(wx.ListCtrl, listmix.ListCtrlAutoWidthMixin):
         wx.ListCtrl.__init__(self, parent, id_, pos, size, style)
         listmix.ListCtrlAutoWidthMixin.__init__(self)
 
+
 class Page(wx.Panel):
     "base class for notebook page"
-    def __init__(self, parent, id_, wants_chars = True):
+    def __init__(self, parent, id_, wants_chars=True):
         self.parent = parent
         if wants_chars:
             wx.Panel.__init__(self, parent, id_, style=wx.WANTS_CHARS)
@@ -39,12 +45,10 @@ class Page(wx.Panel):
             return
         self.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_BTNFACE))
         high = 330 if LIN else 430
-        self.text1 = wx.TextCtrl(self, -1, size=(490, high),
-                                style=wx.TE_MULTILINE
-                                | wx.TE_PROCESS_TAB
-                                | wx.TE_RICH2
-                                | wx.TE_WORDWRAP
-                                )
+        self.text1 = wx.TextCtrl(self, -1, size=(490, high), style=wx.TE_MULTILINE |
+                                                                   wx.TE_PROCESS_TAB |
+                                                                   wx.TE_RICH2 |
+                                                                   wx.TE_WORDWRAP)
         self.text1.Bind(wx.EVT_KEY_DOWN, self.on_key)
         self.Bind(wx.EVT_TEXT, self.on_text, self.text1)
         self.save_button = wx.Button(self, -1, 'Sla wijzigingen op (Ctrl-S)')
@@ -71,7 +75,7 @@ class Page(wx.Panel):
         sizer0.Fit(self)
         sizer0.SetSizeHints(self)
 
-    def vulp(self, evt = None):
+    def vulp(self, evt=None):
         """te tonen gegevens invullen in velden e.a. initialisaties
 
         methode aan te roepen voorafgaand aan het tonen van de pagina"""
@@ -80,11 +84,10 @@ class Page(wx.Panel):
         if self.parent.current_tab == 0:
             text = self.seltitel
         else:
-            text = self.parent.tabs[self.parent.current_tab].split(None,1)
+            text = self.parent.tabs[self.parent.current_tab].split(None, 1)
             if self.parent.pagedata:
                 text = self.parent.pagedata.id + ' ' + self.parent.pagedata.titel
-        self.parent.parent.SetTitle("{} | {}".format(self.parent.parent.title,
-            text))
+        self.parent.parent.SetTitle("{} | {}".format(self.parent.parent.title, text))
         self.parent.parent.SetStatusText(
             self.parent.pagehelp[self.parent.current_tab])
         if 1 < self.parent.current_tab < 6:
@@ -112,13 +115,16 @@ class Page(wx.Panel):
         self.parent.old_id = self.parent.pagedata.id
         self.parent.newitem = False
 
-    def nieuwp(self, evt = None):
+    def nieuwp(self, evt=None):
         """voorbereiden opvoeren nieuwe actie"""
+        if not self.parent.fnaam:
+            wx.MessageBox('Eerst een databestand kiezen', '')
+            return
         if self.leavep():
             self.parent.pagedata = Actie(self.parent.fnaam, 0)
             self.parent.newitem = True
             if self.parent.current_tab == 1:
-                self.vulp() # om de velden leeg te maken
+                self.vulp()  # om de velden leeg te maken
                 self.proc_entry.SetFocus()
             else:
                 self.goto_page(1, check=False)
@@ -129,11 +135,11 @@ class Page(wx.Panel):
         "afsluitende acties uit te voeren alvorens de pagina te verlaten"
         if self.parent.current_tab == 1:
             newbuf = (self.proc_entry.GetValue(), self.desc_entry.GetValue(),
-                self.stat_choice.GetSelection(), self.cat_choice.GetSelection())
-            if self.parent.newitem and newbuf[0] == "" and newbuf[1] == "" \
-                and not self.parent.parent.exiting:
-                self.parent.newitem = False
-                self.parent.pagedata = Actie(self.parent.fnaam, self.parent.old_id)
+                      self.stat_choice.GetSelection(), self.cat_choice.GetSelection())
+            if self.parent.newitem and not self.parent.parent.exiting:
+                if newbuf[0] == "" and newbuf[1] == "":
+                    self.parent.newitem = False
+                    self.parent.pagedata = Actie(self.parent.fnaam, self.parent.old_id)
         elif self.parent.current_tab == 6:
             newbuf = (self.event_list, self.event_data)
         elif self.parent.current_tab > 1:
@@ -141,48 +147,45 @@ class Page(wx.Panel):
         ok_to_leave = True
         self.parent.checked_for_leaving = True
         if self.parent.current_tab > 0 and newbuf != self.oldbuf:
-            dlg = wx.MessageDialog(self, "\n".join((
-                "De gegevens op de pagina zijn gewijzigd, ",
-                "wilt u de wijzigingen opslaan voordat u verder gaat?")),
-                self.parent.parent.title,
-                wx.YES_NO | wx.CANCEL | wx.ICON_EXCLAMATION
-            )
-            retval = dlg.ShowModal()
-            if retval == wx.ID_YES:
-                ok_to_leave = self.savep()
-            elif retval == wx.ID_CANCEL:
-                self.parent.checked_for_leaving = ok_to_leave = False
-            dlg.Destroy()
+            prompt = "\n".join(("De gegevens op de pagina zijn gewijzigd, ",
+                                "wilt u de wijzigingen opslaan voordat u verder gaat?"))
+            with wx.MessageDialog(self, prompt, self.parent.parent.title,
+                                  wx.YES_NO | wx.CANCEL | wx.ICON_EXCLAMATION) as dlg:
+                retval = dlg.ShowModal()
+                if retval == wx.ID_YES:
+                    ok_to_leave = self.savep()
+                elif retval == wx.ID_CANCEL:
+                    self.parent.checked_for_leaving = ok_to_leave = False
         return ok_to_leave
 
     def savep(self, evt=None):
         "gegevens van een actie opslaan afhankelijk van pagina"
         self.enable_buttons(False)
         if self.parent.current_tab <= 1 or self.parent.current_tab == 6:
-            return
+            return False
         wijzig = False
         text = self.text1.GetValue()
         if self.parent.current_tab == 2 and text != self.parent.pagedata.melding:
             self.oldbuf = self.parent.pagedata.melding = text
-            self.parent.pagedata.events.append((get_dts(),"Meldingtekst aangepast"))
+            self.parent.pagedata.events.append((get_dts(), "Meldingtekst aangepast"))
             wijzig = True
         if self.parent.current_tab == 3 and text != self.parent.pagedata.oorzaak:
             self.oldbuf = self.parent.pagedata.oorzaak = text
-            self.parent.pagedata.events.append((get_dts(),"Beschrijving oorzaak aangepast"))
+            self.parent.pagedata.events.append((get_dts(), "Beschrijving oorzaak aangepast"))
             wijzig = True
         if self.parent.current_tab == 4 and text != self.parent.pagedata.oplossing:
             self.oldbuf = self.parent.pagedata.oplossing = text
-            self.parent.pagedata.events.append((get_dts(),"Beschrijving oplossing aangepast"))
+            self.parent.pagedata.events.append((get_dts(), "Beschrijving oplossing aangepast"))
             wijzig = True
         if self.parent.current_tab == 5 and text != self.parent.pagedata.vervolg:
             self.oldbuf = self.parent.pagedata.vervolg = text
-            self.parent.pagedata.events.append((get_dts(),"Tekst vervolgactie aangepast"))
+            self.parent.pagedata.events.append((get_dts(), "Tekst vervolgactie aangepast"))
             wijzig = True
         if wijzig:
             self.update_actie()
         try:
-            self.parent.page0.p0list.SetStringItem(self.parent.current_item, 4,
-                self.parent.pagedata.updated) # bijwerken in panel 0
+            self.parent.page0.p0list.SetItem(self.parent.current_item, 4,
+                                             self.parent.pagedata.updated)  # bijwerken in panel 0
         except wx._core.PyAssertionError:
             pass
         return True
@@ -202,54 +205,54 @@ class Page(wx.Panel):
         "callback voor EVT_KEYUP"
         keycode = evt.GetKeyCode()
         togo = keycode - 48
-        if evt.GetModifiers() == wx.MOD_ALT: # evt.AltDown()
-            if keycode == wx.WXK_LEFT or keycode == wx.WXK_NUMPAD_LEFT: #  keycode == 314
+        if evt.GetModifiers() == wx.MOD_ALT:  # evt.AltDown()
+            if keycode == wx.WXK_LEFT or keycode == wx.WXK_NUMPAD_LEFT:  # keycode == 314
                 self.goto_prev()
-            elif keycode == wx.WXK_RIGHT or keycode == wx.WXK_NUMPAD_RIGHT: #  keycode == 316
+            elif keycode == wx.WXK_RIGHT or keycode == wx.WXK_NUMPAD_RIGHT:  # keycode == 316
                 self.goto_next()
-            elif togo >= 0 and togo <= self.parent.pages: # Alt-0 t/m Alt-6
+            elif togo >= 0 and togo <= self.parent.pages:  # Alt-0 t/m Alt-6
                 if togo != self.parent.current_tab:
                     self.goto_page(togo)
-            elif keycode == 83: # Alt-S
+            elif keycode == 83:  # Alt-S
                 if self.parent.current_tab == 0:
                     self.sort()
-            elif keycode == 70: # Alt-F
+            elif keycode == 70:  # Alt-F
                 if self.parent.current_tab == 0:
                     self.select()
-            elif keycode == 71: # Alt-G
+            elif keycode == 71:  # Alt-G
                 if self.parent.current_tab == 0:
                     self.goto_actie()
-            elif keycode == 78: # Alt-N
+            elif keycode == 78:  # Alt-N
                 self.nieuwp()
             else:
                 evt.Skip()
-        elif evt.GetModifiers() == wx.MOD_CONTROL: # evt.ControlDown()
-            if keycode == 81: # Ctrl-Q
+        elif evt.GetModifiers() == wx.MOD_CONTROL:  # evt.ControlDown()
+            if keycode == 81:  # Ctrl-Q
                 self.parent.parent.exit_app()
-            elif keycode == 80: # Ctrl-P
+            elif keycode == 80:  # Ctrl-P
                 self.print_(evt)
-            elif keycode == 79: # Ctrl-O
+            elif keycode == 79:  # Ctrl-O
                 self.parent.parent.open_file(evt)
-            elif keycode == 78: # Ctrl-N
+            elif keycode == 78:  # Ctrl-N
                 self.parent.parent.new_file(evt)
-            elif keycode == 72: # Ctrl-H
+            elif keycode == 72:  # Ctrl-H
                 self.parent.parent.hotkey_help(evt)
                 ## self.parent.parent.hotkey_settings(evt)
-            elif keycode == 83: # Ctrl-S
+            elif keycode == 83:  # Ctrl-S
                 if self.parent.current_tab > 0:
                     if self.save_button.IsEnabled():
                         self.savep()
-            elif keycode == 71: # Ctrl-G
+            elif keycode == 71:  # Ctrl-G
                 if self.parent.current_tab > 0:
                     if self.saveandgo_button.IsEnabled():
                         self.savepgo()
-            elif keycode == 90: # Ctrl-Z
+            elif keycode == 90:  # Ctrl-Z
                 if self.parent.current_tab > 0:
                     if self.cancel_button.IsEnabled():
                         self.restorep()
             else:
                 evt.Skip()
-        elif keycode == wx.WXK_RETURN or keycode == wx.WXK_NUMPAD_ENTER:# 13 or 372: # Enter
+        elif keycode == wx.WXK_RETURN or keycode == wx.WXK_NUMPAD_ENTER:  # 13 or 372: # Enter
             if self.parent.current_tab == 0:
                 self.goto_next()
             else:
@@ -270,6 +273,8 @@ class Page(wx.Panel):
         self.enable_buttons()
 
     def update_actie(self):
+        """refresh updated item
+        """
         ## self.parent.pagedata.list() # NB element 0 is leeg
         self.parent.pagedata.write()
         self.checked_for_leaving = True
@@ -319,12 +324,13 @@ class Page(wx.Panel):
         vraag om printen scherm of actie, bv. met een radioboxdialog -
         nou die hebben we niet dat wordt een SingleChoiceDialog"""
         dlg = wx.SingleChoiceDialog(self, 'Wat wil je afdrukken', 'Vraagje',
-            ['huidig scherm', 'huidige actie'],wx.CHOICEDLG_STYLE)
+                                    ['huidig scherm', 'huidige actie'], wx.CHOICEDLG_STYLE)
         if dlg.ShowModal() == wx.ID_OK:
             if dlg.GetSelection() == 0:
                 self.parent.parent.print_scherm(evt)
             else:
                 self.parent.parent.print_actie(evt)
+
 
 class Page0(Page, listmix.ColumnSorterMixin):
     "pagina 0: overzicht acties"
@@ -339,17 +345,21 @@ class Page0(Page, listmix.ColumnSorterMixin):
 
         ## self.idx1 = self.imglist.Add(images.getPtBitmap())
         ## self.up_arrow = self.imglist.Add(images.getSmallUpArrowBitmap())
-        with open('icons/up.png') as _in:
-            img = wx.ImageFromStream(_in, wx.BITMAP_TYPE_PNG)
-            self.up_arrow = self.imglist.Add(wx.BitmapFromImage(img))
+        ## with open(os.path.join(HERE, 'icons/up.png')) as _in:
+        ##     img = wx.ImageFromStream(_in, wx.BITMAP_TYPE_PNG)
+        ## self.up_arrow = self.imglist.Add(wx.BitmapFromImage(img))
+        self.up_arrow = self.imglist.Add(wx.Bitmap(wx.Image(os.path.join(HERE, 'icons/up.png'),
+                                                            wx.BITMAP_TYPE_PNG)))
         ## self.down_arrow = self.imglist.Add(images.getSmallDnArrowBitmap())
-        with open('icons/down.png') as _in:
-            img = wx.ImageFromStream(_in, wx.BITMAP_TYPE_PNG)
-            self.down_arrow = self.imglist.Add(wx.BitmapFromImage(img))
+        ## with open(os.path.join(HERE, 'icons/down.png')) as _in:
+        ##     img = wx.ImageFromStream(_in, wx.BITMAP_TYPE_PNG)
+        ## self.down_arrow = self.imglist.Add(wx.BitmapFromImage(img))
+        self.down_arrow = self.imglist.Add(wx.Bitmap(wx.Image(os.path.join(HERE, 'icons/down.png'),
+                                                              wx.BITMAP_TYPE_PNG)))
 
-        self.p0list = MyListCtrl(self, -1, style = wx.LC_REPORT |
-                                                   wx.BORDER_SUNKEN |
-                                                   wx.LC_SINGLE_SEL)
+        self.p0list = MyListCtrl(self, -1, style=wx.LC_REPORT | wx.BORDER_SUNKEN |
+                                                 # wx.LC_HRULES |
+                                                 wx.LC_SINGLE_SEL)
         ## high = 400 if LIN else 444
         ## self.p0list.SetMinSize((440,high))
 
@@ -365,7 +375,7 @@ class Page0(Page, listmix.ColumnSorterMixin):
         elif SQL_VERSION:
             aantcols = 7
         listmix.ColumnSorterMixin.__init__(self, aantcols)
-        self.SortListItems(1) #, True)
+        self.SortListItems(1)  # , True)
 
         self.Bind(wx.EVT_LIST_ITEM_SELECTED, self.on_select_item, self.p0list)
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.on_activate_item, self.p0list)
@@ -392,8 +402,8 @@ class Page0(Page, listmix.ColumnSorterMixin):
         sizer2 = wx.BoxSizer(wx.HORIZONTAL)
         sizer1.Add(self.p0list, 1, wx.EXPAND, 0)
         sizer0.Add(sizer1, 1, wx.EXPAND, 0)
-        sizer2.Add(self.sort_button, 0,  wx.ALL, 3)
-        sizer2.Add(self.filter_button, 0,  wx.ALL, 3)
+        sizer2.Add(self.sort_button, 0, wx.ALL, 3)
+        sizer2.Add(self.filter_button, 0, wx.ALL, 3)
         sizer2.Add(self.go_button, 0, wx.ALL, 3)
         sizer2.Add(self.archive_button, 0, wx.ALL, 3)
         sizer2.Add(self.new_button, 0, wx.ALL, 3)
@@ -407,7 +417,7 @@ class Page0(Page, listmix.ColumnSorterMixin):
         ## "afsluitende acties uit te voeren alvorens de pagina te verlaten"
         ## return True # niks doen, doorgaan
 
-    def vulp(self, evt = None):
+    def vulp(self, evt=None):
         """te tonen gegevens invullen in velden e.a. initialisaties
 
         methode aan te roepen voorafgaand aan het tonen van de pagina"""
@@ -430,7 +440,7 @@ class Page0(Page, listmix.ColumnSorterMixin):
                         # nummer, start, stat, cat, titel, gewijzigd = item
                         self.parent.data[idx] = (item[0],
                                                  item[1],
-                                                 ".".join((item[3][1], item[3][0])), \
+                                                 ".".join((item[3][1], item[3][0])),
                                                  ".".join((item[2][1], item[2][0])),
                                                  item[5],
                                                  item[4])
@@ -439,7 +449,7 @@ class Page0(Page, listmix.ColumnSorterMixin):
                         # about, titel, gewijzigd = item
                         self.parent.data[idx] = (item[0],
                                                  item[1],
-                                                 ".".join((item[5], item[4])), \
+                                                 ".".join((item[5], item[4])),
                                                  ".".join((str(item[3]), item[2])),
                                                  item[8],
                                                  item[6],
@@ -450,8 +460,10 @@ class Page0(Page, listmix.ColumnSorterMixin):
             self.parent.rereadlist = False
         self.parent.parent.SetStatusText("{0} - {1} items".format(
             self.parent.pagehelp[self.parent.current_tab], len(self.parent.data)))
-        self.p0list.Select(self.parent.current_item)
-        self.p0list.EnsureVisible(self.parent.current_item)
+        # self.parent.current_item is in deze versie een index, niet een item
+        # daarom werkt dit niet zoals waarschijnlijk bedoeld
+        # self.p0list.Select(self.parent.current_item)
+        # self.p0list.EnsureVisible(self.parent.current_item)
 
     def populate_list(self):
         "list control vullen"
@@ -463,43 +475,24 @@ class Page0(Page, listmix.ColumnSorterMixin):
         info = wx.ListItem()
         info.m_mask = wx.LIST_MASK_TEXT | wx.LIST_MASK_FORMAT | wx.LIST_MASK_WIDTH
         info.m_format = 0
-        info.m_width = 0
-        info.m_text = ""
-        self.p0list.InsertColumnInfo(0, info)
+        # info.m_width = 0
+        # info.m_text = ""
+        # self.p0list.InsertColumn(0, info)
 
-        info.m_width = 84 if LIN else 64
-        info.m_text = self.parent.ctitels[0]
-        self.p0list.InsertColumnInfo(1, info)
-
-        info.m_width = 24
-        info.m_text = self.parent.ctitels[1]
-        self.p0list.InsertColumnInfo(2, info)
-
-        info.m_width = 146 if LIN else 114
-        info.m_text = self.parent.ctitels[2]
-        self.p0list.InsertColumnInfo(3, info)
-
-        info.m_width = 90 if LIN else 72
-        info.m_text = self.parent.ctitels[3]
-        self.p0list.InsertColumnInfo(4, info)
-
-        if XML_VERSION:
-            info.m_width = 400 if LIN else 292
-            info.m_text = self.parent.ctitels[4]
-            self.p0list.InsertColumnInfo(5, info)
-        elif SQL_VERSION:
-            info.m_width = 90 if LIN else 72
-            info.m_text = self.parent.ctitels[4]
-            self.p0list.InsertColumnInfo(5, info)
-
-            info.m_width = 310 if LIN else 220
-            info.m_text = self.parent.ctitels[5]
-            self.p0list.InsertColumnInfo(6, info)
-
+        if LIN:
+            widths = (84, 24, 146, 90, 90, 310, 400)
+        else:
+            widths = (64, 24, 114, 72, 72, 220, 292)
+        for col, title in enumerate(self.parent.ctitels):
+            self.p0list.InsertColumn(col, title)
+            if XML_VERSION and col == 4:
+                self.p0list.SetColumnWidth(col, widths[-1])
+            else:
+                self.p0list.SetColumnWidth(col, widths[col])
 
         self.parent.rereadlist = False
         items = self.parent.data.items()
-        if items is None or len(items) == 0:
+        if not items:
             return
 
         for key, data in items:
@@ -508,18 +501,18 @@ class Page0(Page, listmix.ColumnSorterMixin):
             elif SQL_VERSION:
                 actie, _, soort, status, l_wijz, over, titel = data
                 l_wijz = l_wijz[:19]
-            idx = self.p0list.InsertStringItem(sys.maxint, actie)
-            self.p0list.SetStringItem(idx, 1, actie)
+            idx = self.p0list.InsertItem(sys.maxsize, actie)
+            self.p0list.SetItem(idx, 0, actie)
             pos = soort.index(".") + 1
-            self.p0list.SetStringItem(idx, 2, soort[pos:pos+1].upper())
+            self.p0list.SetItem(idx, 1, soort[pos:pos + 1].upper())
             pos = status.index(".") + 1
-            self.p0list.SetStringItem(idx, 3, status[pos:])
-            self.p0list.SetStringItem(idx, 4, l_wijz)
+            self.p0list.SetItem(idx, 2, status[pos:])
+            self.p0list.SetItem(idx, 3, l_wijz)
             if XML_VERSION:
-                self.p0list.SetStringItem(idx, 5, titel)
+                self.p0list.SetItem(idx, 4, titel)
             elif SQL_VERSION:
-                self.p0list.SetStringItem(idx, 5, over)
-                self.p0list.SetStringItem(idx, 6, titel)
+                self.p0list.SetItem(idx, 4, over)
+                self.p0list.SetItem(idx, 5, titel)
             self.p0list.SetItemData(idx, key)
         self.colorize()
 
@@ -533,20 +526,20 @@ class Page0(Page, listmix.ColumnSorterMixin):
 
     def colorize(self):
         """de regels om en om kleuren"""
-        kleur = False
-        for key in xrange(self.p0list.GetItemCount()):
+        return  # even niet
+        do_kleur = False
+        for key in range(self.p0list.GetItemCount()):
         ## for key in range(len(self.data.items)):
-            if kleur:
-                self.p0list.SetItemBackgroundColour(key,
-                    wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOW))
+            if do_kleur:
+                colour = wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOW)
             else:
-                self.p0list.SetItemBackgroundColour(key,
-                    wx.SystemSettings.GetColour(wx.SYS_COLOUR_INFOBK))
-            kleur = not kleur
+                colour = wx.SystemSettings.GetColour(wx.SYS_COLOUR_INFOBK)  # BTNFACE
+            self.p0list.SetItemBackgroundColour(key, colour)
+            do_kleur = not do_kleur
 
     def on_select_item(self, event):
         "callback voor selectie van item"
-        self.parent.current_item = event.m_itemIndex
+        self.parent.current_item = event.Index
         seli = self.p0list.GetItemData(self.parent.current_item)
         self.readp(self.parent.data[seli][0])
         hlp = "&Herleef" if self.parent.pagedata.arch else "&Archiveer"
@@ -555,12 +548,12 @@ class Page0(Page, listmix.ColumnSorterMixin):
 
     def on_activate_item(self, event):
         "callback voor activeren van item"
-        self.parent.current_item = event.m_itemIndex
+        self.parent.current_item = event.Index
 
     def on_column_clicked(self, event):
         "callback voor klikken op column header"
         self.parent.sorter = self.GetColumnSorter()
-        self.colorize() # heeft niet zoveel zin want het sorteren komt hierna pas?
+        self.colorize()
         event.Skip()
 
     def on_doubleclick(self, event):
@@ -568,43 +561,46 @@ class Page0(Page, listmix.ColumnSorterMixin):
         self.goto_actie()
         event.Skip()
 
-    def select(self, evt = None):
+    def select(self, evt=None):
         """tonen van de selectie dialoog
 
         niet alleen selecteren op tekst(deel) maar ook op status, soort etc"""
-        while True:
-            dlg = SelectOptionsDialog(self, self.sel_args)
-            test = dlg.ShowModal()
-            if test != wx.ID_OK: # Shows it
-                break
-            self.sel_args = dlg.set_options()
-            self.parent.rereadlist = True
-            try:
-                self.vulp()
-            except DataError as msg:
-                self.parent.rereadlist = False
-                wx.MessageBox(str(msg), "Oeps", wx.OK, parent=self)
-            else:
-                break
-        dlg.Destroy() # finally destroy it when finished.
+        with SelectOptionsDialog(self, self.sel_args) as dlg:
+            while True:
+                test = dlg.ShowModal()
+                if test != wx.ID_OK:
+                    break
+                self.sel_args = dlg.set_options()
+                self.parent.rereadlist = True
+                try:
+                    self.vulp()
+                except DataError as msg:
+                    self.parent.rereadlist = False
+                    wx.MessageBox(str(msg), "Oeps", wx.OK, parent=self)
+                else:
+                    break
+        ## dlg.Destroy()  # finally destroy it when finished.
         self.parent.parent.zetfocus(0)
 
-    def sort(self, evt = None):
+    def sort(self, evt=None):
         """tonen van de sorteer-opties dialoog
 
         sortering mogelijk op datum/tijd, soort, titel, status via schermpje met
         2x4 comboboxjes waarin je de volgorde van de rubrieken en de sorteervolgorde
         per rubriek kunt aangeven"""
         ## d = wx.MessageDialog( self, "Sorry, werkt nog niet", "Oeps", wx.OK)
-        dlg = SortOptionsDialog(self)
-        if dlg.ShowModal() == wx.ID_OK:
-            wx.MessageBox("Sorry, werkt nog niet", "Oeps", wx.OK)
-            # self.colorize() # formerly known as self.AfterSort()
-        dlg.Destroy() # finally destroy it when finished.
+        with SortOptionsDialog(self) as dlg:
+            if dlg.ShowModal() == wx.ID_OK:
+                wx.MessageBox("Sorry, werkt nog niet", "Oeps", wx.OK)
+                # self.colorize() # formerly known as self.AfterSort()
+        ## dlg.Destroy() # finally destroy it when finished.
         self.parent.parent.zetfocus(0)
 
-    def archiveer(self, evt = None):
+    def archiveer(self, evt=None):
         "archiveren of herleven van het geselecteerde item"
+        if not self.parent.current_item:
+            wx.MessageBox('Geen data selecteeerd', 'fout')
+            return
         seli = self.p0list.GetItemData(self.parent.current_item)
         self.readp(self.parent.data[seli][0])
         if XML_VERSION:
@@ -613,7 +609,7 @@ class Page0(Page, listmix.ColumnSorterMixin):
             self.parent.pagedata.events.append((get_dts(), "Actie {0}".format(hlp)))
         elif SQL_VERSION:
             self.parent.pagedata.set_arch(not self.parent.pagedata.arch)
-        self.update_actie() # self.parent.pagedata.write()
+        self.update_actie()  # self.parent.pagedata.write()
         self.parent.rereadlist = True
         self.vulp()
         self.parent.parent.zetfocus(0)
@@ -623,9 +619,10 @@ class Page0(Page, listmix.ColumnSorterMixin):
             hlp = "&Herleef" if self.parent.pagedata.arch else "&Archiveer"
             self.archive_button.SetLabel(hlp)
 
-    def enable_buttons(self, state = True):
+    def enable_buttons(self, state=True):
         "zorgen dat de gelijknamige methode van de base class niet wordt geactiveerd"
         pass
+
 
 class Page1(Page):
     "pagina 1: startscherm actie"
@@ -645,14 +642,12 @@ class Page1(Page):
         self.desc_entry.Bind(wx.EVT_KEY_DOWN, self.on_key)
         self.Bind(wx.EVT_TEXT, self.on_text, self.desc_entry)
 
-        self.cat_choice = wx.ComboBox(self, -1, size = (180, -1),
-            style = wx.CB_DROPDOWN | wx.CB_READONLY
-            )
+        self.cat_choice = wx.ComboBox(self, -1, size=(180, -1),
+                                      style=wx.CB_DROPDOWN | wx.CB_READONLY)
         self.Bind(wx.EVT_TEXT, self.on_text, self.cat_choice)
         self.cat_choice.Bind(wx.EVT_KEY_DOWN, self.on_key)
-        self.stat_choice = wx.ComboBox(self, -1, size = (140, -1),
-            style = wx.CB_DROPDOWN | wx.CB_READONLY
-            )
+        self.stat_choice = wx.ComboBox(self, -1, size=(140, -1),
+                                       style=wx.CB_DROPDOWN | wx.CB_READONLY)
         self.Bind(wx.EVT_TEXT, self.on_text, self.stat_choice)
         self.stat_choice.Bind(wx.EVT_KEY_DOWN, self.on_key)
         self.vul_combos()
@@ -674,29 +669,29 @@ class Page1(Page):
     def doelayout(self):
         "layout page"
         sizer0 = wx.BoxSizer(wx.VERTICAL)
-        sizer1 = wx.GridBagSizer(3, 12) # rows, cols, hgap, vgap
-        sizer1.Add(wx.StaticText(self,  -1, "Actie-id:"), (0, 0),
-            flag = wx.ALL | wx.ALIGN_LEFT | wx.ALIGN_TOP, border = 10)
-        sizer1.Add(self.id_text,  (0, 1), flag = wx.ALIGN_CENTER_VERTICAL)
-        sizer1.Add(wx.StaticText(self,  -1, "Datum/tijd:"), (1, 0),
-            flag = wx.ALL | wx.ALIGN_TOP, border = 10)
-        sizer1.Add(self.date_text, (1, 1), flag = wx.ALIGN_CENTER_VERTICAL)
-        sizer1.Add(wx.StaticText(self,  -1, "Job/\ntransactie:"), (2, 0),
-            flag = wx.ALL | wx.ALIGN_TOP, border = 10)
-        sizer1.Add(self.proc_entry, (2, 1), flag = wx.ALIGN_CENTER_VERTICAL)
-        sizer1.Add(wx.StaticText(self,  -1, "Melding/code/\nomschrijving:"), (3, 0),
-            flag = wx.ALL | wx.ALIGN_TOP, border = 10)
-        sizer1.Add(self.desc_entry, (3, 1), flag = wx.ALIGN_CENTER_VERTICAL)
-        sizer1.Add(wx.StaticText(self,  -1, "Categorie:"), (4, 0),
-            flag = wx.ALL | wx.ALIGN_TOP, border = 10)
-        sizer1.Add(self.cat_choice, (4, 1), flag = wx.ALIGN_CENTER_VERTICAL)
-        sizer1.Add(wx.StaticText(self,  -1, "Status:"), (5, 0),
-            flag = wx.ALL | wx.ALIGN_TOP, border = 10)
-        sizer1.Add(self.stat_choice, (5, 1), flag = wx.ALIGN_CENTER_VERTICAL)
-        sizer1.Add(self.archive_text, (6, 1), flag = wx.ALIGN_CENTER_VERTICAL | wx.TOP | wx.BOTTOM,
-            border = 10)
-        sizer1.Add(self.archive_button, (7, 1), flag = wx.ALIGN_CENTER_VERTICAL | wx.TOP,
-            border = 5)
+        sizer1 = wx.GridBagSizer(3, 12)  # rows, cols, hgap, vgap
+        sizer1.Add(wx.StaticText(self, -1, "Actie-id:"), (0, 0),
+                   flag=wx.ALL | wx.ALIGN_LEFT | wx.ALIGN_TOP, border=10)
+        sizer1.Add(self.id_text, (0, 1), flag=wx.ALIGN_CENTER_VERTICAL)
+        sizer1.Add(wx.StaticText(self, -1, "Datum/tijd:"), (1, 0),
+                   flag=wx.ALL | wx.ALIGN_TOP, border=10)
+        sizer1.Add(self.date_text, (1, 1), flag=wx.ALIGN_CENTER_VERTICAL)
+        sizer1.Add(wx.StaticText(self, -1, "Job/\ntransactie:"), (2, 0),
+                   flag=wx.ALL | wx.ALIGN_TOP, border=10)
+        sizer1.Add(self.proc_entry, (2, 1), flag=wx.ALIGN_CENTER_VERTICAL)
+        sizer1.Add(wx.StaticText(self, -1, "Melding/code/\nomschrijving:"), (3, 0),
+                   flag=wx.ALL | wx.ALIGN_TOP, border=10)
+        sizer1.Add(self.desc_entry, (3, 1), flag=wx.ALIGN_CENTER_VERTICAL)
+        sizer1.Add(wx.StaticText(self, -1, "Categorie:"), (4, 0),
+                   flag=wx.ALL | wx.ALIGN_TOP, border=10)
+        sizer1.Add(self.cat_choice, (4, 1), flag=wx.ALIGN_CENTER_VERTICAL)
+        sizer1.Add(wx.StaticText(self, -1, "Status:"), (5, 0),
+                   flag=wx.ALL | wx.ALIGN_TOP, border=10)
+        sizer1.Add(self.stat_choice, (5, 1), flag=wx.ALIGN_CENTER_VERTICAL)
+        sizer1.Add(self.archive_text, (6, 1), flag=wx.ALIGN_CENTER_VERTICAL | wx.TOP | wx.BOTTOM,
+                   border=10)
+        sizer1.Add(self.archive_button, (7, 1), flag=wx.ALIGN_CENTER_VERTICAL | wx.TOP,
+                   border=5)
         sizer1.Add((-1, 186), (9, 0))
         sizer1.AddGrowableRow(8)
         sizer1.AddGrowableCol(1)
@@ -724,7 +719,7 @@ class Page1(Page):
         self.archive_text.SetLabel("")
         self.cat_choice.SetSelection(0)
         self.stat_choice.SetSelection(0)
-        if self.parent.pagedata is not None: # and not self.parent.newitem:
+        if self.parent.pagedata is not None:  # and not self.parent.newitem:
             self.id_text.SetValue(self.parent.pagedata.id)
             self.date_text.SetValue(self.parent.pagedata.datum)
             self.parch = self.parent.pagedata.arch
@@ -749,7 +744,7 @@ class Page1(Page):
                     self.cat_choice.SetSelection(x)
                     break
         self.oldbuf = (self.proc_entry.GetValue(), self.desc_entry.GetValue(),
-            self.stat_choice.GetSelection(), self.cat_choice.GetSelection())
+                       self.stat_choice.GetSelection(), self.cat_choice.GetSelection())
         ## self.initializing = False # gebeurt al in Page.vulp()?
         if self.parch:
             aanuit = False
@@ -774,21 +769,17 @@ class Page1(Page):
     def savep(self, evt=None):
         "opslaan van de paginagegevens"
         Page.savep(self)
-        proc = self.proc_entry.GetValue()
-        ## try:
-        proc = proc.capitalize() # [0].upper() + s1[1:]
+        id_text, date_text = self.id_text.GetValue(), self.date_text.GetValue()
+        proc, desc = self.proc_entry.GetValue(), self.desc_entry.GetValue()
+        proc = proc.capitalize()  # [0].upper() + s1[1:]
         self.proc_entry.SetValue(proc)
         self.enable_buttons(False)
-        ## except IndexError:
-            ## pass
-        desc = self.desc_entry.GetValue()
         if proc == "" or desc == "":
-            wx.MessageBox("Beide tekstrubrieken moeten worden ingevuld","Oeps")
+            wx.MessageBox("Beide tekstrubrieken moeten worden ingevuld", "Oeps")
             return False
         wijzig = False
         if self.parent.newitem:
-            self.parent.pagedata.events.append(
-                (get_dts(), "Actie opgevoerd"))
+            self.parent.pagedata.events.append((get_dts(), "Actie opgevoerd"))
         procdesc = " - ".join((proc, desc))
         if procdesc != self.parent.pagedata.titel:
             if XML_VERSION:
@@ -799,14 +790,16 @@ class Page1(Page):
             self.parent.pagedata.events.append(
                 (get_dts(), 'Titel gewijzigd in "{0}"'.format(procdesc)))
             wijzig = True
-        newstat = self.stat_choice.GetClientData(self.stat_choice.GetSelection())
+        stat_choice = self.stat_choice.GetSelection()
+        newstat = self.stat_choice.GetClientData(stat_choice)
         if newstat != self.parent.pagedata.status:
             self.parent.pagedata.status = newstat
             sel = self.stat_choice.GetStringSelection()
             self.parent.pagedata.events.append(
                 (get_dts(), 'Status gewijzigd in "{0}"'.format(sel)))
             wijzig = True
-        newcat = self.cat_choice.GetClientData(self.cat_choice.GetSelection())
+        cat_choice = self.cat_choice.GetSelection()
+        newcat = self.cat_choice.GetClientData(cat_choice)
         if newcat != self.parent.pagedata.soort:
             self.parent.pagedata.soort = newcat
             sel = self.cat_choice.GetStringSelection()
@@ -822,35 +815,29 @@ class Page1(Page):
         if wijzig:
             self.update_actie()
             if self.parent.newitem:
-                self.parent.current_item = len(self.parent.data) # + 1
-                self.parent.data[self.parent.current_item] = (self.date_text.GetValue(), \
-                    " - ".join((self.proc_entry.GetValue(), self.desc_entry.GetValue())), \
-                    self.stat_choice.GetSelection(), self.cat_choice.GetSelection(), \
-                    self.id_text.GetValue())
+                # self.parent.current_item = len(self.parent.data)  # + 1
+                self.parent.current_item = self.parent.page0.p0list.InsertItem(sys.maxsize, id_text)
+                self.parent.page0.p0list.SetItem(self.parent.current_item, 0, id_text)
+                # self.parent.data[self.parent.current_item] = (self.date_text.GetValue(),
+                newitem = len(self.parent.data)
+                self.parent.data[newitem] = (date_text, procdesc, stat_choice, cat_choice, id_text)
                 self.parent.newitem = False
                 self.parent.rereadlist = True
-            try:
-                self.parent.page0.p0list.SetStringItem(self.parent.current_item,
-                    2, self.parent.pagedata.get_soorttext()[0].upper()) # self.parent.pagedata.soort)[0][0].upper())
-            except wx._core.PyAssertionError:
-                pass
-            try:
-                self.parent.page0.p0list.SetStringItem(self.parent.current_item,
-                    3, self.parent.pagedata.get_statustext()) # self.parent.pagedata.status)[0])
-            except wx._core.PyAssertionError:
-                pass
-            try:
-                self.parent.page0.p0list.SetStringItem(self.parent.current_item,
-                    4, self.parent.pagedata.updated)
-            except wx._core.PyAssertionError:
-                pass
-            try:
-                self.parent.page0.p0list.SetStringItem(self.parent.current_item,
-                    5, self.parent.pagedata.titel)
-            except wx._core.PyAssertionError:
-                pass
-            self.oldbuf = (self.proc_entry.GetValue(), self.desc_entry.GetValue(), \
-                self.stat_choice.GetSelection(), self.cat_choice.GetSelection())
+            self.parent.page0.p0list.SetItem(self.parent.current_item, 1,
+                                             self.parent.pagedata.get_soorttext()[0].upper())
+            self.parent.page0.p0list.SetItem(self.parent.current_item, 2,
+                                             self.parent.pagedata.get_statustext())
+            self.parent.page0.p0list.SetItem(self.parent.current_item, 3,
+                                             self.parent.pagedata.updated)
+            if XML_VERSION:
+                self.parent.page0.p0list.SetItem(self.parent.current_item, 4,
+                                                 self.parent.pagedata.titel)
+            elif SQL_VERSION:
+                self.parent.page0.p0list.SetItem(self.parent.current_item, 4,
+                                                 self.parent.pagedata.over)
+                self.parent.page0.p0list.SetItem(self.parent.current_item, 5,
+                                                 self.parent.pagedata.titel)
+            self.oldbuf = (proc, desc, stat_choice, cat_choice)
         return True
 
     def archiveer(self, evt=None):
@@ -872,6 +859,7 @@ class Page1(Page):
             text, value = self.parent.stats[key][:2]
             self.stat_choice.Append(text, value)
 
+
 class Page6(Page):
     "pagina 6: voortgang"
     def __init__(self, parent, id_):
@@ -880,18 +868,16 @@ class Page6(Page):
         self.oldtext = ""
         self.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_BTNFACE))
         high = 200 if LIN else 280
-        self.pnl = wx.SplitterWindow(self, -1, style = wx.SP_LIVE_UPDATE)
+        self.pnl = wx.SplitterWindow(self, -1, style=wx.SP_LIVE_UPDATE)
 
-        self.progress_list = MyListCtrl(self.pnl, -1, size=(500, -1), #high),
-            style=wx.LC_REPORT | wx.LC_HRULES | wx.LC_VRULES | wx.LC_SINGLE_SEL)
-        self.progress_list.InsertColumn(0,'Momenten')
+        self.progress_list = MyListCtrl(self.pnl, -1, size=(500, -1),  # high),
+                                        style=wx.LC_REPORT | wx.LC_HRULES | wx.LC_VRULES |
+                                              wx.LC_SINGLE_SEL)
+        self.progress_list.InsertColumn(0, 'Momenten')
         high = 100 if LIN else 110
-        self.progress_text = wx.TextCtrl(self.pnl, -1, size=(500, -1), # high),
-            style=wx.TE_MULTILINE
-            ## | wx.TE_PROCESS_TAB
-            | wx.TE_RICH2
-            | wx.TE_WORDWRAP
-            )
+        self.progress_text = wx.TextCtrl(self.pnl, -1, size=(500, -1),  # high),
+                                         style=wx.TE_MULTILINE |        # wx.TE_PROCESS_TAB |
+                                               wx.TE_RICH2 | wx.TE_WORDWRAP)
         self.progress_list.Bind(wx.EVT_KEY_DOWN, self.on_key)
         self.progress_list.Bind(wx.EVT_LEFT_UP, self.on_left_release)
         self.progress_list.Bind(wx.EVT_LIST_ITEM_SELECTED, self.on_select_item)
@@ -935,8 +921,8 @@ class Page6(Page):
         self.initializing = True
         self.event_list, self.event_data, self.old_list, self.old_data = [], [], [], []
         self.progress_text.Clear()
-        self.progress_text.Enable(False) # SetEditable(False)
-        if self.parent.pagedata: # and not self.parent.newitem:
+        self.progress_text.Enable(False)  # SetEditable(False)
+        if self.parent.pagedata:  # and not self.parent.newitem:
             self.event_list = [x[0] for x in self.parent.pagedata.events]
             self.event_list.reverse()
             self.old_list = self.event_list[:]
@@ -945,11 +931,11 @@ class Page6(Page):
             self.old_data = self.event_data[:]
             self.progress_list.DeleteAllItems()
             y = '-- (double)click to add new item --'
-            index = self.progress_list.InsertStringItem(sys.maxint, y)
-            self.progress_list.SetStringItem(index, 0, y)
+            index = self.progress_list.InsertItem(sys.maxsize, y)
+            self.progress_list.SetItem(index, 0, y)
             self.progress_list.SetItemData(index, -1)
             for idx, datum in enumerate(self.event_list):
-                index = self.progress_list.InsertStringItem(sys.maxint, datum)
+                index = self.progress_list.InsertItem(sys.maxsize, datum)
                 try:
                     text = self.event_data[idx].split("\n")[0].strip()
                 except AttributeError:
@@ -957,8 +943,8 @@ class Page6(Page):
                 text = text if len(text) < 80 else text[:80] + "..."
                 if SQL_VERSION:
                     datum = datum[:19]
-                self.progress_list.SetStringItem(index, 0, "{} - {}".format(
-                        datum, text.encode('latin-1')))
+                self.progress_list.SetItem(index, 0, "{} - {}".format(datum, text))
+                        # datum, text.encode('latin-1')))
                 self.progress_list.SetItemData(index, idx)
         self.oldbuf = (self.old_list, self.old_data)
         self.oldtext = ''
@@ -990,18 +976,18 @@ class Page6(Page):
             for idx, data in enumerate(self.parent.pagedata.events):
                 if data != (self.event_list[hlp - idx], self.event_data[hlp - idx]):
                     self.parent.pagedata.events[idx] = (self.event_list[hlp - idx],
-                        self.event_data[hlp - idx])
+                                                        self.event_data[hlp - idx])
             for idx in range(len(self.parent.pagedata.events), hlp + 1):
                 if self.event_data[hlp - idx]:
                     self.parent.pagedata.events.append((self.event_list[hlp - idx],
-                        self.event_data[hlp - idx]))
+                                                        self.event_data[hlp - idx]))
         if wijzig:
             self.update_actie()
-            try:
-                self.parent.page0.p0list.SetStringItem(self.parent.current_item,
-                    4, self.parent.pagedata.updated) # bijwerken in panel 0
-            except wx._core.PyAssertionError:
-                pass
+            ## try:
+            self.parent.page0.p0list.SetItem(self.parent.current_item, 4,
+                                             self.parent.pagedata.updated)  # bijwerken in panel 0
+            ## except wx._core.PyAssertionError:
+                ## pass
             self.old_list = self.event_list[:]
             self.old_data = self.event_data[:]
             self.oldbuf = (self.old_list, self.old_data)
@@ -1010,10 +996,12 @@ class Page6(Page):
         return True
 
     def on_left_release(self, event):
+        """releasing the lmb (on an item)
+        """
         x = event.GetX()
         y = event.GetY()
         item, flags = self.progress_list.HitTest((x, y))
-        tekst = self.progress_list.GetItemText(item) # niet gebruikt
+        tekst = self.progress_list.GetItemText(item)  # niet gebruikt
         print("on left release:", item, tekst)
         if item == 0:
             hlp = get_dts()
@@ -1034,8 +1022,8 @@ class Page6(Page):
         dat vragen moet ook in de situatie dat je op een geactiveerde knop klikt,
         het panel wilt verlaten of afsluiten
         de knoppen onderaan doen de hele lijst bijwerken in self.parent.book.p"""
-        self.current_item = event.m_itemIndex # - 1
-        tekst = self.progress_list.GetItemText(self.current_item) # niet gebruikt
+        self.current_item = event.Index  # - 1
+        tekst = self.progress_list.GetItemText(self.current_item)  # niet gebruikt
         self.progress_text.SetEditable(False)
         if not self.parent.pagedata.arch:
             self.progress_text.SetEditable(True)
@@ -1046,20 +1034,20 @@ class Page6(Page):
         self.progress_text.SetValue(self.oldtext)
         self.progress_text.Enable(True)
         ## self.progress_text.SetFocus()
-        #~ event.Skip()
+        ## event.Skip()
 
     def on_deselect_item(self, evt):
         "callback voor het niet meer geselecteerd zijn van een item"
         item = evt.GetItem()  # niet gebruikt
-        idx = evt.m_itemIndex
-        tekst = self.progress_text.GetValue() # self.progress_list.GetItemText(idx)
+        idx = evt.Index
+        tekst = self.progress_text.GetValue()  # self.progress_list.GetItemText(idx)
         if tekst != self.oldtext:
             self.event_data[idx - 1] = tekst
             self.oldtext = tekst
             short_text = tekst.split("\n")[0]
             short_text = short_text if len(short_text) < 80 else short_text[:80] + "..."
-            self.progress_list.SetStringItem(idx, 0,
-                "{} - {}".format(self.event_list[idx - 1], short_text))
+            self.progress_list.SetItem(idx, 0, "{} - {}".format(self.event_list[idx - 1],
+                                       short_text))
             self.progress_list.SetItemData(idx, idx - 1)
         evt.Skip()
 
@@ -1070,12 +1058,13 @@ class Page6(Page):
         plaatsvindt"""
         if not self.initializing:
             ## idx = self.current_item # self.progress_list.Selection # niet gebruikt
-            tekst = self.progress_text.GetValue() # self.progress_list.GetItemText(ix)
+            tekst = self.progress_text.GetValue()  # self.progress_list.GetItemText(ix)
             if tekst != self.oldtext:
                 self.enable_buttons()
                 if self.current_item > 0:
                     self.event_data[self.current_item - 1] = tekst
             evt.Skip()
+
 
 class EasyPrinter(html.HtmlEasyPrinting):
     "class om printen via html layout mogelijk te maken"
@@ -1087,6 +1076,7 @@ class EasyPrinter(html.HtmlEasyPrinting):
         self.SetHeader(doc_name)
         self.PreviewText(text)
 
+
 class SortOptionsDialog(wx.Dialog):
     "dialoog om de sorteer opties in te stellen"
     def __init__(self, parent):
@@ -1097,32 +1087,32 @@ class SortOptionsDialog(wx.Dialog):
                 lijst.append("Soort")
             else:
                 lijst.append(text)
-        wid = 600 # if LIN else 450
-        hig = 600 # if LIN else 450
+        wid = 600  # if LIN else 450
+        hig = 600  # if LIN else 450
         wx.Dialog.__init__(self, parent, -1, title="Sorteren op meer dan 1 kolom",
-            size=(wid, hig),
-            pos=wx.DefaultPosition,
-            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+                           size=(wid, hig),
+                           pos=wx.DefaultPosition,
+                           style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
         txt1 = wx.StaticText(self, -1, "  1.", size=(20, -1))
         cmb1 = wx.ComboBox(self, -1, value="(geen)", size=(80, -1),
-            choices=lijst, style=wx.CB_DROPDOWN) #|wxTE_PROCESS_ENTER    )
-        rb1a = wx.RadioButton(self, -1, " Asc ", style = wx.RB_GROUP )
-        rb1b = wx.RadioButton(self, -1, " Desc " )
+                           choices=lijst, style=wx.CB_DROPDOWN)  # | wxTE_PROCESS_ENTER    )
+        rb1a = wx.RadioButton(self, -1, " Asc ", style=wx.RB_GROUP)
+        rb1b = wx.RadioButton(self, -1, " Desc ")
         txt2 = wx.StaticText(self, -1, "  2.", size=(20, -1))
         cmb2 = wx.ComboBox(self, -1, value="(geen)", size=(80, -1),
-            choices=lijst, style=wx.CB_DROPDOWN) #|wxTE_PROCESS_ENTER    )
-        rb2a = wx.RadioButton(self, -1, " Asc ", style = wx.RB_GROUP )
-        rb2b = wx.RadioButton(self, -1, " Desc " )
+                           choices=lijst, style=wx.CB_DROPDOWN)  # | wxTE_PROCESS_ENTER    )
+        rb2a = wx.RadioButton(self, -1, " Asc ", style=wx.RB_GROUP)
+        rb2b = wx.RadioButton(self, -1, " Desc ")
         txt3 = wx.StaticText(self, -1, "  3.", size=(20, -1))
         cmb3 = wx.ComboBox(self, -1, value="(geen)", size=(80, -1),
-            choices=lijst, style=wx.CB_DROPDOWN) #|wxTE_PROCESS_ENTER    )
-        rb3a = wx.RadioButton(self, -1, " Asc ", style = wx.RB_GROUP )
-        rb3b = wx.RadioButton(self, -1, " Desc " )
+                           choices=lijst, style=wx.CB_DROPDOWN)  # | wxTE_PROCESS_ENTER    )
+        rb3a = wx.RadioButton(self, -1, " Asc ", style=wx.RB_GROUP)
+        rb3b = wx.RadioButton(self, -1, " Desc ")
         txt4 = wx.StaticText(self, -1, "  4.", size=(20, -1))
         cmb4 = wx.ComboBox(self, -1, value="(geen)", size=(80, -1),
-            choices=lijst, style=wx.CB_DROPDOWN) #|wxTE_PROCESS_ENTER    )
-        rb4a = wx.RadioButton(self, -1, " Asc ", style = wx.RB_GROUP )
-        rb4b = wx.RadioButton(self, -1, " Desc " )
+                           choices=lijst, style=wx.CB_DROPDOWN)  # | wxTE_PROCESS_ENTER    )
+        rb4a = wx.RadioButton(self, -1, " Asc ", style=wx.RB_GROUP)
+        rb4b = wx.RadioButton(self, -1, " Desc ")
         sizer = wx.BoxSizer(wx.VERTICAL)
 
         fgs = wx.FlexGridSizer(4, 4, 2, 2)  # rows, cols, hgap, vgap
@@ -1144,11 +1134,12 @@ class SortOptionsDialog(wx.Dialog):
         btn = wx.Button(self, wx.ID_CANCEL)
         btnsizer.AddButton(btn)
         btnsizer.Realize()
-        sizer.Add(btnsizer, 0, wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5)
+        sizer.Add(btnsizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
 
         self.SetSizer(sizer)
         self.SetAutoLayout(True)
         sizer.Fit(self)
+
 
 class SelectOptionsDialog(wx.Dialog):
     """dialoog om de selectie op te geven
@@ -1159,16 +1150,16 @@ class SelectOptionsDialog(wx.Dialog):
     def __init__(self, parent, sel_args):
         self.parent = parent
         wx.Dialog.__init__(self, parent, -1, title="Selecteren",
-            ## size=(250,  250),  pos=wx.DefaultPosition,
-            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+                           ## size=(250,  250),  pos=wx.DefaultPosition,
+                           style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
         self.cb1 = wx.CheckBox(self, -1, parent.parent.ctitels[0].join((" ", " -")))
-        label_gt = wx.StaticText(self, -1, "groter dan:", size=(90, -1)) # was 70
+        label_gt = wx.StaticText(self, -1, "groter dan:", size=(90, -1))  # was 70
         self.t1a = wx.TextCtrl(self, pr.ID_T1A, "", size=(153, -1))
         self.Bind(wx.EVT_TEXT, self.on_text, self.t1a)
         spacer_1 = wx.StaticText(self, -1, "", size=(70, -1))
         self.rb1a = wx.RadioButton(self, -1, "en", style=wx.RB_GROUP)
         self.rb1b = wx.RadioButton(self, -1, "of")
-        label_lt = wx.StaticText(self, -1, "kleiner dan:", size=(90, -1)) # was 70
+        label_lt = wx.StaticText(self, -1, "kleiner dan:", size=(90, -1))  # was 70
         self.t1b = wx.TextCtrl(self, pr.ID_T1B, "", size=(153, -1))
         self.Bind(wx.EVT_TEXT, self.on_text, self.t1b)
         if "idgt" in sel_args:
@@ -1184,11 +1175,9 @@ class SelectOptionsDialog(wx.Dialog):
         labelsel = wx.StaticText(self, -1, "selecteer\neen of meer:", size=(70, -1))
         ## h = self.parent.parent.cats.keys()
         ## h.sort()
-        self.cl2 = wx.CheckListBox(self, pr.ID_CL2,
-            size=(-1,120),
-            ## choices=[x[0] for x in [self.parent.parent.cats[y] for y in h]])
-            choices = [x[0] for x in [self.parent.parent.cats[y] for y in sorted(
-                self.parent.parent.cats.keys())]])
+        self.cl2 = wx.CheckListBox(self, pr.ID_CL2, size=(-1, 120),
+                                   choices=[x[0] for x in [self.parent.parent.cats[y]  # for y in h]])
+                                            for y in sorted(self.parent.parent.cats.keys())]])
         self.Bind(wx.EVT_CHECKLISTBOX, self.on_checked, self.cl2)
         if XML_VERSION:
             itemindex = 1
@@ -1204,11 +1193,9 @@ class SelectOptionsDialog(wx.Dialog):
         labelsl2 = wx.StaticText(self, -1, "selecteer\neen of meer:", size=(70, -1))
         ## h = self.parent.parent.stats.keys()
         ## h.sort()
-        self.cl3 = wx.CheckListBox(self, pr.ID_CL3,
-            size=(-1,120),
-            ## choices=[x[0] for x in [self.parent.parent.stats[y] for y in h]])
-            choices = [x[0] for x in [self.parent.parent.stats[y] for y in sorted(
-                self.parent.parent.stats.keys())]])
+        self.cl3 = wx.CheckListBox(self, pr.ID_CL3, size=(-1, 120),
+                                   choices=[x[0] for x in [self.parent.parent.stats[y]  # for y in h]])
+                                            for y in sorted(self.parent.parent.stats.keys())]])
         self.Bind(wx.EVT_CHECKLISTBOX, self.on_checked, self.cl3)
         if "status" in sel_args:
             for x in self.parent.parent.stats.keys():
@@ -1224,8 +1211,7 @@ class SelectOptionsDialog(wx.Dialog):
             self.txt4.SetValue(sel_args["titel"])
             self.cb4.SetValue(True)
         self.cb5 = wx.CheckBox(self, -1, "Archief")
-        self.rb5a = wx.RadioButton(self, pr.ID_RB5A, "Alleen gearchiveerd",
-            style=wx.RB_GROUP)
+        self.rb5a = wx.RadioButton(self, pr.ID_RB5A, "Alleen gearchiveerd", style=wx.RB_GROUP)
         self.Bind(wx.EVT_RADIOBUTTON, self.on_rightclick, self.rb5a)
         self.rb5b = wx.RadioButton(self, pr.ID_RB5B, "gearchiveerd en lopend")
         self.Bind(wx.EVT_RADIOBUTTON, self.on_rightclick, self.rb5b)
@@ -1239,32 +1225,31 @@ class SelectOptionsDialog(wx.Dialog):
         sz01 = wx.BoxSizer(wx.HORIZONTAL)
         sz01.Add(self.rb1a, 0, wx.ALIGN_CENTER_HORIZONTAL)
         sz01.Add(self.rb1b, 0, wx.ALIGN_CENTER_HORIZONTAL)
-        sz1 = wx.FlexGridSizer(2, 2, 2, 2)
+        sz1 = wx.FlexGridSizer(3, 2, 2, 2)
         sz1.AddMany([(label_gt, 0, wx.TOP, 10), (self.t1a, 0, wx.TOP, 5),
-                     (sz01, 0 ), (spacer_1, 0),
-                     (label_lt, 0, wx.TOP|wx.BOTTOM, 5), (self.t1b, 0, wx.BOTTOM, 5)])
+                     (sz01, 0), (spacer_1, 0),
+                     (label_lt, 0, wx.TOP | wx.BOTTOM, 5), (self.t1b, 0, wx.BOTTOM, 5)])
         sz2 = wx.BoxSizer(wx.HORIZONTAL)
-        sz2.Add(labelsel, 0, wx.ALIGN_CENTER_HORIZONTAL|wx.TOP|wx.BOTTOM, 5)
-        sz2.Add(self.cl2, 0, wx.ALIGN_CENTER_HORIZONTAL|wx.TOP|wx.BOTTOM, 5)
+        sz2.Add(labelsel, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 5)
+        sz2.Add(self.cl2, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 5)
         sz3 = wx.BoxSizer(wx.HORIZONTAL)
-        sz3.Add(labelsl2, 0, wx.ALIGN_CENTER_HORIZONTAL|wx.TOP|wx.BOTTOM, 5)
-        sz3.Add(self.cl3, 0, wx.ALIGN_CENTER_HORIZONTAL|wx.TOP|wx.BOTTOM, 5)
+        sz3.Add(labelsl2, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 5)
+        sz3.Add(self.cl3, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 5)
         sz4 = wx.BoxSizer(wx.HORIZONTAL)
-        sz4.Add(label_zk, 0, wx.ALIGN_CENTER_HORIZONTAL|wx.TOP|wx.BOTTOM, 10)
-        sz4.Add(self.txt4, 0, wx.ALIGN_CENTER_HORIZONTAL|wx.TOP|wx.BOTTOM, 5)
+        sz4.Add(label_zk, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 10)
+        sz4.Add(self.txt4, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 5)
         sz5 = wx.BoxSizer(wx.HORIZONTAL)
-        sz5.Add(self.rb5a, 0, wx.ALIGN_CENTER_HORIZONTAL|wx.TOP, 10)
-        sz5.Add(self.rb5b, 0, wx.ALIGN_CENTER_HORIZONTAL|wx.TOP, 10)
+        sz5.Add(self.rb5a, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 10)
+        sz5.Add(self.rb5b, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 10)
 
         fgs = wx.FlexGridSizer(5, 2, 2, 2)  # rows, cols, hgap, vgap
-        fgs.AddMany([(self.cb1, 0, wx.TOP, 10), (sz1, 0, wx.EXPAND|wx.TOP, 3),
-                     (self.cb2, 0, wx.TOP, 5),  (sz2, 0, wx.EXPAND|wx.TOP, 3),
-                     (self.cb3, 0, wx.TOP, 5),  (sz3, 0, wx.EXPAND|wx.TOP, 3),
-                     (self.cb4, 0, wx.TOP, 10), (sz4, 0, wx.EXPAND|wx.TOP, 3),
-                     (self.cb5, 0, wx.TOP, 10), (sz5, 0, wx.EXPAND)
-                     ])
+        fgs.AddMany([(self.cb1, 0, wx.TOP, 10), (sz1, 0, wx.EXPAND | wx.TOP, 3),
+                     (self.cb2, 0, wx.TOP, 5), (sz2, 0, wx.EXPAND | wx.TOP, 3),
+                     (self.cb3, 0, wx.TOP, 5), (sz3, 0, wx.EXPAND | wx.TOP, 3),
+                     (self.cb4, 0, wx.TOP, 10), (sz4, 0, wx.EXPAND | wx.TOP, 3),
+                     (self.cb5, 0, wx.TOP, 10), (sz5, 0, wx.EXPAND)])
         fgs.AddGrowableCol(1)
-        sizer.Add(fgs, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5)
+        sizer.Add(fgs, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
 
         btnsizer = wx.StdDialogButtonSizer()
         btn = wx.Button(self, wx.ID_OK)
@@ -1273,7 +1258,7 @@ class SelectOptionsDialog(wx.Dialog):
         btn = wx.Button(self, wx.ID_CANCEL)
         btnsizer.AddButton(btn)
         btnsizer.Realize()
-        sizer.Add(btnsizer, 0, wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5)
+        sizer.Add(btnsizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
 
         self.SetSizer(sizer)
         self.SetAutoLayout(True)
@@ -1323,7 +1308,7 @@ class SelectOptionsDialog(wx.Dialog):
         "aangegeven opties verwerken in sel_args dictionary"
         selection = 'excl.gearchiveerde'
         sel_args = {}
-        if self.cb1.IsChecked(): #  checkbox voor "id"
+        if self.cb1.IsChecked():  # checkbox voor "id"
             selection = '(gefilterd)'
             id_gt, id_lt = self.t1a.GetValue(), self.t1b.GetValue()
             if id_gt:
@@ -1338,31 +1323,31 @@ class SelectOptionsDialog(wx.Dialog):
             itemindex = 1
         elif SQL_VERSION:
             itemindex = 2
-        if self.cb2.IsChecked(): #  checkbox voor "soort"
+        if self.cb2.IsChecked():  # checkbox voor "soort"
             selection = '(gefilterd)'
-            if XML_VERSION:
-                lst = [self.parent.parent.cats[str(x)][itemindex] for x in range(
-                    len(self.parent.parent.cats.keys())) if self.cl2.IsChecked(x)]
-            elif SQL_VERSION:
-                lst = [self.parent.parent.cats[x][itemindex] for x in range(
-                    len(self.parent.parent.cats.keys())) if self.cl2.IsChecked(x)]
-            if len(lst) > 0:
+            # if XML_VERSION:
+            lst = [self.parent.parent.cats[x][itemindex]
+                   for x in range(len(self.parent.parent.cats.keys())) if self.cl2.IsChecked(x)]
+            # elif SQL_VERSION:
+            #    lst = [self.parent.parent.cats[x][itemindex]
+            #           for x in range(len(self.parent.parent.cats.keys())) if self.cl2.IsChecked(x)]
+            if lst:
                 sel_args["soort"] = lst
-        if self.cb3.IsChecked(): #  checkbox voor "status"
+        if self.cb3.IsChecked():  # checkbox voor "status"
             selection = '(gefilterd)'
-            if XML_VERSION:
-                lst = [self.parent.parent.stats[str(x)][itemindex] for x in range(
-                    len(self.parent.parent.stats.keys())) if self.cl3.IsChecked(x)]
-            elif SQL_VERSION:
-                lst = [self.parent.parent.stats[x][itemindex] for x in range(
-                    len(self.parent.parent.stats.keys())) if self.cl3.IsChecked(x)]
-            if len(lst) > 0:
+            # if XML_VERSION:
+            lst = [self.parent.parent.stats[x][itemindex]
+                   for x in range(len(self.parent.parent.stats.keys())) if self.cl3.IsChecked(x)]
+            # elif SQL_VERSION:
+            #     lst = [self.parent.parent.stats[x][itemindex]
+            #            for x in range(len(self.parent.parent.stats.keys())) if self.cl3.IsChecked(x)]
+            if lst:
                 sel_args["status"] = lst
-        if self.cb4.IsChecked(): # checkbox voor "titel bevat"
+        if self.cb4.IsChecked():  # checkbox voor "titel bevat"
             selection = '(gefilterd)'
             txt = self.txt4.GetValue()
             sel_args["titel"] = txt
-        if self.cb5.IsChecked(): # checkbox voor "archiefstatus"
+        if self.cb5.IsChecked():  # checkbox voor "archiefstatus"
             if self.rb5a.GetValue():
                 sel_args["arch"] = "arch"
                 if selection != '(gefilterd)':
@@ -1374,29 +1359,30 @@ class SelectOptionsDialog(wx.Dialog):
         self.parent.selection = selection
         return sel_args
 
+
 class OptionsDialog(wx.Dialog):
     "base class voor de opties dialogen"
     def __init__(self, parent, id_, title, size=(300, 300), pos=wx.DefaultPosition,
-            style=wx.DEFAULT_DIALOG_STYLE):
+                 style=wx.DEFAULT_DIALOG_STYLE):
         self.parent = parent
         wx.Dialog.__init__(self, parent, id_, title, pos, size, style)
         self.initstuff()
         sizer = wx.BoxSizer(wx.VERTICAL)
-        self.elb = gizmos.EditableListBox(self, -1, self.titel, pos=(50, 50),
-            size=(250, 250), style= self.options)
+        self.elb = wx.adv.EditableListBox(self, -1, self.titel, pos=(50, 50),
+                                          size=(250, 250), style=self.options)
         self.elb.SetStrings(self.data)
 
         box = wx.BoxSizer(wx.HORIZONTAL)
-        box.Add(self.elb, 0, wx.ALIGN_CENTRE|wx.ALL, 5)
-        sizer.Add(box, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5)
+        box.Add(self.elb, 0, wx.ALIGN_CENTRE | wx.ALL, 5)
+        sizer.Add(box, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         box = wx.BoxSizer(wx.HORIZONTAL)
 
         label = wx.StaticText(self, -1, "\n".join(self.tekst))
-        box.Add(label, 0, wx.ALIGN_CENTRE|wx.ALL, 5)
-        sizer.Add(box, 0, wx.GROW|wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5)
+        box.Add(label, 0, wx.ALIGN_CENTRE | wx.ALL, 5)
+        sizer.Add(box, 0, wx.ALIGN_CENTER_VERTICAL | wx.GROW | wx.ALL, 5)
 
         line = wx.StaticLine(self, -1, size=(20, -1), style=wx.LI_HORIZONTAL)
-        sizer.Add(line, 0, wx.GROW|wx.ALIGN_CENTER_VERTICAL|wx.RIGHT|wx.TOP, 5)
+        sizer.Add(line, 0, wx.ALIGN_CENTER_VERTICAL | wx.GROW | wx.RIGHT | wx.TOP, 5)
 
         btnsizer = wx.StdDialogButtonSizer()
         btn = wx.Button(self, wx.ID_OK)
@@ -1405,7 +1391,7 @@ class OptionsDialog(wx.Dialog):
         btn = wx.Button(self, wx.ID_CANCEL)
         btnsizer.AddButton(btn)
         btnsizer.Realize()
-        sizer.Add(btnsizer, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5)
+        sizer.Add(btnsizer, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
 
         self.SetSizer(sizer)
         self.SetAutoLayout(True)
@@ -1416,7 +1402,8 @@ class OptionsDialog(wx.Dialog):
         self.titel = ""
         self.data = []
         self.tekst = ["", ""]
-        self.options = gizmos.EL_ALLOW_EDIT
+        self.options = wx.adv.EL_ALLOW_EDIT
+
 
 class TabOptions(OptionsDialog):
     "dialoog voor mogelijke tab headers"
@@ -1431,17 +1418,17 @@ class TabOptions(OptionsDialog):
             tab_id, tab_text = self.parent.book.tabs[key].split(" ", 1)
             self.data.append(tab_text)
         self.tekst = ["De tab titels worden getoond in de volgorde",
-            "zoals ze van links naar rechts staan.",
-            "Er kunnen geen tabs worden verwijderd of",
-            "toegevoegd."
-            ]
-        self.options = gizmos.EL_ALLOW_EDIT
+                      "zoals ze van links naar rechts staan.",
+                      "Er kunnen geen tabs worden verwijderd of",
+                      "toegevoegd."]
+        self.options = wx.adv.EL_ALLOW_EDIT
 
     def leesuit(self):
         "wijzigingen doorvoeren"
         self.newtabs = {}
         for idx, item in enumerate(self.elb.GetStrings()):
             self.newtabs[str(idx)] = item
+
 
 class StatOptions(OptionsDialog):
     "dialoog voor de mogelijke statussen"
@@ -1456,17 +1443,15 @@ class StatOptions(OptionsDialog):
             elif SQL_VERSION:
                 item_text, item_value, row_id = self.parent.book.stats[key]
                 self.data.append(": ".join((item_value, item_text, row_id)))
-        self.tekst = [
-            "De waarden voor de status worden getoond in",
-            "dezelfde volgorde als waarin ze in de combobox",
-            "staan.",
-            "Vóór de dubbele punt staat de code, erachter",
-            "de waarde.",
-            "Denk erom dat als je codes wijzigt of statussen",
-            "verwijdert, deze ook niet meer getoond en",
-            "gebruikt kunnen worden in de registratie."
-            ]
-        self.options = gizmos.EL_ALLOW_NEW | gizmos.EL_ALLOW_EDIT | gizmos.EL_ALLOW_DELETE
+        self.tekst = ["De waarden voor de status worden getoond in",
+                      "dezelfde volgorde als waarin ze in de combobox",
+                      "staan.",
+                      "Vóór de dubbele punt staat de code, erachter",
+                      "de waarde.",
+                      "Denk erom dat als je codes wijzigt of statussen",
+                      "verwijdert, deze ook niet meer getoond en",
+                      "gebruikt kunnen worden in de registratie."]
+        self.options = wx.adv.EL_ALLOW_NEW | wx.adv.EL_ALLOW_EDIT | wx.adv.EL_ALLOW_DELETE
 
     def leesuit(self):
         "wijzigingen doorvoeren"
@@ -1474,6 +1459,7 @@ class StatOptions(OptionsDialog):
         for sortkey, item in enumerate(self.elb.GetStrings()):
             value, text = item.split(": ")
             self.newstats[value] = (text, sortkey)
+
 
 class CatOptions(OptionsDialog):
     "dialoog voor de mogelijke categorieen"
@@ -1489,15 +1475,14 @@ class CatOptions(OptionsDialog):
                 item_value, item_text, row_id = self.parent.book.cats[key]
                 self.data.append(": ".join((item_text, item_value, str(row_id))))
         self.tekst = ["De waarden voor de soorten worden getoond in",
-            "dezelfde volgorde als waarin ze in de combobox",
-            "staan.",
-            "Vóór de dubbele punt staat de code, erachter",
-            "de waarde.",
-            "Denk erom dat als je codes wijzigt of statussen",
-            "verwijdert, deze ook niet meer getoond en",
-            "gebruikt kunnen worden in de registratie."
-            ]
-        self.options = gizmos.EL_ALLOW_NEW | gizmos.EL_ALLOW_EDIT | gizmos.EL_ALLOW_DELETE
+                      "dezelfde volgorde als waarin ze in de combobox",
+                      "staan.",
+                      "Vóór de dubbele punt staat de code, erachter",
+                      "de waarde.",
+                      "Denk erom dat als je codes wijzigt of statussen",
+                      "verwijdert, deze ook niet meer getoond en",
+                      "gebruikt kunnen worden in de registratie."]
+        self.options = wx.adv.EL_ALLOW_NEW | wx.adv.EL_ALLOW_EDIT | wx.adv.EL_ALLOW_DELETE
 
     def leesuit(self):
         "wijzigingen doorvoeren"
@@ -1505,6 +1490,7 @@ class CatOptions(OptionsDialog):
         for sortkey, data in enumerate(self.elb.GetStrings()):
             value, text = data.split(": ")
             self.newcats[value] = (text, sortkey)
+
 
 class MainWindow(wx.Frame):
     """Hoofdscherm met menu, statusbalk, notebook en een "quit" button"""
@@ -1535,130 +1521,19 @@ class MainWindow(wx.Frame):
         else:
             wide, high, left, top = 588, 594, 20, 32
         wx.Frame.__init__(self, parent, id_, self.title, pos=(left, top),
-                size=(wide, high),
-                style=wx.DEFAULT_FRAME_STYLE|wx.NO_FULL_REPAINT_ON_RESIZE)
+                          size=(wide, high),
+                          style=wx.DEFAULT_FRAME_STYLE | wx.NO_FULL_REPAINT_ON_RESIZE)
         sbar = self.CreateStatusBar()
-        ## self.SetStatusBar(sbar)
-
-    # --- menu opbouwen -------------------------------------------------------------------------
-        filemenu = wx.Menu()
-        if XML_VERSION:
-            filemenu.Append(pr.ID_NEW, "&New (Ctrl-N)", " Create a new file")
-            filemenu.Append(pr.ID_OPEN, "&Open (Ctrl-O)", " Open a new file")
-        elif SQL_VERSION:
-            filemenu.Append(pr.ID_OPEN, "&Open project (Ctrl-O)",
-                " Select a project")
-        filemenu.AppendSeparator()
-        submenu = wx.Menu()
-        submenu.Append(pr.ID_PRINTS, "Dit &Scherm",
-            "Print the contents of the current screen")
-        submenu.Append(pr.ID_PRINTA, "Deze &Actie",
-            "Print the contents of the current issue")
-        filemenu.AppendMenu(-1, "&Print (Ctrl-P)", submenu)
-        filemenu.AppendSeparator()
-        filemenu.Append(pr.ID_EXIT, "&Quit (Ctrl-Q)", " Terminate the program")
-        setupmenu = wx.Menu()
-        submenu = wx.Menu()
-        submenu.Append(pr.ID_SETFONT, "&Lettertype",
-            " Change the size and font of the text")
-        submenu.Append(pr.ID_SETCOLR, "&Kleuren",
-            " Change the colours of various items")
-        #~ submenu.Append(pr.ID_SETKEYS,  "S&neltoetsen", " Change shortcut keys")
-        setupmenu.AppendMenu(-1, "&Applicatie", submenu) # " Settings voor de hele applicatie")
-        submenu = wx.Menu()
-        submenu.Append(pr.ID_SETTABS, "  &Tabs", " Change the titles of the tabs")
-        submenu.Append(pr.ID_SETCATS, "  &Soorten", " Add/change type categories")
-        submenu.Append(pr.ID_SETSTATS, "  St&atussen",
-            " Add/change status categories")
-        setupmenu.AppendMenu(-1, "&Data", submenu) # " Settings voor dit actiesbestand")
-        setupmenu.Append(pr.ID_SETFOLLY, "&Het leven",
-            " Change the way you look at life")
-        helpmenu = wx.Menu()
-        helpmenu.Append(pr.ID_ABOUT, "&About", " Information about this program")
-        helpmenu.Append(pr.ID_KEYS, "&Keys", " List of shortcut keys")
-        menu_bar = wx.MenuBar()
-        menu_bar.Append(filemenu, "&File")
-        menu_bar.Append(setupmenu, "&Settings")
-        menu_bar.Append(helpmenu, "&Help")
-        self.SetMenuBar(menu_bar)
-        if XML_VERSION:
-            self.Connect(pr.ID_NEW, -1, wx.wxEVT_COMMAND_MENU_SELECTED,
-                self.new_file)
-            self.Connect(pr.ID_OPEN, -1, wx.wxEVT_COMMAND_MENU_SELECTED,
-                self.open_xml)
-        elif SQL_VERSION:
-            self.Connect(pr.ID_OPEN, -1, wx.wxEVT_COMMAND_MENU_SELECTED,
-                self.open_sql)
-        self.Connect(pr.ID_PRINTS, -1, wx.wxEVT_COMMAND_MENU_SELECTED,
-            self.print_scherm)
-        self.Connect(pr.ID_PRINTA, -1, wx.wxEVT_COMMAND_MENU_SELECTED,
-            self.print_actie)
-        self.Connect(pr.ID_EXIT, -1, wx.wxEVT_COMMAND_MENU_SELECTED, self.exit_app)
-        self.Connect(pr.ID_SETFONT, -1, wx.wxEVT_COMMAND_MENU_SELECTED,
-            self.font_settings)
-        self.Connect(pr.ID_SETCOLR, -1, wx.wxEVT_COMMAND_MENU_SELECTED,
-            self.colour_settings)
-        #~ self.Connect(pr.ID_SETKEYS,  -1, wx.wxEVT_COMMAND_MENU_SELECTED, self.hotkey_settings)
-        self.Connect(pr.ID_SETFOLLY, -1, wx.wxEVT_COMMAND_MENU_SELECTED,
-            self.silly_menu)
-        self.Connect(pr.ID_SETTABS, -1, wx.wxEVT_COMMAND_MENU_SELECTED,
-            self.tab_settings)
-        self.Connect(pr.ID_SETCATS, -1, wx.wxEVT_COMMAND_MENU_SELECTED,
-            self.cat_settings)
-        self.Connect(pr.ID_SETSTATS, -1, wx.wxEVT_COMMAND_MENU_SELECTED,
-            self.stat_settings)
-        self.Connect(pr.ID_ABOUT, -1, wx.wxEVT_COMMAND_MENU_SELECTED,
-            self.about_help)
-        self.Connect(pr.ID_KEYS, -1, wx.wxEVT_COMMAND_MENU_SELECTED,
-            self.hotkey_help)
-        # zou in plaats van het voorgaande dit ook kunnen?:
-        ## id_list = [
-            ## pr.ID_OPEN, pr.ID_PRINTS, pr.ID_PRINTA, pr.ID_EXIT, pr.ID_SETFONT,
-            ## pr.ID_SETCOLR, pr.ID_SETKEYS, pr.ID_SETFOLLY, pr.ID_SETTABS,
-            ## pr.ID_SETCATS, pr.ID_SETSTATS, pr.ID_ABOUT, pr.ID_KEYS
-            ## ]
-        ## callback_list = [
-            ## self.print_scherm, self.print_actie, self.exit_app, self.font_settings,
-            ## self.colour_settings, self.hotkey_settings, self.silly_menu,
-            ## self.tab_settings, self.cat_settings, self.stat_settings, self.about_help,
-            ## self.hotkey_help
-            ## ]
-        ## if XML_VERSION:
-            ## id_list.insert(0, pr.ID_NEW)
-            ## callback_list.insert(0, self.open_xml)
-            ## callback_list.insert(0, self.new_file)
-        ## elif SQL_VERSION:
-            ## callback_list.insert(0, self.open_sql)
-        ## for id_, func in zip(id_list, callback_list):
-            ## self.Connect(id, -1, wx.wxEVT_COMMAND_MENU_SELECTED, func)
-        self.help = ["=== Albert's actiebox ===\n",
-            "Keyboard shortcuts:",
-            "    Alt left/right: verder - terug",
-            "    Alt-0 t/m Alt-5: naar betreffende pagina",
-            "    Alt-O op tab 1: S_o_rteren",
-            "    Alt-I op tab 1: F_i_lteren",
-            "    Alt-G of Enter op tab 1: _G_a naar aangegeven actie",
-            "    Alt-N op elke tab: _N_ieuwe actie opvoeren",
-            "    Ctrl-P: _p_rinten (scherm of actie)",
-            "    Ctrl-Q: _q_uit actiebox",
-            "    Ctrl-H: _h_elp (dit scherm)",
-            "    Ctrl-S: gegevens in het scherm op_s_laan",
-            "    Ctrl-G: oplaan en _g_a door naar volgende tab",
-            "    Ctrl-Z: wijzigingen ongedaan maken"]
-        if XML_VERSION:
-            self.help.insert(7, "    Ctrl-O: _o_pen een (ander) actiebestand")
-            self.help.insert(7, "    Ctrl-N: maak een _n_ieuw actiebestand")
-        elif SQL_VERSION:
-            self.help.insert(7, "    Ctrl-O: selecteer een (ander) pr_o_ject")
-
-        self.helptext = "\n".join(self.help)
+        self.SetStatusBar(sbar)
+        self.create_menu()
+        self.helptext = self.get_helptext()
     # --- schermen opbouwen: controls plaatsen ------------------------------------------------
         self.SetTitle(self.title)
-        self.SetIcon(wx.Icon("task.ico",wx.BITMAP_TYPE_ICO))
+        self.SetIcon(wx.Icon(os.path.join(HERE, "task.ico"), wx.BITMAP_TYPE_ICO))
         ## self.SetIcon(images.gettaskIcon())
-        #~ self.SetMinSize((476, 560))
+        ## self.SetMinSize((476, 560))
         self.pnl = wx.Panel(self, -1)
-        self.book = wx.Notebook(self.pnl, -1, size=(300,300))
+        self.book = wx.Notebook(self.pnl, -1, size=(300, 300))
         self.book.parent = self
         self.book.fnaam = ""
         self.book.sorter = None
@@ -1674,7 +1549,7 @@ class MainWindow(wx.Frame):
         self.book.newitem = False
         self.book.current_item = 0
         self.book.pagedata = None
-        #~ self.book.SetMinSize((486,496))
+        ## self.book.SetMinSize((486,496))
         self.book.page0 = Page0(self.book, -1)
         self.book.page1 = Page1(self.book, -1)
         self.book.page2 = Page(self.book, -1)
@@ -1685,7 +1560,7 @@ class MainWindow(wx.Frame):
         self.book.pages = 7
         self.book.checked_for_leaving = True
         self.exit_button = wx.Button(self.pnl, id=wx.ID_EXIT)
-        self.Bind(wx.EVT_BUTTON, self.exit_app , self.exit_button)
+        self.Bind(wx.EVT_BUTTON, self.exit_app, self.exit_button)
         self.book.Bind(wx.EVT_KEY_DOWN, self.on_key)
         self.Bind(wx.EVT_KEY_DOWN, self.on_key)
         ## self.Bind(wx.EVT_CLOSE, self.exit_app)
@@ -1714,12 +1589,12 @@ class MainWindow(wx.Frame):
         sizer0.Add(sizer1, 1, wx.EXPAND)
         sizer2 = wx.BoxSizer(wx.VERTICAL)
         sizer2.Add(self.exit_button, 0,
-            wx.ALL | wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL, 4)
-        sizer0.Add(sizer2, 0, wx.EXPAND )
+                   wx.ALL | wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL, 4)
+        sizer0.Add(sizer2, 0, wx.EXPAND)
         self.pnl.SetSizer(sizer0)
         self.pnl.SetAutoLayout(True)
         sizer0.Fit(self.pnl)
-        sizer0.SetSizeHints(self.pnl)
+        # sizer0.SetSizeHints(self.pnl)
         self.pnl.Layout()
         self.Show(True)
         if self.filename == "":
@@ -1729,14 +1604,108 @@ class MainWindow(wx.Frame):
                 self.open_sql()
         else:
             self.startfile()
-        self.zetfocus(0) # book.page0.SetFocus()
+        self.zetfocus(0)  # book.page0.SetFocus()
+
+    def create_menu(self):
+        """menu opbouwen
+        """
+        filemenu = wx.Menu()
+        if XML_VERSION:
+            filemenu.Append(pr.ID_NEW, "&New (Ctrl-N)", " Create a new file")
+            filemenu.Append(pr.ID_OPEN, "&Open (Ctrl-O)", " Open a new file")
+        elif SQL_VERSION:
+            filemenu.Append(pr.ID_OPEN, "&Open project (Ctrl-O)", " Select a project")
+        filemenu.AppendSeparator()
+        submenu = wx.Menu()
+        submenu.Append(pr.ID_PRINTS, "Dit &Scherm", "Print the contents of the current screen")
+        submenu.Append(pr.ID_PRINTA, "Deze &Actie", "Print the contents of the current issue")
+        filemenu.Append(-1, "&Print (Ctrl-P)", submenu)
+        filemenu.AppendSeparator()
+        filemenu.Append(pr.ID_EXIT, "&Quit (Ctrl-Q)", " Terminate the program")
+        setupmenu = wx.Menu()
+        submenu = wx.Menu()
+        submenu.Append(pr.ID_SETFONT, "&Lettertype", " Change the size and font of the text")
+        submenu.Append(pr.ID_SETCOLR, "&Kleuren", " Change the colours of various items")
+        ## submenu.Append(pr.ID_SETKEYS,  "S&neltoetsen", " Change shortcut keys")
+        setupmenu.Append(-1, "&Applicatie", submenu)  # " Settings voor de hele applicatie")
+        submenu = wx.Menu()
+        submenu.Append(pr.ID_SETTABS, "  &Tabs", " Change the titles of the tabs")
+        submenu.Append(pr.ID_SETCATS, "  &Soorten", " Add/change type categories")
+        submenu.Append(pr.ID_SETSTATS, "  St&atussen", " Add/change status categories")
+        setupmenu.Append(-1, "&Data", submenu)  # " Settings voor dit actiesbestand")
+        setupmenu.Append(pr.ID_SETFOLLY, "&Het leven", " Change the way you look at life")
+        helpmenu = wx.Menu()
+        helpmenu.Append(pr.ID_ABOUT, "&About", " Information about this program")
+        helpmenu.Append(pr.ID_KEYS, "&Keys", " List of shortcut keys")
+        menu_bar = wx.MenuBar()
+        menu_bar.Append(filemenu, "&File")
+        menu_bar.Append(setupmenu, "&Settings")
+        menu_bar.Append(helpmenu, "&Help")
+        self.SetMenuBar(menu_bar)
+        if XML_VERSION:
+            self.Connect(pr.ID_NEW, -1, wx.wxEVT_COMMAND_MENU_SELECTED, self.new_file)
+            self.Connect(pr.ID_OPEN, -1, wx.wxEVT_COMMAND_MENU_SELECTED, self.open_xml)
+        elif SQL_VERSION:
+            self.Connect(pr.ID_OPEN, -1, wx.wxEVT_COMMAND_MENU_SELECTED, self.open_sql)
+        self.Connect(pr.ID_PRINTS, -1, wx.wxEVT_COMMAND_MENU_SELECTED, self.print_scherm)
+        self.Connect(pr.ID_PRINTA, -1, wx.wxEVT_COMMAND_MENU_SELECTED, self.print_actie)
+        self.Connect(pr.ID_EXIT, -1, wx.wxEVT_COMMAND_MENU_SELECTED, self.exit_app)
+        self.Connect(pr.ID_SETFONT, -1, wx.wxEVT_COMMAND_MENU_SELECTED, self.font_settings)
+        self.Connect(pr.ID_SETCOLR, -1, wx.wxEVT_COMMAND_MENU_SELECTED, self.colour_settings)
+        ## self.Connect(pr.ID_SETKEYS,  -1, wx.wxEVT_COMMAND_MENU_SELECTED, self.hotkey_settings)
+        self.Connect(pr.ID_SETFOLLY, -1, wx.wxEVT_COMMAND_MENU_SELECTED, self.silly_menu)
+        self.Connect(pr.ID_SETTABS, -1, wx.wxEVT_COMMAND_MENU_SELECTED, self.tab_settings)
+        self.Connect(pr.ID_SETCATS, -1, wx.wxEVT_COMMAND_MENU_SELECTED, self.cat_settings)
+        self.Connect(pr.ID_SETSTATS, -1, wx.wxEVT_COMMAND_MENU_SELECTED, self.stat_settings)
+        self.Connect(pr.ID_ABOUT, -1, wx.wxEVT_COMMAND_MENU_SELECTED, self.about_help)
+        self.Connect(pr.ID_KEYS, -1, wx.wxEVT_COMMAND_MENU_SELECTED, self.hotkey_help)
+        # zou in plaats van het voorgaande dit ook kunnen?:
+        ## id_list = [pr.ID_OPEN, pr.ID_PRINTS, pr.ID_PRINTA, pr.ID_EXIT, pr.ID_SETFONT,
+        ##            pr.ID_SETCOLR, pr.ID_SETKEYS, pr.ID_SETFOLLY, pr.ID_SETTABS,
+        ##            pr.ID_SETCATS, pr.ID_SETSTATS, pr.ID_ABOUT, pr.ID_KEYS]
+        ## callback_list = [self.print_scherm, self.print_actie, self.exit_app, self.font_settings,
+        ##                  self.colour_settings, self.hotkey_settings, self.silly_menu,
+        ##                  self.tab_settings, self.cat_settings, self.stat_settings,
+        ##                  self.about_help, self.hotkey_help]
+        ## if XML_VERSION:
+            ## id_list.insert(0, pr.ID_NEW)
+            ## callback_list.insert(0, self.open_xml)
+            ## callback_list.insert(0, self.new_file)
+        ## elif SQL_VERSION:
+            ## callback_list.insert(0, self.open_sql)
+        ## for id_, func in zip(id_list, callback_list):
+            ## self.Connect(id, -1, wx.wxEVT_COMMAND_MENU_SELECTED, func)
+
+    def get_helptext(self):
+        """build keyboard shortcuts explanation texti
+        """
+        help = ["=== Albert's actiebox ===\n",
+                "Keyboard shortcuts:",
+                "    Alt left/right: verder - terug",
+                "    Alt-0 t/m Alt-5: naar betreffende pagina",
+                "    Alt-O op tab 1: S_o_rteren",
+                "    Alt-I op tab 1: F_i_lteren",
+                "    Alt-G of Enter op tab 1: _G_a naar aangegeven actie",
+                "    Alt-N op elke tab: _N_ieuwe actie opvoeren",
+                "    Ctrl-P: _p_rinten (scherm of actie)",
+                "    Ctrl-Q: _q_uit actiebox",
+                "    Ctrl-H: _h_elp (dit scherm)",
+                "    Ctrl-S: gegevens in het scherm op_s_laan",
+                "    Ctrl-G: oplaan en _g_a door naar volgende tab",
+                "    Ctrl-Z: wijzigingen ongedaan maken"]
+        if XML_VERSION:
+            help.insert(7, "    Ctrl-O: _o_pen een (ander) actiebestand")
+            help.insert(7, "    Ctrl-N: maak een _n_ieuw actiebestand")
+        elif SQL_VERSION:
+            help.insert(7, "    Ctrl-O: selecteer een (ander) pr_o_ject")
+        return "\n".join(help)
 
     def new_file(self, evt):
         "Menukeuze: nieuw file"
         self.newfile = False
         self.dirname = os.getcwd()
-        dlg = wx.FileDialog(self, self.title + " - nieuw gegevensbestand",
-            self.dirname, "", "XML files|*.xml", wx.SAVE | wx.OVERWRITE_PROMPT)
+        dlg = wx.FileDialog(self, self.title + " - nieuw gegevensbestand", self.dirname, "",
+                            "XML files|*.xml", wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
         if dlg.ShowModal() == wx.ID_OK:
             self.filename = dlg.GetFilename()
             self.dirname = dlg.GetDirectory()
@@ -1749,10 +1718,9 @@ class MainWindow(wx.Frame):
         "Menukeuze: open file"
         self.dirname = os.getcwd()
         dlg = wx.FileDialog(self, self.title + " - kies een gegevensbestand",
-            self.dirname, "", "XML files|*.xml", wx.OPEN)
+                            self.dirname, "", "XML files|*.xml", wx.FD_OPEN)
         if dlg.ShowModal() == wx.ID_OK:
             self.dirname, self.filename = os.path.split(dlg.GetPath())
-            print(self.dirname, self.filename)
             self.startfile()
         dlg.Destroy()
 
@@ -1763,16 +1731,15 @@ class MainWindow(wx.Frame):
             for line in f_in:
                 sel, naam, titel, oms = line.strip().split(";")
                 if sel == "X":
-                    data.append((naam.capitalize(),titel.capitalize(),oms))
-        data = data # [1:]
+                    data.append((naam.capitalize(), titel.capitalize(), oms))
+        data = data  # [1:]
         data.sort()
-        dlg = wx.SingleChoiceDialog(self, 'Kies een project om te openen',
-            'Vraagje', [": ".join((h[1],h[2])) for h in data],wx.CHOICEDLG_STYLE)
+        dlg = wx.SingleChoiceDialog(self, 'Kies een project om te openen', 'Vraagje',
+                                    [": ".join((h[1], h[2])) for h in data], wx.CHOICEDLG_STYLE)
         print(self.filename)
         for idx, h in enumerate(data):
             print(h)
-            if h[0] == self.filename or \
-                    (self.filename == "_basic" and h[0] == "Basic"):
+            if h[0] == self.filename or (self.filename == "_basic" and h[0] == "Basic"):
                 dlg.SetSelection(idx)
         if dlg.ShowModal() == wx.ID_OK:
             n = dlg.GetSelection()
@@ -1782,15 +1749,19 @@ class MainWindow(wx.Frame):
             self.startfile()
         dlg.Destroy()
 
-    def print_scherm(self, evt = None):
+    def print_scherm(self, evt=None):
         "Menukeuze: print dit scherm"
+        if not self.book.pagedata:
+            wx.MessageBox('Scherm bevat geen data om te printen', self.title)
+            return
         self.text = []
         self.hdr = ("Actie: %s %s" % (self.book.pagedata.id, self.book.pagedata.titel))
         if self.book.current_tab == 0:
             self.hdr = "Overzicht acties uit " + self.filename
             self.text.append("<table>")
-            for x in range(len(self.book.data.items())):
-                y = self.book.page0.p0list.GetItemData(x)
+            # for x in range(len(self.book.data.items())):
+            for i, x in enumerate(self.book.data.items()):
+                y = self.book.page0.p0list.GetItemData(i)
                 actie, started, soort, status, l_wijz, titel = self.book.data[y]
                 if SQL_VERSION:
                     over, titel = titel
@@ -1798,15 +1769,15 @@ class MainWindow(wx.Frame):
                     actie = actie + " - " + over
                     started = started[:19]
                 if l_wijz != "":
-                    lwijz = "".join((", laatst behandeld op ", lwijz))
-                code, text = status.split(".")
-                if code != "0":
-                    lwijz = "status: {}, {}".format(text, lwijz)
+                    l_wijz = ", laatst behandeld op " + l_wijz
+                srt, text = status.split(".")
+                if srt != "0":
+                    l_wijz = "status: {}, {}".format(text, l_wijz)
                 else:
                     l_wijz = ""
                 self.text.append('<tr><td>{}&nbsp;&nbsp;</td><td>{}</td></tr>'
-                    '<tr><td></td><td>{} gemeld op {}<br>{}</td></tr>'.format(
-                        actie, titel, soort.split(".")[1], started, l_wijz))
+                                 '<tr><td></td><td>{} gemeld op {}<br>{}</td></tr>'.format(
+                                    actie, titel, soort.split(".")[1], started, l_wijz))
             self.text.append("</table>")
         elif self.book.current_tab == 1:
             self.hdr = ("Informatie over actie {}: samenvatting".format(
@@ -1828,53 +1799,45 @@ class MainWindow(wx.Frame):
         elif self.book.current_tab == 2:
             text = self.book.page2.text1.GetValue()
             if text is not None:
-                self.text.append("<u>{}s</u><br>".format(
-                    self.book.tabs[2].split(None, 1)[1]))
-                self.text.append("<p>{}s</p>".format(
-                    self.book.pagedata.melding.replace('\n', '<br>')))
+                self.text.append("<u>{}s</u><br>".format(self.book.tabs[2].split(None, 1)[1]))
+                self.text.append("<p>{}s</p>".format(self.book.pagedata.melding.replace('\n',
+                                                                                        '<br>')))
         elif self.book.current_tab == 3:
             text = self.book.page2.text1.GetValue()
             if text is not None:
                 self.text.append("<u>{}s</u><br>".format(
                     self.book.tabs[3].split(None, 1)[1]))
-                self.text.append("<p>{}s</p>".format(
-                    self.book.pagedata.oorzaak.replace('\n', '<br>')))
+                self.text.append("<p>{}s</p>".format(self.book.pagedata.oorzaak.replace('\n',
+                                                                                        '<br>')))
         elif self.book.current_tab == 4:
             text = self.book.page2.text1.GetValue()
             if text is not None:
-                self.text.append("<u>{}s</u><br>".format(
-                    self.book.tabs[4].split(None, 1)[1]))
-                self.text.append("<p>{}s</p>".format(
-                    self.book.pagedata.oplossing.replace('\n', '<br>')))
+                self.text.append("<u>{}s</u><br>".format(self.book.tabs[4].split(None, 1)[1]))
+                self.text.append("<p>{}s</p>".format(self.book.pagedata.oplossing.replace('\n',
+                                                                                          '<br>')))
         elif self.book.current_tab == 5:
             text = self.book.page2.text1.GetValue()
             if text is not None:
-                self.text.append("<u>{}s</u><br>".format(
-                    self.book.tabs[5].split(None, 1)[1]))
-                self.text.append("<p>{}s</p>".format(
-                    self.book.pagedata.vervolg.replace('\n', '<br>')))
+                self.text.append("<u>{}s</u><br>".format(self.book.tabs[5].split(None, 1)[1]))
+                self.text.append("<p>{}s</p>".format(self.book.pagedata.vervolg.replace('\n',
+                                                                                        '<br>')))
         elif self.book.current_tab == 6:
             self.text.append("<u>{}s</u><br>".format(self.book.tabs[6].split(None, 1)[1]))
-            if len(self.book.page6.event_list) > 0:
-                for idx, data in enumerate(self.book.page6.event_list):
-                    if SQL_VERSION:
-                        data = data[:19]
-                    self.text.append("<p><b>{}</b><br>{}</p>".format(
-                        data.replace('\n', '<br>'),
-                        self.book.page6.event_data[idx].replace('\n', '<br>')))
+            for idx, data in enumerate(self.book.page6.event_list):
+                if SQL_VERSION:
+                    data = data[:19]
+                self.text.append("<p><b>{}</b><br>{}</p>".format(
+                    data.replace('\n', '<br>'),
+                    self.book.page6.event_data[idx].replace('\n', '<br>')))
         self.afdrukken()
 
-    def print_actie(self, evt = None):
+    def print_actie(self, evt=None):
         "Menukeuze: print deze actie"
         if self.book.pagedata is None or self.book.newitem:
             # afbreken met melding geen actie geselecteerd
-            dlg = wx.MessageDialog(self,
-                "Wel eerst een actie kiezen om te printen",
-                self.parent.parent.title,
-                wx.ICON_EXCLAMATION
-            )
-            dlg.ShowModal()
-            dlg.Destroy()
+            with wx.MessageDialog(self, "Wel eerst een actie kiezen om te printen",
+                                  self.title, wx.ICON_EXCLAMATION) as dlg:
+                dlg.ShowModal()
             return
         self.hdr = ("Actie: {} {}".format(self.book.pagedata.id, self.book.pagedata.titel))
         self.text = ["<table>"]
@@ -1920,14 +1883,14 @@ class MainWindow(wx.Frame):
             self.text.append("<b>{0}</b><p>".format(self.book.tabs[5].split(None, 1)[1]))
             self.text.append(self.book.pagedata.vervolg.replace('\n', '<br>'))
             self.text.append("</p>")
-        if len(self.book.pagedata.events) > 0:
+        if self.book.pagedata.events:
+            self.text.append("<hr>")
             for date, tekst in self.book.pagedata.events:
-                self.text.append("<br><br><b>{0}</b><br>{1}</p>".format(
-                    date.replace('\n', '<br>'),tekst.replace('\n', '<br>')))
-            self.text.append("</p>")
+                self.text.append("<p><b>{0}</b><br>{1}</p>".format(date.replace('\n', '<br>'),
+                                                                   tekst.replace('\n', '<br>')))
         self.afdrukken()
 
-    def exit_app(self, evt = None):
+    def exit_app(self, evt=None):
         "Menukeuze: exit applicatie"
         self.exiting = True
         if self.book.current_tab == 0:
@@ -1949,48 +1912,45 @@ class MainWindow(wx.Frame):
 
     def tab_settings(self, evt):
         "Menukeuze: settings - data - tab titels"
-        dlg = TabOptions(self, -1, "Wijzigen tab titels", size=(350, 200),
-            style = wx.DEFAULT_DIALOG_STYLE)
-        if dlg.ShowModal() == wx.ID_OK:
-            dlg.leesuit()
-            self.save_settings("tab", dlg.newtabs)
-        dlg.Destroy()
+        with TabOptions(self, -1, "Wijzigen tab titels", size=(350, 200),
+                        style=wx.DEFAULT_DIALOG_STYLE) as dlg:
+            if dlg.ShowModal() == wx.ID_OK:
+                dlg.leesuit()
+                self.save_settings("tab", dlg.newtabs)
 
     def stat_settings(self, evt):
         "Menukeuze: settings - data - statussen"
-        dlg = StatOptions(self, -1, "Wijzigen statussen", size=(350, 200),
-            style = wx.DEFAULT_DIALOG_STYLE)
-        while True:
-            result = dlg.ShowModal()
-            if result != wx.ID_OK:
-                break
-            try:
-                dlg.leesuit()
-            except ValueError:
-                wx.MessageBox('Foutieve waarde: bevat geen dubbele punt', 'Probreg',
-                    parent=dlg)
-            else:
-                self.save_settings("stat", dlg.newstats)
-                break
-        dlg.Destroy()
+        with StatOptions(self, -1, "Wijzigen statussen", size=(350, 200),
+                         style=wx.DEFAULT_DIALOG_STYLE) as dlg:
+            while True:
+                result = dlg.ShowModal()
+                if result != wx.ID_OK:
+                    break
+                try:
+                    dlg.leesuit()
+                except ValueError:
+                    wx.MessageBox('Foutieve waarde: bevat geen dubbele punt', 'Probreg',
+                                  parent=dlg)
+                else:
+                    self.save_settings("stat", dlg.newstats)
+                    break
 
     def cat_settings(self, evt):
         "Menukeuze: settings - data - soorten"
-        dlg = CatOptions(self, -1, "Wijzigen categorieen", size=(350, 200),
-            style = wx.DEFAULT_DIALOG_STYLE)
-        while True:
-            result = dlg.ShowModal()
-            if result != wx.ID_OK:
-                break
-            try:
-                dlg.leesuit()
-            except ValueError:
-                wx.MessageBox('Foutieve waarde: bevat geen dubbele punt', 'Probreg',
-                    parent=dlg)
-            else:
-                self.save_settings("cat", dlg.newcats)
-                break
-        dlg.Destroy()
+        with CatOptions(self, -1, "Wijzigen categorieen", size=(350, 200),
+                        style=wx.DEFAULT_DIALOG_STYLE) as dlg:
+            while True:
+                result = dlg.ShowModal()
+                if result != wx.ID_OK:
+                    break
+                try:
+                    dlg.leesuit()
+                except ValueError:
+                    wx.MessageBox('Foutieve waarde: bevat geen dubbele punt', 'Probreg',
+                                  parent=dlg)
+                else:
+                    self.save_settings("cat", dlg.newcats)
+                    break
 
     def font_settings(self, evt):
         "Menukeuze: settings - applicatie - lettertype"
@@ -2011,9 +1971,7 @@ class MainWindow(wx.Frame):
             ## font = data.GetChosenFont()
             ## colour = data.GetColour()
             ## propagatefont(self, font)
-        dlg = wx.MessageDialog(self, "Sorry, werkt nog niet", "Oeps", wx.OK)
-        dlg.ShowModal()
-        dlg.Destroy()
+        wx.MessageBox("Sorry, werkt nog niet", "Oeps")
 
     def colour_settings(self, evt):
         "Menukeuze: settings - applicatie - kleuren"
@@ -2031,15 +1989,11 @@ class MainWindow(wx.Frame):
             ## data = dlg.GetColourData()
             ## colour = data.GetColour()
             ## propagatecolour(self, colour)
-        dlg = wx.MessageDialog(self, "Sorry, werkt nog niet", "Oeps", wx.OK)
-        dlg.ShowModal()
-        dlg.Destroy()
+        wx.MessageBox("Sorry, werkt nog niet", "Oeps")
 
     def hotkey_settings(self, evt):
         "Menukeuze: settings - applicatie- hotkeys (niet geactiveerd)"
-        dlg = wx.MessageDialog(self, "Sorry, werkt nog niet", "Oeps", wx.OK)
-        dlg.ShowModal()
-        dlg.Destroy()
+        wx.MessageBox("Sorry, werkt nog niet", "Oeps")
 
     def about_help(self, evt):
         "Menukeuze: help - about"
@@ -2057,7 +2011,7 @@ class MainWindow(wx.Frame):
         "initialisatie t.b.v. nieuw bestand"
         if XML_VERSION:
             fullname = os.path.join(self.dirname, self.filename)
-            print(fullname)
+            print(fullname)  # note: not the absolute path
             retval = checkfile(fullname, self.newfile)
             if retval != '':
                 wx.MessageBox(retval, "Oeps")
@@ -2070,8 +2024,8 @@ class MainWindow(wx.Frame):
         self.book.rereadlist = True
         self.book.sorter = None
         self.lees_settings()
-        for x in self.book.tabs.keys():
-            self.book.SetPageText(x, self.book.tabs[x])
+        for key, value in self.book.tabs.items():
+            self.book.SetPageText(key, value)
         self.book.page0.sel_args = {}
         self.book.page1.vul_combos()
         if self.book.current_tab == 0:
@@ -2087,31 +2041,29 @@ class MainWindow(wx.Frame):
         except DataError as err:
             wx.MessageBox(str(err), "Oh-oh!")
             return
-        self.book.stats = {}
-        self.book.cats = {}
-        self.book.tabs = {}
+        self.book.stats, self.book.cats, self.book.tabs = {}, {}, {}
         self.book.pagehelp = ["Overzicht van alle acties",
-        "Identificerende gegevens van de actie",
-        "Beschrijving van het probleem of wens",
-        "Analyse van het probleem of wens",
-        "Voorgestelde oplossing",
-        "Eventuele vervolgactie(s)",
-        "Overzicht stand van zaken"]
-        for item_value, item in data.stat.iteritems():
+                              "Identificerende gegevens van de actie",
+                              "Beschrijving van het probleem of wens",
+                              "Analyse van het probleem of wens",
+                              "Voorgestelde oplossing",
+                              "Eventuele vervolgactie(s)",
+                              "Overzicht stand van zaken"]
+        for item_value, item in data.stat.items():
             if XML_VERSION:
                 item_text, sortkey = item
                 self.book.stats[int(sortkey)] = (item_text, item_value)
             elif SQL_VERSION:
                 item_text, sortkey, row_id = item
                 self.book.stats[int(sortkey)] = (item_text, item_value, row_id)
-        for item_value, item in data.cat.iteritems():
+        for item_value, item in data.cat.items():
             if XML_VERSION:
                 item_text, sortkey = item
                 self.book.cats[int(sortkey)] = (item_text, item_value)
             elif SQL_VERSION:
                 item_text, sortkey, row_id = item
                 self.book.cats[int(sortkey)] = (item_text, item_value, row_id)
-        for tab_num, tab_text in data.kop.iteritems():
+        for tab_num, tab_text in data.kop.items():
             if XML_VERSION:
                 self.book.tabs[int(tab_num)] = " ".join((tab_num, tab_text))
             elif SQL_VERSION:
@@ -2158,8 +2110,7 @@ class MainWindow(wx.Frame):
         self.book.page1.vul_combos()
 
     def on_key(self, evt):
-        """
-        met behulp van deze methode wordt vanaf globaal (applicatie) niveau dezelfde
+        """met behulp van deze methode wordt vanaf globaal (applicatie) niveau dezelfde
         toetsenafhandelingsroutine aangeroepen als vanaf locaal (tab) niveau
         """
         if self.book.current_tab == 0:
@@ -2179,23 +2130,24 @@ class MainWindow(wx.Frame):
         evt.Skip()
 
     def on_page_changing(self, event):
-        """
-        deze methode is bedoeld om wanneer er van pagina gewisseld gaat worden
-        te controleren of dat wel mogelijk is en zo niet, te melden waarom en de
-        paginawissel tegen te houden.
+        """deze methode is bedoeld om wanneer er van pagina gewisseld gaat worden
+        te controleren of dat wel mogelijk is en zo niet, te melden waarom
+        en de paginawissel tegen te houden.
         """
         old = event.GetOldSelection()
-        new = event.GetSelection() # unused
-        sel = self.book.GetSelection() # unused
+        # new = event.GetSelection() # unused
+        # sel = self.book.GetSelection() # unused
         msg = ""
         if old == -1:
             pass
         elif self.book.fnaam == "":
             if XML_VERSION:
                 wat = 'bestand'
+            elif SQL_VERSION:
+                wat = 'project'
             msg = "Kies eerst een {} om mee te werken".format(wat)
             self.mag_weg = False
-        elif len(self.book.data) == 0 and not self.book.newitem:
+        elif not self.book.data and not self.book.newitem:
             msg = "Voer eerst één of meer acties op"
             self.mag_weg = False
         elif self.book.current_item == -1 and not self.book.newitem:
@@ -2219,24 +2171,20 @@ class MainWindow(wx.Frame):
                 self.mag_weg = self.book.page6.leavep()
         if not self.mag_weg:
             if msg != "":
-                dlg = wx.MessageDialog(self, msg, "Navigatie niet toegestaan",
-                    wx.ICON_ERROR)
-                dlg.ShowModal()
-                dlg.Destroy()
+                wx.MessageBox(msg, "Navigatie niet toegestaan", wx.ICON_ERROR)
             self.book.SetSelection(self.book.current_tab)
             event.Veto()
         else:
             event.Skip()
 
     def on_page_changed(self, event):
-        """
-        deze methode is bedoeld om na het wisselen van pagina het veld / de velden
+        """deze methode is bedoeld om na het wisselen van pagina het veld / de velden
         van de nieuwe pagina een waarde te geven met behulp van de vulp methode
         """
-        old = event.GetOldSelection() # unused
+        old = event.GetOldSelection()
         new = self.book.current_tab = event.GetSelection()
-        sel = self.book.GetSelection() # unused
-        if LIN and old == -1: # bij initialisatie en bij afsluiten - op Windows is deze altijd -1?
+        # sel = self.book.GetSelection() # unused
+        if LIN and old == -1:  # bij initialisatie en bij afsluiten - op Windows is deze altijd -1?
             return
         if new == 0:
             self.book.page0.vulp()
@@ -2256,37 +2204,33 @@ class MainWindow(wx.Frame):
         event.Skip()
 
     def on_left_release(self, evt=None):
+        """releasing the lmb (on a tab)
+        """
         self.zetfocus(self.book.current_tab)
         evt.Skip()
 
     def zetfocus(self, tabno):
         "focus geven aan de gekozen tab"
-        #~ self.setFocus()
-        if tabno == 0:
-            self.book.page0.p0list.SetFocus()
-        elif tabno == 1:
-            self.book.page1.proc_entry.SetFocus()
-        elif tabno == 2:
-            self.book.page2.text1.SetFocus()
-        elif tabno == 3:
-            self.book.page3.text1.SetFocus()
-        elif tabno == 4:
-            self.book.page4.text1.SetFocus()
-        elif tabno == 5:
-            self.book.page5.text1.SetFocus()
-        elif tabno == 6:
-            self.book.page6.progress_list.SetFocus()
+        ## self.setFocus()
+        widgets = [self.book.page0.p0list,
+                   self.book.page1.proc_entry,
+                   self.book.page2.text1,
+                   self.book.page3.text1,
+                   self.book.page4.text1,
+                   self.book.page5.text1,
+                   self.book.page6.progress_list]
+        widgets[tabno].SetFocus()
 
     def afdrukken(self):
         "wordt aangeroepen door de menuprint methodes"
         self.css = ""
         if self.css != "":
             self.css = self.css.join(("<style>", "</style>"))
-        self.text.insert(0, self.css.join(("<html><head><title>titel</title>",
-            "</head><body>")))
+        self.text.insert(0, self.css.join(("<html><head><title>titel</title>", "</head><body>")))
         self.text.append("</body></html>")
         self.printer.print_("".join(self.text), self.hdr)
         return
+
 
 def main(arg=None):
     "opstart routine"
@@ -2298,7 +2242,7 @@ def main(arg=None):
         sql = False
     for key, value in get_config_objects(sql).items():
         globals()[key] = value
-    app = wx.App(redirect=True, filename="probreg.log")
+    app = wx.App()  # redirect=True, filename="probreg.log")
     print('\n** {} **\n'.format(get_dts()))
     frame = MainWindow(None, -1, arg)
     app.MainLoop()
