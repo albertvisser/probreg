@@ -13,11 +13,19 @@ import os
 import datetime as dt
 import collections
 
+from probreg.shared import DataError, get_projnames
+
 import pathlib
 ROOT = pathlib.Path("/home/albert/projects/actiereg")
 sys.path.append(str(ROOT))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "actiereg.settings")
-from probreg.shared import DataError, get_projnames
+
+import django
+django.setup()
+
+from django.core.exceptions import ObjectDoesNotExist
+import django.contrib.auth.models as aut
+import django.contrib.auth.hashers as hashers
 
 import importlib
 APPS = ROOT / 'actiereg' / "apps.dat"
@@ -27,13 +35,6 @@ for proj in get_projnames():
     if name == 'basic':
         name = '_basic'
     MY[name] = importlib.import_module('actiereg.{}.models'.format(name))
-
-import django
-django.setup()
-
-from django.core.exceptions import ObjectDoesNotExist
-import django.contrib.auth.models as aut
-import django.contrib.auth.hashers as hashers
 
 import actiereg.core as core
 import logging
