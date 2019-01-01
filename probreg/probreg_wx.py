@@ -361,7 +361,7 @@ class Page0(Page, listmix.ColumnSorterMixin):
                                                  # wx.LC_HRULES |
                                                  wx.LC_SINGLE_SEL)
         ## high = 400 if LIN else 444
-        ## self.p0list.SetMinSize((440,high))
+        ## self.p0list.SetMinSize((440, high))
 
         self.p0list.SetImageList(self.imglist, wx.IMAGE_LIST_SMALL)
 
@@ -424,6 +424,8 @@ class Page0(Page, listmix.ColumnSorterMixin):
         self.seltitel = 'alle meldingen ' + self.selection
         Page.vulp(self)
         if self.parent.rereadlist:
+            # TODO: onthou het current item om het, voor het geval de selectie verandert,
+            # geselecteerd te houden (tenzij het uit de selectie verdwijnt)
             self.parent.data = {}
             select = self.sel_args.copy()
             arch = ""
@@ -457,13 +459,13 @@ class Page0(Page, listmix.ColumnSorterMixin):
             self.populate_list()
             if self.parent.sorter is not None:
                 self.p0list.SortItems(self.parent.sorter)
+            # TODO: localiseer het eerder onthouden item
             self.parent.rereadlist = False
         self.parent.parent.SetStatusText("{0} - {1} items".format(
             self.parent.pagehelp[self.parent.current_tab], len(self.parent.data)))
-        # self.parent.current_item is in deze versie een index, niet een item
-        # daarom werkt dit niet zoals waarschijnlijk bedoeld
-        # self.p0list.Select(self.parent.current_item)
-        # self.p0list.EnsureVisible(self.parent.current_item)
+        if self.p0list.ItemCount and self.parent.current_item < self.p0list.ItemCount:  # failsafe
+            self.p0list.Select(self.parent.current_item)
+            self.p0list.EnsureVisible(self.parent.current_item)
 
     def populate_list(self):
         "list control vullen"
@@ -526,14 +528,13 @@ class Page0(Page, listmix.ColumnSorterMixin):
 
     def colorize(self):
         """de regels om en om kleuren"""
-        return  # even niet
         do_kleur = False
         for key in range(self.p0list.GetItemCount()):
         ## for key in range(len(self.data.items)):
             if do_kleur:
                 colour = wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOW)
             else:
-                colour = wx.SystemSettings.GetColour(wx.SYS_COLOUR_INFOBK)  # BTNFACE
+                colour = wx.SystemSettings.GetColour(wx.SYS_COLOUR_BTNFACE)
             self.p0list.SetItemBackgroundColour(key, colour)
             do_kleur = not do_kleur
 
@@ -598,8 +599,8 @@ class Page0(Page, listmix.ColumnSorterMixin):
 
     def archiveer(self, evt=None):
         "archiveren of herleven van het geselecteerde item"
-        if not self.parent.current_item:
-            wx.MessageBox('Geen data selecteeerd', 'fout')
+        if not self.parent.current_item and self.parent.current_item != 0:
+            wx.MessageBox('Geen data selecteerd', 'Fout')
             return
         seli = self.p0list.GetItemData(self.parent.current_item)
         self.readp(self.parent.data[seli][0])
@@ -868,7 +869,7 @@ class Page6(Page):
         self.oldtext = ""
         self.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_BTNFACE))
         high = 200 if LIN else 280
-        self.pnl = wx.SplitterWindow(self, -1, style=wx.SP_LIVE_UPDATE)
+        self.pnl = wx.SplitterWindow(self, -1, size=(500, 400), style=wx.SP_LIVE_UPDATE)
 
         self.progress_list = MyListCtrl(self.pnl, -1, size=(500, -1),  # high),
                                         style=wx.LC_REPORT | wx.LC_HRULES | wx.LC_VRULES |
@@ -1585,16 +1586,15 @@ class MainWindow(wx.Frame):
         self.book.AddPage(self.book.page6, "&" + self.book.tabs[6])
         self.book.page6.doelayout()
         sizer1 = wx.BoxSizer(wx.HORIZONTAL)
-        sizer1.Add(self.book, 1, wx.EXPAND)
-        sizer0.Add(sizer1, 1, wx.EXPAND)
+        sizer1.Add(self.book, 1, wx.EXPAND)  # | wx.ALL, 8)
+        sizer0.Add(sizer1, 1, wx.EXPAND)  # | wx.ALL, 8)
         sizer2 = wx.BoxSizer(wx.VERTICAL)
-        sizer2.Add(self.exit_button, 0,
-                   wx.ALL | wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL, 4)
+        sizer2.Add(self.exit_button, 0, wx.ALIGN_CENTER_HORIZONTAL)
         sizer0.Add(sizer2, 0, wx.EXPAND)
         self.pnl.SetSizer(sizer0)
         self.pnl.SetAutoLayout(True)
         sizer0.Fit(self.pnl)
-        # sizer0.SetSizeHints(self.pnl)
+        sizer0.SetSizeHints(self.pnl)
         self.pnl.Layout()
         self.Show(True)
         if self.filename == "":
@@ -1644,9 +1644,7 @@ class MainWindow(wx.Frame):
         self.SetMenuBar(menu_bar)
         if XML_VERSION:
             self.Connect(pr.ID_NEW, -1, wx.wxEVT_COMMAND_MENU_SELECTED, self.new_file)
-            self.Connect(pr.ID_OPEN, -1, wx.wxEVT_COMMAND_MENU_SELECTED, self.open_xml)
-        elif SQL_VERSION:
-            self.Connect(pr.ID_OPEN, -1, wx.wxEVT_COMMAND_MENU_SELECTED, self.open_sql)
+        self.Connect(pr.ID_OPEN, -1, wx.wxEVT_COMMAND_MENU_SELECTED, self.open_file)
         self.Connect(pr.ID_PRINTS, -1, wx.wxEVT_COMMAND_MENU_SELECTED, self.print_scherm)
         self.Connect(pr.ID_PRINTA, -1, wx.wxEVT_COMMAND_MENU_SELECTED, self.print_actie)
         self.Connect(pr.ID_EXIT, -1, wx.wxEVT_COMMAND_MENU_SELECTED, self.exit_app)
@@ -1714,7 +1712,14 @@ class MainWindow(wx.Frame):
             self.newfile = False
         dlg.Destroy()
 
-    def open_xml(self, evt=None):
+    def open_file(self, evt):
+        "Menukeuze: nieuw file"
+        if XML_VERSION:
+            self.open_xml()
+        elif SQL_VERSION:
+            self.open_sql()
+
+    def open_xml(self):
         "Menukeuze: open file"
         self.dirname = os.getcwd()
         dlg = wx.FileDialog(self, self.title + " - kies een gegevensbestand",
@@ -1724,7 +1729,7 @@ class MainWindow(wx.Frame):
             self.startfile()
         dlg.Destroy()
 
-    def open_sql(self, evt=None):
+    def open_sql(self):
         "Menukeuze: open project"
         data = []
         with open(APPS) as f_in:
@@ -2137,6 +2142,7 @@ class MainWindow(wx.Frame):
         old = event.GetOldSelection()
         # new = event.GetSelection() # unused
         # sel = self.book.GetSelection() # unused
+        self.mag_weg = True
         msg = ""
         if old == -1:
             pass
@@ -2154,7 +2160,6 @@ class MainWindow(wx.Frame):
             msg = "Selecteer eerst een actie"
             self.mag_weg = False
         if not self.book.checked_for_leaving:
-            self.mag_weg = True
             if self.book.current_tab == 0:
                 self.mag_weg = self.book.page0.leavep()
             elif self.book.current_tab == 1:
