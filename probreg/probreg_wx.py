@@ -1,5 +1,3 @@
-#! usr/bin/env python
-# -*- coding: UTF-8 -*-
 """Actie (was: problemen) Registratie, wxPython versie - niet actief onderhouden
 """
 
@@ -121,6 +119,7 @@ class Page(wx.Panel):
     def readp(self, pid):
         "lezen van een actie"
         self.parent.pagedata = Actie[self.parent.parent.datatype](self.parent.fnaam, pid)
+        self.parent.parent.imagelist = self.parent.pagedata.imagelist  # toegevoegd tbv #722
         self.parent.old_id = self.parent.pagedata.id
         self.parent.newitem = False
 
@@ -131,6 +130,7 @@ class Page(wx.Panel):
             return
         if self.leavep():
             self.parent.pagedata = Actie[self.parent.parent.datatype](self.parent.fnaam, 0)
+            self.parent.parent.imagelist = self.parent.pagedata.imagelist  # toegevoegd tbv #722
             self.parent.newitem = True
             if self.parent.current_tab == 1:
                 self.vulp()  # om de velden leeg te maken
@@ -286,6 +286,8 @@ class Page(wx.Panel):
         """refresh updated item
         """
         ## self.parent.pagedata.list() # NB element 0 is leeg
+        self.parent.pagedata.imagecount = self.parent.parent.imagecount # toegevoegd tbv #722
+        self.parent.pagedata.imagelist = self.parent.parent.imagelist # toegevoegd tbv #722
         self.parent.pagedata.write()
         self.checked_for_leaving = True
         self.mag_weg = True
@@ -2080,6 +2082,7 @@ class MainWindow(wx.Frame):
         except DataError as err:
             wx.MessageBox(str(err), "Oh-oh!")
             return
+        self.imagecount = data.imagecount   # toegevoegd t.b.v. #722
         self.book.stats, self.book.cats, self.book.tabs = {}, {}, {}
         self.book.pagehelp = ["Overzicht van alle acties",
                               "Identificerende gegevens van de actie",
