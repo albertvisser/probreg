@@ -13,8 +13,6 @@ import os
 import datetime as dt
 import collections
 
-from probreg.shared import DataError, get_projnames
-
 import pathlib
 ROOT = pathlib.Path("/home/albert/projects/actiereg")
 sys.path.append(str(ROOT))
@@ -24,11 +22,22 @@ import django
 django.setup()
 
 from django.core.exceptions import ObjectDoesNotExist
-import django.contrib.auth.models as aut
+import django.contrib.auth.models as auth
 import django.contrib.auth.hashers as hashers
 
 import importlib
 APPS = ROOT / 'actiereg' / "apps.dat"
+def get_projnames():
+    "return a list of registered projects"
+    data = []
+    with APPS.open() as f_in:
+        for line in f_in:
+            sel, naam, titel, oms = line.strip().split(";")
+            if sel == "X":
+                data.append((naam, titel.title(), oms))
+    data = data
+    return sorted(data)
+
 MY = {}
 for proj in get_projnames():
     name = proj[0]
@@ -51,8 +60,8 @@ def get_user(inp):
     """retrieve user by username
     """
     try:
-        test = aut.User.objects.get(username=inp)
-    except aut.User.DoesNotExist:
+        test = auth.User.objects.get(username=inp)
+    except auth.User.DoesNotExist:
         test = None
     return test
 
@@ -67,6 +76,11 @@ def validate_user(naam, passw, project):
     if not hashers.check_password(passw, user.password):
         return
     return user, core.is_user(project, user), core.is_admin(project, user)
+
+
+class DataError(ValueError):    # Exception):
+    "Eigen all-purpose exception - maakt resultaat testen eenvoudiger"
+    pass
 
 
 def get_acties(naam, select=None, arch="", user=None):

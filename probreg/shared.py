@@ -9,55 +9,84 @@ statdict: dictionary van mogelijke statussen in de vorm  volgorde: (omschrijving
 catdict: dictionary van mogelijke soorten in de vorm     volgorde: (omschrijving, code, id in tabel)
 """
 import sys
+import os
+import enum
+import logging
 import pathlib
+import probreg.dml_django as dmls
+import probreg.dml_xml as dmlx
 ROOT = pathlib.Path("/home/albert/projects/actiereg/actiereg")
-sys.path.append(str(ROOT))
-from settings import DATABASES
-DBLOC = DATABASES['default']['NAME']    # str(ROOT / "actiereg.db")
-USER = 2
-APPS = ROOT / "apps.dat"
-
-kopdict = {
-    "0": ("Lijst", 'index'),
-    "1": ("Titel/Status", 'detail'),
-    "2": ("Probleem/Wens", 'meld'),
-    "3": ("Oorzaak/Analyse", 'oorz'),
-    "4": ("Oplossing/SvZ", 'opl'),
-    "5": ("Vervolgactie", 'verv'),
-    "6": ("Voortgang", 'voortg')
-}
-
-statdict = {
-    "0": ("gemeld", 0, -1),
-    "1": ("in behandeling", 1, -1),
-    "2": ("oplossing controleren", 2, -1),
-    "3": ("nog niet opgelost", 3, -1),
-    "4": ("afgehandeld", 4, -1),
-    "5": ("afgehandeld - vervolg", 5, -1)
-}
-
-catdict = {
-    "P": ("probleem", 1, -1),
-    "W": ("wens", 2, -1),
-    " ": ("onbekend", 0, -1),
-    "V": ("vraag", 3, -1),
-    "I": ("idee", 4, -1),
-    "F": ("div. informatie", 5, -1)
-}
+DataType = enum.Enum('DataType', 'XML SQL')
+get_acties = {DataType.XML.name: dmlx.get_acties, DataType.SQL.name: dmls.get_acties}
+Actie = {DataType.XML.name: dmlx.Actie, DataType.SQL.name: dmls.Actie}
+Settings = {DataType.XML.name: dmlx.Settings, DataType.SQL.name: dmls.Settings}
+Order = enum.Enum('Order', 'A D')
+logging.basicConfig(filename='/tmp/apropos_qt.log', level=logging.DEBUG,
+                    format='%(asctime)s %(module)s %(message)s')
 
 
-class DataError(ValueError):    # Exception):
-    "Eigen all-purpose exception - maakt resultaat testen eenvoudiger"
-    pass
+def log(msg, *args, **kwargs):
+    "schrijf logregel indien debuggen gewenst"
+    if 'DEBUG' in os.environ and os.environ['DEBUG']:
+        logging.info(msg, *args, **kwargs)
 
 
-def get_projnames():
-    "return a list of registered projects"
-    data = []
-    with APPS.open() as f_in:
-        for line in f_in:
-            sel, naam, titel, oms = line.strip().split(";")
-            if sel == "X":
-                data.append((naam, titel.title(), oms))
-    data = data
-    return sorted(data)
+def get_dts():
+    "routine om een geformatteerd date/time stamp te verkrijgen"
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def data2str(data):
+    "compatibility Python 2 / 3: turn PyQt data object into Python string"
+    if sys.version < "3":
+        return str(data.toPyObject())
+    else:
+        return str(data)
+
+
+def data2int(data):
+    "compatibility Python 2 / 3: turn PyQt data object into Python integer"
+    if sys.version < "3":
+        return int(data.toPyObject())
+    else:
+        return int(data)
+
+
+def tabsize(pointsize):
+    "pointsize omrekenen in pixels t.b.v. (gemiddelde) tekenbreedte"
+    x, y = divmod(pointsize * 8, 10)
+    return x * 4 if y < 5 else (x + 1) * 4
+
+
+# kopdict = {
+#     "0": ("Lijst", 'index'),
+#     "1": ("Titel/Status", 'detail'),
+#     "2": ("Probleem/Wens", 'meld'),
+#     "3": ("Oorzaak/Analyse", 'oorz'),
+#     "4": ("Oplossing/SvZ", 'opl'),
+#     "5": ("Vervolgactie", 'verv'),
+#     "6": ("Voortgang", 'voortg')
+# }
+#
+# statdict = {
+#     "0": ("gemeld", 0, -1),
+#     "1": ("in behandeling", 1, -1),
+#     "2": ("oplossing controleren", 2, -1),
+#     "3": ("nog niet opgelost", 3, -1),
+#     "4": ("afgehandeld", 4, -1),
+#     "5": ("afgehandeld - vervolg", 5, -1)
+# }
+#
+# catdict = {
+#     "P": ("probleem", 1, -1),
+#     "W": ("wens", 2, -1),
+#     " ": ("onbekend", 0, -1),
+#     "V": ("vraag", 3, -1),
+#     "I": ("idee", 4, -1),
+#     "F": ("div. informatie", 5, -1)
+# }
+#
+#
+# class DataError(ValueError):    # Exception):
+#     "Eigen all-purpose exception - maakt resultaat testen eenvoudiger"
+#     pass

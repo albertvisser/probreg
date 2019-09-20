@@ -1,12 +1,10 @@
 """Actie (was: problemen) Registratie, wxPython versie - niet actief onderhouden
 """
 
-from __future__ import print_function
 import os
 LIN = True if os.name == 'posix' else False
 import sys
 import pathlib
-import enum
 from datetime import datetime
 # import pprint
 import wx
@@ -15,17 +13,12 @@ import wx.lib.mixins.listctrl as listmix
 import wx.adv
 # import wx.gizmos as gizmos
 # import probreg.images
-import probreg.pr_globals as pr
-from probreg.shared import DataError, get_projnames
-import probreg.dml_sql as dmls
-#import probreg.dml_django as dmls
-import probreg.dml_xml as dmlx
-DataType = enum.Enum('DataType', 'XML SQL')
-get_acties = {DataType.XML.name: dmlx.get_acties, DataType.SQL.name: dmls.get_acties}
-Actie = {DataType.XML.name: dmlx.Actie, DataType.SQL.name: dmls.Actie}
-Settings = {DataType.XML.name: dmlx.Settings, DataType.SQL.name: dmls.Settings}
+# import probreg.pr_globals as pr
+# from probreg.shared import DataError, get_projnames
+# import probreg.dml_sql as dmls
+# import probreg.dml_django as dmls
+# import probreg.dml_xml as dmlx
 HERE = os.path.abspath(os.path.dirname(__file__))
-log = print
 
 
 def get_dts():
@@ -1505,146 +1498,34 @@ class CatOptions(OptionsDialog):
             self.newcats[value] = (text, sortkey)
 
 
-class MainWindow(wx.Frame):
+class MainGui(wx.Frame):
     """Hoofdscherm met menu, statusbalk, notebook en een "quit" button"""
-    def __init__(self, parent, id_, fnaam="", version=None):
-        if not version:
-            raise ValueError('No data method specified')
-        self.parent = parent
-        self.datatype = version
-        self.exiting = False
-        self.mag_weg = True
-        if fnaam and not os.path.exists(fnaam):
-            if '/' in fnaam or os.path.splitext(fnaam)[1] != '':
-                raise ValueError('Input file does not exist')
-            log('switched to SQL')
-            self.datatype == DataType.SQL.name
-            if fnaam == 'sql':
-                fnaam = ''
-        if self.datatype == DataType.XML.name:
-            # self.filepad = fnaam
-            # if fnaam:
-            #     ext = os.path.splitext(self.filepad)[1]
-            #     if ext == "" and not os.path.isdir(self.filepad):
-            #         self.filepad += ".xml"
-            #     elif ext != ".xml":
-            #         self.filepad = ""
-            test = pathlib.Path(fnaam)
-            # self.dirname, self.filename = os.path.split(self.filepad)
-            self.dirname, self.filename = test.parent, test.name
-            log('XML version with %s %s', test.parent, test.name)
-        elif self.datatype == DataType.SQL.name:
-            self.filename = ""
-            self.projnames = get_projnames()
-            if fnaam:
-                test =  fnaam.lower()
-                for x in self.projnames:
-                    if x[0].lower() == test:
-                        if test == 'basic':
-                            self.filename = '_basic'
-                        else:
-                            self.filemname = x[0]
-                        break
-                log('SQL version with %s', self.filename)
+    def __init__(self, master):
+        self.master = master
+        self.app = wx.App()  # redirect=True, filename="probreg.log")
         self.title = 'Actieregistratie'
         self.printer = EasyPrinter()
-        self.pagedata = self.oldbuf = None
-        self.newfile = self.newitem = False
-        self.oldsort = -1
-        self.idlist = self.actlist = self.alist = []
 
         if LIN:
             wide, high, left, top = 764, 720, 2, 2
         else:
             wide, high, left, top = 588, 594, 20, 32
-        wx.Frame.__init__(self, parent, id_, self.title, pos=(left, top),
+        wx.Frame.__init__(self, parent=None, title=self.master.title, pos=(left, top),
                           size=(wide, high),
                           style=wx.DEFAULT_FRAME_STYLE | wx.NO_FULL_REPAINT_ON_RESIZE)
         sbar = self.CreateStatusBar()
         self.SetStatusBar(sbar)
         self.create_menu()
         self.helptext = self.get_helptext()
-    # --- schermen opbouwen: controls plaatsen ------------------------------------------------
-        self.SetTitle(self.title)
+        # self.SetTitle(self.title)
         self.SetIcon(wx.Icon(os.path.join(HERE, "task.ico"), wx.BITMAP_TYPE_ICO))
         ## self.SetIcon(images.gettaskIcon())
         ## self.SetMinSize((476, 560))
-        self.pnl = wx.Panel(self, -1)
-        self.book = wx.Notebook(self.pnl, -1, size=(300, 300))
-        self.book.parent = self
-        self.book.fnaam = ""
-        self.book.sorter = None
-        self.book.data = {}
-        self.book.rereadlist = True
-        self.lees_settings()
-        self.book.ctitels = ["actie", " ", "status", "L.wijz."]
-        if self.datatype == DataType.XML.name:
-            self.book.ctitels.append("titel")
-        elif self.datatype == DataType.SQL.name:
-            self.book.ctitels.extend(("betreft", "omschrijving"))
-        self.book.current_tab = 0
-        self.book.newitem = False
-        self.book.current_item = 0
-        self.book.pagedata = None
-        ## self.book.SetMinSize((486,496))
-        self.book.page0 = Page0(self.book, -1)
-        self.book.page1 = Page1(self.book, -1)
-        self.book.page2 = Page(self.book, -1)
-        self.book.page3 = Page(self.book, -1)
-        self.book.page4 = Page(self.book, -1)
-        self.book.page5 = Page(self.book, -1)
-        self.book.page6 = Page6(self.book, -1)
-        self.book.pages = 7
-        self.book.checked_for_leaving = True
-        self.exit_button = wx.Button(self.pnl, id=wx.ID_EXIT)
-        self.Bind(wx.EVT_BUTTON, self.exit_app, self.exit_button)
-        self.book.Bind(wx.EVT_KEY_DOWN, self.on_key)
-        self.Bind(wx.EVT_KEY_DOWN, self.on_key)
-        ## self.Bind(wx.EVT_CLOSE, self.exit_app)
-        self.book.Bind(wx.EVT_LEFT_UP, self.on_left_release)
-        self.book.Bind(wx.EVT_NOTEBOOK_PAGE_CHANGED, self.on_page_changed)
-        self.book.Bind(wx.EVT_NOTEBOOK_PAGE_CHANGING, self.on_page_changing)
-
-    # --- schermen opbouwen: layout -------------------------------------------------------------
-        sizer0 = wx.BoxSizer(wx.VERTICAL)
-        self.book.AddPage(self.book.page0, "&" + self.book.tabs[0])
-        self.book.page0.doelayout()
-        self.book.AddPage(self.book.page1, "&" + self.book.tabs[1])
-        self.book.page1.doelayout()
-        self.book.AddPage(self.book.page2, "&" + self.book.tabs[2])
-        self.book.page2.doelayout()
-        self.book.AddPage(self.book.page3, "&" + self.book.tabs[3])
-        self.book.page3.doelayout()
-        self.book.AddPage(self.book.page4, "&" + self.book.tabs[4])
-        self.book.page4.doelayout()
-        self.book.AddPage(self.book.page5, "&" + self.book.tabs[5])
-        self.book.page5.doelayout()
-        self.book.AddPage(self.book.page6, "&" + self.book.tabs[6])
-        self.book.page6.doelayout()
-        sizer1 = wx.BoxSizer(wx.HORIZONTAL)
-        sizer1.Add(self.book, 1, wx.EXPAND)  # | wx.ALL, 8)
-        sizer0.Add(sizer1, 1, wx.EXPAND)  # | wx.ALL, 8)
-        sizer2 = wx.BoxSizer(wx.VERTICAL)
-        sizer2.Add(self.exit_button, 0, wx.ALIGN_CENTER_HORIZONTAL)
-        sizer0.Add(sizer2, 0, wx.EXPAND)
-        self.pnl.SetSizer(sizer0)
-        self.pnl.SetAutoLayout(True)
-        sizer0.Fit(self.pnl)
-        sizer0.SetSizeHints(self.pnl)
-        self.pnl.Layout()
-        self.Show(True)
-        if self.filename == "":
-            if self.datatype == DataType.XML.name:
-                self.open_xml()
-            elif self.datatype == DataType.SQL.name:
-                self.open_sql()
-        else:
-            self.startfile()
-        self.zetfocus(0)  # book.page0.SetFocus()
 
     def create_menu(self):
         """menu opbouwen
         """
+        return  # leave it for now
         filemenu = wx.Menu()
         if self.datatype == DataType.XML.name:
             filemenu.Append(pr.ID_NEW, "&New (Ctrl-N)", " Create a new file")
@@ -1710,9 +1591,82 @@ class MainWindow(wx.Frame):
         ## for id_, func in zip(id_list, callback_list):
             ## self.Connect(id, -1, wx.wxEVT_COMMAND_MENU_SELECTED, func)
 
+    def create_book(self):
+        self.pnl = wx.Panel(self, -1)
+        self.book = wx.Notebook(self.pnl, -1, size=(300, 300))
+        self.book.parent = self
+        return  # de rest laten we even voor wat het is
+        self.book.fnaam = ""
+        self.book.sorter = None
+        self.book.data = {}
+        self.book.rereadlist = True
+        self.lees_settings()
+        self.book.ctitels = ["actie", " ", "status", "L.wijz."]
+        if self.datatype == DataType.XML.name:
+            self.book.ctitels.append("titel")
+        elif self.datatype == DataType.SQL.name:
+            self.book.ctitels.extend(("betreft", "omschrijving"))
+        self.book.current_tab = 0
+        self.book.newitem = False
+        self.book.current_item = 0
+        self.book.pagedata = None
+        ## self.book.SetMinSize((486,496))
+        self.book.page0 = Page0(self.book, -1)
+        self.book.page1 = Page1(self.book, -1)
+        self.book.page2 = Page(self.book, -1)
+        self.book.page3 = Page(self.book, -1)
+        self.book.page4 = Page(self.book, -1)
+        self.book.page5 = Page(self.book, -1)
+        self.book.page6 = Page6(self.book, -1)
+        self.book.pages = 7
+        self.book.checked_for_leaving = True
+        self.book.Bind(wx.EVT_KEY_DOWN, self.on_key)
+        self.Bind(wx.EVT_KEY_DOWN, self.on_key)
+        ## self.Bind(wx.EVT_CLOSE, self.exit_app)
+        self.book.Bind(wx.EVT_LEFT_UP, self.on_left_release)
+        self.book.Bind(wx.EVT_NOTEBOOK_PAGE_CHANGED, self.on_page_changed)
+        self.book.Bind(wx.EVT_NOTEBOOK_PAGE_CHANGING, self.on_page_changing)
+
+        self.book.AddPage(self.book.page0, "&" + self.book.tabs[0])
+        self.book.page0.doelayout()
+        self.book.AddPage(self.book.page1, "&" + self.book.tabs[1])
+        self.book.page1.doelayout()
+        self.book.AddPage(self.book.page2, "&" + self.book.tabs[2])
+        self.book.page2.doelayout()
+        self.book.AddPage(self.book.page3, "&" + self.book.tabs[3])
+        self.book.page3.doelayout()
+        self.book.AddPage(self.book.page4, "&" + self.book.tabs[4])
+        self.book.page4.doelayout()
+        self.book.AddPage(self.book.page5, "&" + self.book.tabs[5])
+        self.book.page5.doelayout()
+        self.book.AddPage(self.book.page6, "&" + self.book.tabs[6])
+        self.book.page6.doelayout()
+
+    def go(self):
+        "show screen and start application"
+        self.create_book()
+        sizer0 = wx.BoxSizer(wx.VERTICAL)
+        sizer1 = wx.BoxSizer(wx.HORIZONTAL)
+        sizer1.Add(self.book, 1, wx.EXPAND)  # | wx.ALL, 8)
+        sizer0.Add(sizer1, 1, wx.EXPAND)  # | wx.ALL, 8)
+        sizer2 = wx.BoxSizer(wx.VERTICAL)
+        self.exit_button = wx.Button(self.pnl, id=wx.ID_EXIT)
+        self.Bind(wx.EVT_BUTTON, self.master.exit_app, self.exit_button)
+        sizer2.Add(self.exit_button, 0, wx.ALIGN_CENTER_HORIZONTAL)
+        sizer0.Add(sizer2, 0, wx.EXPAND)
+        self.pnl.SetSizer(sizer0)
+        self.pnl.SetAutoLayout(True)
+        sizer0.Fit(self.pnl)
+        sizer0.SetSizeHints(self.pnl)
+        self.pnl.Layout()
+        self.Show(True)
+        # self.zetfocus(0)  # book.page0.SetFocus()
+        self.app.MainLoop()
+
     def get_helptext(self):
         """build keyboard shortcuts explanation texti
         """
+        return  # voorlopig even overslaan
         help = ["=== Albert's actiebox ===\n",
                 "Keyboard shortcuts:",
                 "    Alt left/right: verder - terug",
@@ -1732,7 +1686,7 @@ class MainWindow(wx.Frame):
             help.insert(7, "    Ctrl-N: maak een _n_ieuw actiebestand")
         elif self.datatype == DataType.SQL.name:
             help.insert(7, "    Ctrl-O: selecteer een (ander) pr_o_ject")
-        return "\n".join(help)
+        return "\n".jzoin(help)
 
     def new_file(self, evt):
         "Menukeuze: nieuw file"
@@ -1932,25 +1886,9 @@ class MainWindow(wx.Frame):
                                                                    tekst.replace('\n', '<br>')))
         self.afdrukken()
 
-    def exit_app(self, evt=None):
+    def exit(self, evt=None):
         "Menukeuze: exit applicatie"
-        self.exiting = True
-        if self.book.current_tab == 0:
-            ok_to_leave = self.book.page0.leavep()
-        elif self.book.current_tab == 1:
-            ok_to_leave = self.book.page1.leavep()
-        elif self.book.current_tab == 2:
-            ok_to_leave = self.book.page2.leavep()
-        elif self.book.current_tab == 3:
-            ok_to_leave = self.book.page3.leavep()
-        elif self.book.current_tab == 4:
-            ok_to_leave = self.book.page4.leavep()
-        elif self.book.current_tab == 5:
-            ok_to_leave = self.book.page5.leavep()
-        elif self.book.current_tab == 6:
-            ok_to_leave = self.book.page6.leavep()
-        if ok_to_leave:
-            self.Close(True)
+        self.Close(True)
 
     def tab_settings(self, evt):
         "Menukeuze: settings - data - tab titels"
@@ -2280,7 +2218,3 @@ def main(arg=None):
         version = DataType.SQL.name
     else:
         version = DataType.XML.name
-    app = wx.App()  # redirect=True, filename="probreg.log")
-    print('\n** {} **\n'.format(get_dts()))
-    frame = MainWindow(None, -1, arg, version)
-    app.MainLoop()

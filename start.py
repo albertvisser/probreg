@@ -9,9 +9,9 @@ waardoor de gui wordt opgestart met een file chooser dialoog
 als je een bekende projectnaam opgeeft wordt overgeschakeld naar de SQL versie
 """
 import sys
-from probreg import probreg
+from probreg.main import main
 fn = "" if len(sys.argv) <= 1 else sys.argv[1]
 if len(sys.argv) > 1 and sys.argv[1] == 'sql':
-    probreg.main()
+    main()
 else:
-    probreg.main(fn)
+    main(fn)

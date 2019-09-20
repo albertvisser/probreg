@@ -11,64 +11,45 @@ from datetime import datetime
 ## import pprint
 import collections
 import functools
-import logging
 import PyQt5.QtWidgets as qtw
 import PyQt5.QtPrintSupport as qtp
 import PyQt5.QtGui as gui
 import PyQt5.QtCore as core
 from mako.template import Template
 ## import probreg.pr_globals as pr
-from probreg.shared import DataError, get_projnames
-## import probreg.dml_sql as dmls
-import probreg.dml_django as dmls
-import probreg.dml_xml as dmlx
-DataType = enum.Enum('DataType', 'XML SQL')
-## checkfile = dmlx.checkfile
-get_acties = {DataType.XML.name: dmlx.get_acties, DataType.SQL.name: dmls.get_acties}
-Actie = {DataType.XML.name: dmlx.Actie, DataType.SQL.name: dmls.Actie}
-Settings = {DataType.XML.name: dmlx.Settings, DataType.SQL.name: dmls.Settings}
+import probreg.shared as shared
 LIN = True if os.name == 'posix' else False
-Order = enum.Enum('Order', 'A D')
-sortorder = {Order.A.name: core.Qt.AscendingOrder, Order.D.name: core.Qt.DescendingOrder}
-HERE = os.path.dirname(__file__)
-logging.basicConfig(filename='/tmp/apropos_qt.log', level=logging.DEBUG,
-                    format='%(asctime)s %(module)s %(message)s')
+# HERE = os.path.dirname(__file__)
+sortorder = {shared.Order.A.name: core.Qt.AscendingOrder,
+             shared.Order.D.name: core.Qt.DescendingOrder}
+xmlfilter = "XML files (*.xml);;all files (*.*)"
 
 
-def log(msg, *args, **kwargs):
-    "schrijf logregel indien debuggen gewenst"
-    if 'DEBUG' in os.environ and os.environ['DEBUG']:
-        logging.info(msg, *args, **kwargs)
+def show_message(win, message):
+    qtw.QMessageBox.information(win, win.title, message)
 
 
-def get_dts():
-    "routine om een geformatteerd date/time stamp te verkrijgen"
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+def get_open_filename(parent):  # binnenhalen via gui module
+    fname, pattern = qtw.QFileDialog.getOpenFileName(
+        parent, parent.title + " - kies een gegevensbestand", parent.dirname, xmlfilter)
+    return fname
 
 
-def data2str(data):
-    "compatibility Python 2 / 3: turn PyQt data object into Python string"
-    if sys.version < "3":
-        return str(data.toPyObject())
-    else:
-        return str(data)
+def get_save_filename(parent):  # binnenhalen via gui module
+    fname, pattern = qtw.QFileDialog.getSaveFileName(
+        parent, parent.title + " - nieuw gegevensbestand", parent.dirname, xmlfilter)
+    return fname
 
 
-def data2int(data):
-    "compatibility Python 2 / 3: turn PyQt data object into Python integer"
-    if sys.version < "3":
-        return int(data.toPyObject())
-    else:
-        return int(data)
+def get_choice_item(self, caption, choices):  # binnenhalen via gui module
+    choice, ok = qtw.QInputDialog.getItem(self, 'Probreg SQL versie', caption, choices,
+                                          current=current, editable=False)
+    if ok:
+        return choice
+    return ''
 
 
-def tabsize(pointsize):
-    "pointsize omrekenen in pixels t.b.v. (gemiddelde) tekenbreedte"
-    x, y = divmod(pointsize * 8, 10)
-    return x * 4 if y < 5 else (x + 1) * 4
-
-
-class EditorPanel(qtw.QTextEdit):
+class EditorPanelGui(qtw.QTextEdit):
     "Rich text editor displaying the selected note"
 
     def __init__(self, parent):
@@ -328,7 +309,7 @@ class EditorPanel(qtw.QTextEdit):
         self.setReadOnly(not value)
 
 
-class Page(qtw.QFrame):
+class PageGui(qtw.QFrame):
     "base class for notebook page"
     def __init__(self, parent, pageno, standard=True):
         self.parent = parent
@@ -709,8 +690,11 @@ class Page(qtw.QFrame):
         if 0 <= page_num <= self.parent.pages:
             self.parent.setCurrentIndex(page_num)
 
+    def get_entry_text(self):  # methode van PageGui
+        return self.text1.get_contents()
 
-class Page0(Page):
+
+class Page0Gui(PageGui):
     "pagina 0: overzicht acties"
     def __init__(self, parent):
         self.parent = parent
@@ -960,8 +944,14 @@ class Page0(Page):
             self.sort_button.setEnabled(False)
             self.archive_button.setEnabled(False)
 
+    def get_items(self):  # methode van Page0Gui
+        return [self.p0list.topLevelItem(indx) for i in range(self.p0list.topLevelItemCount())]
 
-class Page1(Page):
+    def get_item_text(self, item_or_index, column):  # methode van Page0Gui
+        return item_or_index.text(column)
+
+
+class Page1Gui(PageGui):
     "pagina 1: startscherm actie"
     def __init__(self, parent):
         Page.__init__(self, parent, pageno=1, standard=False)
@@ -1245,8 +1235,22 @@ class Page1(Page):
             self.stat_choice.addItem(text, value)
         self.initializing = False
 
+    def get_entry_text(self, entry_type):  # methode van Page1Gui
+        if entry_type == 'actie':
+            return self.id_text.text()
+        elif entry_type == 'datum':
+            return self.date_text.text()
+        elif entry_type == 'oms':
+            return self.proc_entry.text()
+        elif entry_type == 'tekst':
+            return self.desc_entry.text()
+        elif entry_type == 'soort':
+            return self.cat_choice.currentText()
+        elif entry_type == 'status':
+            return self.stat_choice.currentText()
 
-class Page6(Page):
+
+class Page6Gui(PageGui):
     "pagina 6: voortgang"
     def __init__(self, parent):
         Page.__init__(self, parent, pageno=6, standard=False)
@@ -1494,7 +1498,7 @@ class Page6(Page):
                 item.setText(short_text)
 
 
-class SortOptionsDialog(qtw.QDialog):
+class SortOptionsGui(qtw.QDialog):
     """dialoog om de sorteer opties in te stellen
     """
     _asc_id = 1
@@ -1612,7 +1616,7 @@ class SortOptionsDialog(qtw.QDialog):
         super().accept()
 
 
-class SelectOptionsDialog(qtw.QDialog):
+class SelectOptionsGui(qtw.QDialog):
     """dialoog om de selectie op te geven
 
     sel_args is de dictionary waarin de filterwaarden zitten, bv:
@@ -1958,7 +1962,7 @@ class SelectOptionsDialog(qtw.QDialog):
         super().accept()
 
 
-class OptionsDialog(qtw.QDialog):
+class OptionsGui(qtw.QDialog):
     """base class voor de opties dialogen
 
     nu nog F2 en dubbelklikken mogelijk maken om editen te starten"""
@@ -2097,7 +2101,7 @@ class OptionsDialog(qtw.QDialog):
         super().accept()
 
 
-class TabOptions(OptionsDialog):
+class TabOptionsGui(OptionsGui):
     "dialoog voor mogelijke tab headers"
     def initstuff(self):
         "aanvullende initialisatie"
@@ -2121,7 +2125,7 @@ class TabOptions(OptionsDialog):
         self.parent.save_settings("tab", self.newtabs)
 
 
-class StatOptions(OptionsDialog):
+class StatOptionsGui(OptionsGui):
     "dialoog voor de mogelijke statussen"
     def initstuff(self):
         "aanvullende initialisatie"
@@ -2154,7 +2158,7 @@ class StatOptions(OptionsDialog):
         self.parent.save_settings("stat", self.newstats)
 
 
-class CatOptions(OptionsDialog):
+class CatOptionsGui(OptionsGui):
     "dialoog voor de mogelijke categorieen"
     def initstuff(self):
         "aanvullende initialisatie"
@@ -2187,7 +2191,7 @@ class CatOptions(OptionsDialog):
         self.parent.save_settings("cat", self.newcats)
 
 
-class LoginBox(qtw.QDialog):
+class LoginBoxGui(qtw.QDialog):
     """Sign in with userid & password
     """
     def __init__(self, parent):
@@ -2226,52 +2230,18 @@ class LoginBox(qtw.QDialog):
         super().accept()
 
 
-class MainWindow(qtw.QMainWindow):
+class MainGui(qtw.QMainWindow):
     """Hoofdscherm met menu, statusbalk, notebook en een "quit" button"""
-    def __init__(self, parent, fnaam="", version=None):
-        if not version:
-            raise ValueError('No data method specified')
-        self.parent = parent
-        self.datatype = version
-        self.title = 'Actieregistratie'
-        self.initializing = True
-        self.exiting = False
-        self.mag_weg = True
-        self.helptext = ''
-        self.pagedata = self.oldbuf = None
-        self.is_newfile = self.newitem = False
-        self.oldsort = -1
-        self.idlist = self.actlist = self.alist = []
-        log('fnaam is %s', fnaam)
-        if fnaam and not os.path.exists(fnaam):
-            log('switched to SQL')
-            self.datatype = DataType.SQL.name
-            if fnaam == 'sql':
-                fnaam = ''
-        if self.datatype == DataType.XML.name:
-            test = pathlib.Path(fnaam)
-            self.dirname, self.filename = test.parent, test.name
-            log('XML: %s %s', self.dirname, self.filename)
-        elif self.datatype == DataType.SQL.name:
-            self.filename = ""
-            self.projnames = get_projnames()
-            if fnaam:
-                test = fnaam.lower()
-                for x in self.projnames:
-                    if x[0].lower() == test:
-                        if test == 'basic':
-                            self.filename = '_basic'
-                        else:
-                            self.filename = x[0]
-                        break
-            log('SQL: %s', self.filename)
+    def __init__(self, master):
+        self.master = master
+        self.app = qtw.QApplication(sys.argv)
+        super().__init__()
+        self.setWindowTitle(self.master.title)
+        self.setWindowIcon(gui.QIcon("task.ico"))
         if LIN:
             wide, high, left, top = 864, 720, 2, 2
         else:
             wide, high, left, top = 588, 594, 20, 32
-        super().__init__(parent)
-        self.setWindowTitle(self.title)
-        self.setWindowIcon(gui.QIcon("task.ico"))
         self.move(left, top)
         self.resize(wide, high)
         self.sbar = self.statusBar()
@@ -2282,49 +2252,16 @@ class MainWindow(qtw.QMainWindow):
         self.create_menu()
         self.create_actions()
 
-        self.user = None    # start without user
-        self.is_user = self.is_admin = False
-        if self.datatype == DataType.XML.name:
-            self.is_user = self.is_admin = True  # force editability
-
-        pnl = qtw.QFrame(self)
-        self.setCentralWidget(pnl)
-        self.toolbar = None
-        self.create_book(pnl)
-        self.exit_button = qtw.QPushButton('&Quit', pnl)
-        self.exit_button.clicked.connect(self.exit_app)
-        self.doelayout(pnl)
-        if self.datatype == DataType.XML.name:
-            if self.filename == "":
-                self.open_xml()
-            else:
-                self.startfile()
-        elif self.datatype == DataType.SQL.name:
-            if self.filename:
-                self.open_sql(do_sel=False)
-            else:
-                self.open_sql()
-        self.initializing = False
-        self.zetfocus(0)
-
     def create_menu(self):
         """Create application menu
         """
+        return  # skip for now
         def add_to_menu(menu, menuitem):
             "parse line and create menu item"
             if len(menuitem) == 1:
                 menu.addSeparator()
             elif len(menuitem) == 4:
                 caption, callback, keys, tip = menuitem
-                if self.datatype == DataType.SQL.name:
-                    if caption == "&Open":
-                        ## caption = "Rel&oad project"
-                        ## callback = functools.partial(self.open_sql, False)
-                        caption = "Select &Other project"
-                        callback = functools.partial(self.open_sql, True)
-                        tip = " Select a project"
-                    elif caption == "&New":
-                        tip = " Create a new project"
                 action = menu.addAction(caption)
                 action.triggered.connect(callback)
                 if keys:
@@ -2340,47 +2277,15 @@ class MainWindow(qtw.QMainWindow):
                     add_to_menu(sub, subitem)
 
         menu_bar = self.menuBar()
-        menudata = (
-            ("&File", [
-                ("&Open", self.open_xml, 'Ctrl+O', " Open a new file"),
-                ("&New", self.new_file, 'Ctrl+N', " Create a new file"),
-                ('',),
-                ("&Print", (
-                    ("Dit &Scherm", self.print_scherm, 'Shift+Ctrl+P',
-                     "Print the contents of the current screen"),
-                    ("Deze &Actie", self.print_actie, 'Alt+Ctrl+P',
-                     "Print the contents of the current issue"))),
-                ('',),
-                ("&Quit", self.exit_app, 'Ctrl+Q', " Terminate the program")]),
-            ("&Login", [("&Go", self.sign_in, 'Ctrl+L', " Sign in to the database")]),
-            ("&Settings", (
-                ("&Applicatie", (
-                    ("&Lettertype", self.font_settings, '',
-                     " Change the size and font of the text"),
-                    ("&Kleuren", self.colour_settings, '',
-                     " Change the colours of various items"))),
-                ("&Data", (
-                    ("  &Tabs", self.tab_settings, '',
-                     " Change the titles of the tabs"),
-                    ("  &Soorten", self.cat_settings, '',
-                     " Add/change type categories"),
-                    ("  St&atussen", self.stat_settings, '',
-                     " Add/change status categories"))),
-                ("&Het leven", self.silly_menu, '',
-                 " Change the way you look at life"))),
-            ("&Help", (
-                ("&About", self.about_help, 'F1', " Information about this program"),
-                ("&Keys", self.hotkey_help, 'Ctrl+H', " List of shortcut keys"))))
-        for title, items in menudata:
+        for title, items in self.master.get_menu_data():
             menu = menu_bar.addMenu(title)
-            if title == '&Login' and self.datatype != DataType.SQL.name:
-                continue
             for menuitem in items:
                 add_to_menu(menu, menuitem)
 
     def create_actions(self):
         """Create additional application actions
         """
+        return  # skip for now
         action = qtw.QShortcut('Ctrl+P', self, self.print_)
         action = qtw.QShortcut('Alt+Left', self, self.go_prev)
         action = qtw.QShortcut('Alt+Right', self, self.go_next)
@@ -2388,41 +2293,13 @@ class MainWindow(qtw.QMainWindow):
             action = qtw.QShortcut('Alt+{}'.format(char), self,
                                    functools.partial(self.go_to, int(char)))
 
-    def print_(self):
-        """callback voor ctrl-P(rint)
-
-        vraag om printen scherm of actie, bv. met een InputDialog
-        """
-        choice, ok = qtw.QInputDialog.getItem(self, 'Afdrukken', 'Wat wil je afdrukken?',
-                                              ['huidig scherm', 'huidige actie'])
-        if ok:
-            print('printing', choice)
-            if choice == 0:
-                self.print_scherm()
-            else:
-                self.print_actie()
-
-    def go_next(self):
-        """redirect to the method of the current page
-        """
-        Page.goto_next(self.book.widget(self.book.current_tab))
-
-    def go_prev(self):
-        """redirect to the method of the current page
-        """
-        Page.goto_prev(self.book.widget(self.book.current_tab))
-
-    def go_to(self, page):
-        """redirect to the method of the current page
-        """
-        Page.goto_page(self.book.widget(self.book.current_tab), page)
-
     def create_book(self, pnl):
         """define the tabbed interface and its subclasses
         """
         self.book = qtw.QTabWidget(pnl)
         self.book.resize(300, 300)
         self.book.parent = self
+        return  # skip rest for now
         self.book.fnaam = ""
         if self.filename and self.datatype == DataType.SQL.name:
             self.book.fnaam = self.filename
@@ -2469,145 +2346,63 @@ class MainWindow(qtw.QMainWindow):
         for i in range(1, self.book.count()):
             self.book.setTabEnabled(i, False)
 
-    def doelayout(self, pnl):
-        """realize the screen layout
+    def go(self):
+        """realize the screen layout and start application
         """
+        pnl = qtw.QFrame(self)
+        self.setCentralWidget(pnl)
+        self.toolbar = None
+        self.create_book(pnl)
         sizer0 = qtw.QVBoxLayout()
+        sizer0.addWidget(self.book)
         sizer1 = qtw.QHBoxLayout()
-        sizer1.addWidget(self.book)
+        sizer1.addStretch()
+        self.exit_button = qtw.QPushButton('&Quit', pnl)
+        self.exit_button.clicked.connect(self.master.exit_app)
+        sizer1.addWidget(self.exit_button)
+        sizer1.addStretch()
         sizer0.addLayout(sizer1)
-        sizer2 = qtw.QHBoxLayout()
-        sizer2.addStretch()
-        sizer2.addWidget(self.exit_button)
-        sizer2.addStretch()
-        sizer0.addLayout(sizer2)
         pnl.setLayout(sizer0)
+        self.show()
+        # self.zetfocus(0)
+        sys.exit(self.app.exec_())
+
+    def print_(self):
+        """callback voor ctrl-P(rint)
+
+        vraag om printen scherm of actie, bv. met een InputDialog
+        """
+        choice, ok = qtw.QInputDialog.getItem(self, 'Afdrukken', 'Wat wil je afdrukken?',
+                                              ['huidig scherm', 'huidige actie'])
+        if ok:
+            print('printing', choice)
+            if choice == 0:
+                self.print_scherm()
+            else:
+                self.print_actie()
+
+    def go_next(self):
+        """redirect to the method of the current page
+        """
+        Page.goto_next(self.book.widget(self.book.current_tab))
+
+    def go_prev(self):
+        """redirect to the method of the current page
+        """
+        Page.goto_prev(self.book.widget(self.book.current_tab))
+
+    def go_to(self, page):
+        """redirect to the method of the current page
+        """
+        Page.goto_page(self.book.widget(self.book.current_tab), page)
 
     def not_implemented_message(self):
         "information"
         qtw.QMessageBox.information(self, "Oeps", "Sorry, werkt nog niet")
 
-    def new_file(self):
-        "Menukeuze: nieuw file"
-        if self.datatype == DataType.SQL.name:
-            self.not_implemented_message()
-            return
-        self.is_newfile = False
-        self.dirname = str(self.dirname)  # defaults to '.' so no need for `or os.getcwd()`
-        fname, pattern = qtw.QFileDialog.getSaveFileName(
-            self, self.title + " - nieuw gegevensbestand",
-            self.dirname, "XML files (*.xml);;all files (*.*)")
-        if fname:
-            test = pathlib.Path(fname)
-            self.dirname, self.filename = test.parent, test.name
-            self.is_newfile = True
-            self.startfile()
-            self.is_newfile = False
-            for i in range(1, self.book.count()):
-                self.book.setTabEnabled(i, False)
-
-    def open_xml(self):
-        "Menukeuze: open file"
-        self.dirname = self.dirname or os.getcwd()
-        fname, pattern = qtw.QFileDialog.getOpenFileName(
-            self, self.title + " - kies een gegevensbestand",
-            str(self.dirname), "XML files (*.xml);;all files (*.*)")
-        if fname:
-            test = pathlib.Path(fname)
-            self.dirname, self.filename = test.parent, test.name
-            self.startfile()
-
-    def open_sql(self, do_sel=True):
-        "Menukeuze: open project"
-        log('in open_sql: %s', self.filename)
-        choice = 0
-        data = self.projnames
-        if do_sel:
-            choice, ok = qtw.QInputDialog.getItem(
-                self, 'Probreg SQL versie', 'Kies een project om te openen',
-                [": ".join((h[0], h[2])) for h in data],
-                current=choice, editable=False)
-        else:
-            for idx, h in enumerate(data):
-                log(h)
-                if h[0] == self.filename or (h[0] == 'basic' and self.filename == "_basic"):
-                    choice, ok = h[0], True  # idx, True
-                    break
-        if ok:
-            self.filename = choice.split(': ')[0]
-            if self.filename in ("Demo", 'basic'):
-                self.filename = "_basic"
-            self.startfile()
-
-    def print_scherm(self):
-        "Menukeuze: print dit scherm"
-        print('printing current screen')
-        self.printdict = {'lijst': [], 'actie': [], 'sections': [], 'events': []}
-        self.hdr = "Actie: {} {}".format(self.book.pagedata.id,
-                                         self.book.pagedata.titel)
-        if self.book.current_tab == 0:
-            self.hdr = "Overzicht acties uit " + self.filename
-            lijst = []
-            for indx in range(self.book.page0.p0list.topLevelItemCount()):
-                item = self.book.page0.p0list.topLevelItem(indx)
-                actie = str(item.text(0))
-                started = ''
-                soort = str(item.text(1))
-                for x in self.book.cats.values():
-                    oms, code = x[0], x[1]
-                    if code == soort:
-                        soort = oms
-                        break
-                status = str(item.text(2))
-                l_wijz = str(item.text(3))
-                titel = str(item.text(4))
-                if self.datatype == DataType.SQL.name:
-                    over = titel
-                    titel = str(item.text(5))
-                    l_wijz = l_wijz[:19]
-                    actie = actie + " - " + over
-                    started = started[:19]
-                if status != self.book.stats[0][0]:
-                    if l_wijz:
-                        l_wijz = ", laatst behandeld op " + l_wijz
-                    l_wijz = "status: {}{}".format(status, l_wijz)
-                else:
-                    hlp = "status: {}".format(status)
-                    if l_wijz and not started:
-                        hlp += ' op {}'.format(l_wijz)
-                    l_wijz = hlp
-                lijst.append((actie, titel, soort, started, l_wijz))
-            self.printdict['lijst'] = lijst
-        elif self.book.current_tab == 1:
-            actie = str(self.book.page1.id_text.text())
-            self.hdr = "Informatie over actie {}: samenvatting".format(actie)
-            self.printdict.update({
-                'actie': actie,
-                'datum': str(self.book.page1.date_text.text()),
-                'oms': str(self.book.page1.proc_entry.text()),
-                'tekst': str(self.book.page1.desc_entry.text()),
-                'soort': str(self.book.page1.cat_choice.currentText()),
-                'status': str(self.book.page1.stat_choice.currentText())})
-        elif 2 <= self.book.current_tab <= 5:
-            title = self.book.tabs[self.book.current_tab].split(None, 1)[1]
-            if self.book.current_tab == 2:
-                text = self.book.page2.text1.get_contents()
-            elif self.book.current_tab == 3:
-                text = self.book.page3.text1.get_contents()
-            elif self.book.current_tab == 4:
-                text = self.book.page4.text1.get_contents()
-            elif self.book.current_tab == 5:
-                text = self.book.page5.text1.get_contents()
-            self.printdict['sections'] = [(title, str(text).replace('\n', '<br>'))]
-        elif self.book.current_tab == 6:
-            events = []
-            for idx, data in enumerate(self.book.page6.event_list):
-                if self.datatype == DataType.SQL.name:
-                    data = data[:19]
-                events.append((data, self.book.page6.event_data[idx].replace('\n',
-                                                                             '<br>')))
-            self.printdict['events'] = events
-        self.preview()
+    def disable_all_book_tabs(self):
+        for i in range(1, self.master.book.count()):
+            self.book.setTabEnabled(i, False)
 
     def print_actie(self):
         "Menukeuze: print deze actie"
@@ -2655,25 +2450,9 @@ class MainWindow(qtw.QMainWindow):
                                     self.book.pagedata.events] or []
         self.preview()
 
-    def exit_app(self):
+    def exit(self):
         "Menukeuze: exit applicatie"
-        self.exiting = True
-        if self.book.current_tab == 0:
-            ok_to_leave = self.book.page0.leavep()
-        elif self.book.current_tab == 1:
-            ok_to_leave = self.book.page1.leavep()
-        elif self.book.current_tab == 2:
-            ok_to_leave = self.book.page2.leavep()
-        elif self.book.current_tab == 3:
-            ok_to_leave = self.book.page3.leavep()
-        elif self.book.current_tab == 4:
-            ok_to_leave = self.book.page4.leavep()
-        elif self.book.current_tab == 5:
-            ok_to_leave = self.book.page5.leavep()
-        elif self.book.current_tab == 6:
-            ok_to_leave = self.book.page6.leavep()
-        if ok_to_leave:
-            self.close()
+        self.close()    # enough for now
 
     def tab_settings(self):
         "Menukeuze: settings - data - tab titels"
@@ -2939,19 +2718,3 @@ class MainWindow(qtw.QMainWindow):
             self.user, self.is_user, self.is_admin = self.dialog_data
             self.book.rereadlist = True
             self.on_page_changing(0)
-
-
-def main(arg=None):
-    "opstart routine"
-    if arg is None:
-        version = DataType.SQL.name
-    else:
-        version = DataType.XML.name
-    app = qtw.QApplication(sys.argv)
-    try:
-        frame = MainWindow(None, arg, version)
-    except ValueError as err:
-        print(err)
-    else:
-        frame.show()
-        sys.exit(app.exec_())
