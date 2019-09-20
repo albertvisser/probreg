@@ -23,6 +23,7 @@ Settings = {DataType.XML.name: dmlx.Settings, DataType.SQL.name: dmls.Settings}
 Order = enum.Enum('Order', 'A D')
 logging.basicConfig(filename='/tmp/apropos_qt.log', level=logging.DEBUG,
                     format='%(asctime)s %(module)s %(message)s')
+app_title = 'Actiereg'
 
 
 def log(msg, *args, **kwargs):
