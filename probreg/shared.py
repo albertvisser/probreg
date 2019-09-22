@@ -13,6 +13,7 @@ import os
 import enum
 import logging
 import pathlib
+from datetime import datetime
 import probreg.dml_django as dmls
 import probreg.dml_xml as dmlx
 ROOT = pathlib.Path("/home/albert/projects/actiereg/actiereg")
@@ -21,8 +22,10 @@ get_acties = {DataType.XML.name: dmlx.get_acties, DataType.SQL.name: dmls.get_ac
 Actie = {DataType.XML.name: dmlx.Actie, DataType.SQL.name: dmls.Actie}
 Settings = {DataType.XML.name: dmlx.Settings, DataType.SQL.name: dmls.Settings}
 Order = enum.Enum('Order', 'A D')
-logging.basicConfig(filename='/tmp/apropos_qt.log', level=logging.DEBUG,
-                    format='%(asctime)s %(module)s %(message)s')
+logfile = pathlib.Path('/tmp') / 'logs' / 'apropos.log'
+logfile.parent.mkdir(exist_ok=True)
+logging.basicConfig(filename=logfile, level=logging.DEBUG,
+                    format='%(asctime)s %(module)s: %(message)s')
 app_title = 'Actiereg'
 
 
@@ -41,16 +44,14 @@ def data2str(data):
     "compatibility Python 2 / 3: turn PyQt data object into Python string"
     if sys.version < "3":
         return str(data.toPyObject())
-    else:
-        return str(data)
+    return str(data)
 
 
 def data2int(data):
     "compatibility Python 2 / 3: turn PyQt data object into Python integer"
     if sys.version < "3":
         return int(data.toPyObject())
-    else:
-        return int(data)
+    return int(data)
 
 
 def tabsize(pointsize):
@@ -59,6 +60,7 @@ def tabsize(pointsize):
     return x * 4 if y < 5 else (x + 1) * 4
 
 
+# verhuisd naar dmlx
 # kopdict = {
 #     "0": ("Lijst", 'index'),
 #     "1": ("Titel/Status", 'detail'),

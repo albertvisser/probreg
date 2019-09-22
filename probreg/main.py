@@ -2,11 +2,9 @@
 # -*- coding: UTF-8 -*-
 """Actie (was: problemen) Registratie, PyQT5 versie
 """
-from __future__ import print_function
 import os
 import sys
 import pathlib
-from datetime import datetime
 ## import pprint
 import collections
 import functools
@@ -18,8 +16,7 @@ import PyQt5.QtCore as core
 # maybe the next one as well, maybe not
 from mako.template import Template
 ## import probreg.pr_globals as pr
-from probreg.gui import MainGui, PageGui, Page0Gui
-from probreg.gui import show_message, get_open_filename, get_save_filename, get_choice_item
+import probreg.gui as gui
 import probreg.shared as shared   # import DataError, et_projnames
 ## import probreg.dml_sql as dmls
 import probreg.dml_django as dmls
@@ -41,7 +38,7 @@ class EditorPanel():
         self.currentCharFormatChanged.connect(self.charformat_changed)
         self.cursorPositionChanged.connect(self.cursorposition_changed)
         font = self.currentFont()
-        self.setTabStopWidth(tabsize(font.pointSize()))
+        self.setTabStopWidth(shared.tabsize(font.pointSize()))
         self.defaultfamily, self.defaultsize = font.family(), font.pointSize()
 
     def canInsertFromMimeData(self, source):
@@ -160,7 +157,7 @@ class EditorPanel():
         if ok:
             fmt = gui.QTextCharFormat()
             fmt.setFont(font)
-            self.setTabStopWidth(tabsize(font.pointSize()))
+            self.setTabStopWidth(shared.tabsize(font.pointSize()))
             self.mergeCurrentCharFormat(fmt)
 
     def text_family(self, family):
@@ -241,7 +238,7 @@ class EditorPanel():
         if pointsize > 0:
             fmt = gui.QTextCharFormat()
             fmt.setFontPointSize(pointsize)
-            self.setTabStopWidth(tabsize(pointsize))
+            self.setTabStopWidth(shared.tabsize(pointsize))
             self.mergeCurrentCharFormat(fmt)
             self.setFocus()
 
@@ -296,42 +293,10 @@ class Page():
         self.pageno = pageno
         self.is_text_page = standard
         if standard:
-            self.gui = PageGui(parent, self)
-        # if not standard:
-        #     return
-        # self.actiondict = collections.OrderedDict()
-        # self.create_toolbar()
-        # self.create_text_field(pageno)
-        # self.save_button = qtw.QPushButton('Sla wijzigingen op (Ctrl-S)', self)
-        # self.save_button.clicked.connect(self.savep)
-        # action = qtw.QShortcut('Ctrl+S', self, self.savep)
-        # self.saveandgo_button = qtw.QPushButton('Sla op en ga verder (Ctrl-G)', self)
-        # self.saveandgo_button.clicked.connect(self.savepgo)
-        # action = qtw.QShortcut('Ctrl+G', self, self.savepgo)
-        # self.cancel_button = qtw.QPushButton('Zet originele tekst terug (Alt-Ctrl-Z)',
-        #                                      self)
-        # self.cancel_button.clicked.connect(self.restorep)
-        # action = qtw.QShortcut('Alt+Ctrl+Z', self, self.restorep)  # Ctrl-Z zit al in text control
-        # action = qtw.QShortcut('Alt+N', self, self.nieuwp)
-
-#     def create_toolbar(self):
-#         """build toolbar wih buttons for changing text style
-#         """
-#         toolbar = qtw.QToolBar('styles')
-#         toolbar.setIconSize(core.QSize(16, 16))
-#         self.combo_font = qtw.QFontComboBox(toolbar)
-#         toolbar.addWidget(self.combo_font)
-#         self.combo_size = qtw.QComboBox(toolbar)
-#         toolbar.addWidget(self.combo_size)
-#         self.combo_size.setEditable(True)
-#         db = gui.QFontDatabase()
-#         self.fontsizes = []
-#         for size in db.standardSizes():
-#             self.combo_size.addItem(str(size))
-#             self.fontsizes.append(str(size))
-#         toolbar.addSeparator()
+            self.gui = gui.PageGui(parent, self)
 
     def get_toolbar_data(self):
+        "return texts, shortcuts and picture names for setting op toolbar"
         return (('&Bold', 'Ctrl+B', 'icons/sc_bold', 'CheckB'),
                 ('&Italic', 'Ctrl+I', 'icons/sc_italic', 'CheckI'),
                 ('&Underline', 'Ctrl+U', 'icons/sc_underline', 'CheckU'),
@@ -363,36 +328,8 @@ class Page():
                  'Increase spacing between paragraphs'),
                 ("Decrease &Paragraph Spacing", '', 'icons/sc_paraspacedecrease',
                  'Decrease spacing between paragraphs'))
-#         for menudef in data:
-#             if not menudef:
-#                 toolbar.addSeparator()
-#                 continue
-#             label, shortcut, icon, info = menudef
-#             if icon:
-#                 action = qtw.QAction(gui.QIcon(os.path.join(HERE, icon)), label, self)
-#                 toolbar.addAction(action)
-#             else:
-#                 action = qtw.QAction(label, self)
-#             if shortcut:
-#                 action.setShortcuts([x for x in shortcut.split(",")])
-#             if info.startswith("Check"):
-#                 action.setCheckable(True)
-#                 info = info[5:]
-#                 if info in ('B', 'I', 'U', 'S'):
-#                     font = gui.QFont()
-#                     if info == 'B':
-#                         font.setBold(True)
-#                     elif info == 'I':
-#                         font.setItalic(True)
-#                     elif info == 'U':
-#                         font.setUnderline(True)
-#                     elif info == 'S':
-#                         font.setStrikeOut(True)
-#                     action.setFont(font)
-#             self.actiondict[label] = action
-#         self.toolbar = toolbar
 
-    def create_text_field(self, pageno):
+    def create_text_field(self, pageno):    # TODO: kan helemaal naar GUI?
         """build rich text area with style changing properties
         """
         high = 330 if LIN else 430
@@ -421,7 +358,7 @@ class Page():
         self.combo_size.activated[str].connect(self.text1.text_size)
         self.text1.font_changed(self.text1.font())
 
-    def doelayout(self):
+    def doelayout(self):    # TODO: kan helemaal naar GUI?
         "layout page"
         sizer0 = qtw.QVBoxLayout()
         sizer1 = qtw.QVBoxLayout()
@@ -440,7 +377,7 @@ class Page():
         self.setLayout(sizer0)
         return True
 
-    def vulp(self):
+    def vulp(self):  # TODO: afmaken
         """te tonen gegevens invullen in velden e.a. initialisaties
 
         methode aan te roepen voorafgaand aan het tonen van de pagina"""
@@ -448,14 +385,14 @@ class Page():
         self.parent.parent.enable_settingsmenu()
         if self.parent.current_tab == 0:
             text = self.seltitel
-        else:
+        else:  # TODO: nog niks aan gedaan
             self.gui.enable_buttons(False)
             text = self.parent.tabs[self.parent.current_tab].split(None, 1)
             if self.parent.pagedata:
                 text = str(self.parent.pagedata.id) + ' ' + self.parent.pagedata.titel
         self.parent.parent.set_windowtitle("{} | {}".format(self.parent.parent.title, text))
         self.parent.parent.set_statusmessage()
-        if 1 < self.parent.current_tab < 6:
+        if 1 < self.parent.current_tab < 6:     # TODO: nog niks aan gedaan
             self.oldbuf = ''
             is_readonly = False
             if self.parent.pagedata is not None:
@@ -482,8 +419,8 @@ class Page():
         "lezen van een actie"
         if self.parent.pagedata:  # spul van de vorige actie opruimen
             self.parent.pagedata.clear()
-        self.parent.pagedata = Actie[self.parent.parent.datatype](self.parent.fnaam, pid,
-                                                                  self.parent.parent.user)
+        self.parent.pagedata = shared.Actie[self.parent.parent.datatype](self.parent.fnaam, pid,
+                                                                         self.parent.parent.user)
         self.parent.parent.imagelist = self.parent.pagedata.imagelist
         self.parent.old_id = self.parent.pagedata.id
         self.parent.newitem = False
@@ -494,15 +431,14 @@ class Page():
         self.parent.newitem = True
         if self.leavep():
             if self.parent.current_tab == 0:
-                for i in range(1, self.parent.count()):
-                    self.parent.setTabEnabled(i, True)
-            self.parent.pagedata = Actie[self.parent.parent.datatype](self.parent.fnaam, 0,
-                                                                      self.parent.parent.user)
+                self.parent.parent.gui.enable_book_tabs(True, tabfrom=1)
+            self.parent.pagedata = shared.Actie[self.parent.parent.datatype](self.parent.fnaam, 0,
+                                                                             self.parent.parent.user)
             self.parent.parent.imagelist = self.parent.pagedata.imagelist
             self.parent.newitem = True
             if self.parent.current_tab == 1:
                 self.vulp()  # om de velden leeg te maken
-                self.proc_entry.setFocus()
+                self.gui.set_focus()
             else:
                 self.goto_page(1, check=False)
         else:
@@ -511,13 +447,13 @@ class Page():
 
     def leavep(self):
         "afsluitende acties uit te voeren alvorens de pagina te verlaten"
-        newbuf = self.build_newbuf()
+        newbuf = self.gui.build_newbuf()
         if self.parent.current_tab == 1 and self.parent.newitem and newbuf[0] == "" \
                 and newbuf[1] == "" and not self.parent.parent.exiting:
             self.parent.newitem = False
-            self.parent.pagedata = Actie[self.parent.parent.datatype](self.parent.fnaam,
-                                                                      self.parent.old_id,
-                                                                      self.parent.parent.user)
+            self.parent.pagedata = shared.Actie[self.parent.parent.datatype](self.parent.fnaam,
+                                                                             self.parent.old_id,
+                                                                             self.parent.parent.user)
         ok_to_leave = True
         self.parent.checked_for_leaving = True
         if self.parent.current_tab == 0:
@@ -525,45 +461,41 @@ class Page():
             if not self.parent.parent.mag_weg and not self.parent.newitem:
                 ok_to_leave = False
         elif newbuf != self.oldbuf:
-            retval = qtw.QMessageBox.question(
-                self, self.parent.parent.title,
-                "\n".join(("De gegevens op de pagina zijn gewijzigd, ",
-                           "wilt u de wijzigingen opslaan voordat u verder gaat?")),
-                buttons=qtw.QMessageBox.Yes | qtw.QMessageBox.No | qtw.QMessageBox.Cancel)
-            if retval == qtw.QMessageBox.Yes:
+            message = "\n".join(("De gegevens op de pagina zijn gewijzigd, ",
+                                 "wilt u de wijzigingen opslaan voordat u verder gaat?")),
+            ok, cancel = gui.ask_cancel_question(self.gui, message)
+            if ok:
                 ok_to_leave = self.savep()
-            elif retval == qtw.QMessageBox.Cancel:
+            elif cancel:
                 self.parent.checked_for_leaving = ok_to_leave = False
-            if retval != qtw.QMessageBox.Cancel:
-                for i in range(self.parent.count()):
-                    if i != self.parent.current_tab:
-                        self.parent.setTabEnabled(i, True)
+            if not cancel:
+                self.parent.enable_all_other_tabs()
         return ok_to_leave
 
-    def savep(self):
+    def savep(self):  # TODO: afmaken
         "gegevens van een actie opslaan afhankelijk van pagina"
-        if not self.save_button.isEnabled():
+        if not self.gui.can_save:
             return
-        self.enable_buttons(False)
+        self.gui.enable_buttons(False)
         if self.parent.current_tab <= 1 or self.parent.current_tab == 6:
             return
-        wijzig = False
+        wijzig = False  # TODO: van hieraf nog niks aan gedaan
         text = self.text1.get_contents()
         if self.parent.current_tab == 2 and text != self.parent.pagedata.melding:
             self.oldbuf = self.parent.pagedata.melding = text
-            self.parent.pagedata.events.append((get_dts(), "Meldingtekst aangepast"))
+            self.parent.pagedata.events.append((shared.get_dts(), "Meldingtekst aangepast"))
             wijzig = True
         if self.parent.current_tab == 3 and text != self.parent.pagedata.oorzaak:
             self.oldbuf = self.parent.pagedata.oorzaak = text
-            self.parent.pagedata.events.append((get_dts(), "Beschrijving oorzaak aangepast"))
+            self.parent.pagedata.events.append((shared.get_dts(), "Beschrijving oorzaak aangepast"))
             wijzig = True
         if self.parent.current_tab == 4 and text != self.parent.pagedata.oplossing:
             self.oldbuf = self.parent.pagedata.oplossing = text
-            self.parent.pagedata.events.append((get_dts(), "Beschrijving oplossing aangepast"))
+            self.parent.pagedata.events.append((shared.get_dts(), "Beschrijving oplossing aangepast"))
             wijzig = True
         if self.parent.current_tab == 5 and text != self.parent.pagedata.vervolg:
             self.oldbuf = self.parent.pagedata.vervolg = text
-            self.parent.pagedata.events.append((get_dts(), "Tekst vervolgactie aangepast"))
+            self.parent.pagedata.events.append((shared.get_dts(), "Tekst vervolgactie aangepast"))
             wijzig = True
         if wijzig:
             self.update_actie()
@@ -572,14 +504,14 @@ class Page():
 
     def savepgo(self):
         "opslaan en naar de volgende pagina"
-        if not self.saveandgo_button.isEnabled():
+        if not self.gui.can_saveandgo():
             return
         if self.savep():
             self.goto_next()
         else:
             self.enable_buttons()
 
-    def restorep(self):
+    def restorep(self):  # TODO: afmaken - is dit overridden waar niet van toepassing?
         "oorspronkelijke (laatst opgeslagen) inhoud van de pagina herstellen"
         # reset font - are these also needed: case? indent? linespacing? paragraphspacing?
         if self.parent.current_tab > 1:
@@ -587,36 +519,22 @@ class Page():
                 win = self.progress_text
             else:
                 win = self.text1
-        win.setFontWeight(gui.QFont.Normal)
+        win.setFontWeight(gui.QFont.Normal)  # moeten deze 5 niet ook onde de IF?
         win.setFontItalic(False)
         win.setFontUnderline(False)
         win.setFontFamily(win.defaultfamily)
         win.setFontPointSize(win.defaultsize)
         self.vulp()
 
-    def on_text(self):
+    def on_text(self):  # TODO: nog niks aan gedaan
         """callback voor EVT_TEXT
 
         de initializing flag wordt uitgevraagd omdat deze event ook tijdens vulp()
         en tijdens vul_combos plaatsvindt"""
         if not self.initializing:
-            newbuf = self.build_newbuf()
+            newbuf = self.gui.build_newbuf()
             changed = newbuf != self.oldbuf
             self.enable_buttons(changed)
-
-    def build_newbuf(self):
-        """read widget contents into the compare buffer
-        """
-        newbuf = None
-        if self.parent.current_tab == 1:
-            newbuf = (str(self.proc_entry.text()), str(self.desc_entry.text()),
-                      int(self.stat_choice.currentIndex()),
-                      int(self.cat_choice.currentIndex()))
-        elif 1 < self.parent.current_tab < 6:
-            newbuf = self.text1.get_contents()
-        elif self.parent.current_tab == 6:
-            newbuf = (self.event_list, self.event_data)
-        return newbuf
 
     def on_choice(self):
         "callback voor combobox"
@@ -639,14 +557,9 @@ class Page():
         "buttons wel of niet bruikbaar maken"
         if state:
             self.parent.checked_for_leaving = False
-        self.save_button.setEnabled(state)
-        if self.parent.current_tab < 6:
-            self.saveandgo_button.setEnabled(state)
-        self.cancel_button.setEnabled(state)
+        self.gui.enable_buttons(state)
         if self.parent.current_tab > 0:
-            for i in range(self.parent.count()):
-                if i != self.parent.current_tab:
-                    self.parent.setTabEnabled(i, not state)
+            self.parent.parent.gui.enable_all_other_tabs()
 
     def goto_actie(self):
         "naar startpagina actie gaan"
@@ -659,7 +572,7 @@ class Page():
         next = self.parent.current_tab + 1
         if next > self.parent.pages:
             next = 0
-        self.parent.setCurrentIndex(next)
+        self.parent.parent.gui.set_page(next)
 
     def goto_prev(self):
         "naar de vorige pagina gaan"
@@ -668,14 +581,14 @@ class Page():
         next = self.parent.current_tab - 1
         if next < 0:
             next = self.parent.pages
-        self.parent.setCurrentIndex(next)
+        self.parent.parent.gui.set_page(next)
 
     def goto_page(self, page_num, check=True):
         "naar de aangegeven pagina gaan"
         if check and not self.leavep():
             return
         if 0 <= page_num <= self.parent.pages:
-            self.parent.setCurrentIndex(page_num)
+            self.parent.parent.gui.set_page(page_num)
 
     def get_entry_text(self):
         "get the page text"
@@ -697,7 +610,7 @@ class Page0(Page):
             extra = 310 if LIN else 220
             widths.append(extra)
 
-        self.gui = Page0Gui(parent, self, widths)
+        self.gui = gui.Page0Gui(parent, self, widths)
 
         self.sort_via_options = False
 
@@ -706,11 +619,12 @@ class Page0(Page):
 
         methode aan te roepen voorafgaand aan het tonen van de pagina
         """
+        self.saved_sortopts = None
         if (self.parent.parent.datatype == shared.DataType.SQL.name
                 and self.parent.parent.filename):
             if self.parent.parent.is_user:
-                self._data = dmls.SortOptions(self.parent.parent.filename)
-                test = self._data.load_options()
+                self.saved_sortopts = dmls.SortOptions(self.parent.parent.filename)
+                test = self.saved_sortopts.load_options()
                 test = bool(test)
                 self.sort_via_options = test
                 value = not test
@@ -793,10 +707,10 @@ class Page0(Page):
             return
         self.parent.current_item = item_n
         if not self.parent.newitem:
-            selindx = data2str(self.parent.current_item.data(0, core.Qt.UserRole))
+            selindx = self.parent.parent.get_selected_action()
             self.readp(selindx)
         hlp = "&Herleef" if self.parent.pagedata.arch else "&Archiveer"
-        self.archive_button.setText(hlp)
+        self.gui.set_archive_button_text(hlp)
 
     def on_activate_item(self, item):
         """callback voor activeren van item, door doubleclick of enter
@@ -809,17 +723,36 @@ class Page0(Page):
     def select_items(self):
         """tonen van de selectie dialoog
 
-        niet alleen selecteren op tekst(deel) maar ook op status, soort etc"""
+        niet alleen selecteren op tekst(deel) maar ook op status, soort etc
+        """
+        args = self.sel_args, None
+        if self.parent.parent.datatype == shared.DataType.SQL.name:
+            data = dmls.SelectOptions(self.parent.fnaam, self.parent.parent.user)
+            args, sel_args = data.load_options(), {}
+            for key, value in args.items():
+                if key == 'nummer':
+                    for item in value:  # splitsen in idgt, id en idlt
+                        if len(item) == 1:
+                            sel_args['id'] = 'and' if item[0] == 'en' else 'or'
+                        elif item[1] == 'GT':
+                            sel_args['idgt'] = item[0]
+                        elif item[1] == 'LT':
+                            sel_args['idlt'] = item[0]
+                # elif key == 'arch':
+                #     sel_args[key] = {0: 'narch', 1: 'arch', 2: 'alles'}[value]
+                elif value:
+                    sel_args[key] = value
+            args = sel_args, data
         while True:
-            test = SelectOptionsDialog(self, self.sel_args).exec_()
-            if test != qtw.QDialog.Accepted:
+            test = gui.show_dialog(self.gui, gui.SelectOptionsDialog, args)
+            if not test:
                 break
             self.parent.rereadlist = True
             try:
                 self.vulp()
-            except DataError as msg:
+            except (dmlx.DataError, dmls.DataError) as msg:
                 self.parent.rereadlist = False
-                qtw.QMessageBox.information(self, "Oeps", str(msg))
+                gui.show_message(self, str(msg))
             else:
                 break
 
@@ -829,52 +762,59 @@ class Page0(Page):
         sortering mogelijk op datum/tijd, soort, titel, status via schermpje met
         2x4 comboboxjes waarin je de volgorde van de rubrieken en de sorteervolgorde
         per rubriek kunt aangeven"""
-        test = SortOptionsDialog(self).exec_()
-        if test != qtw.QDialog.Accepted:
+        sortopts, sortlist = {}, []
+        if self.parent.parent.datatype == shared.DataType.SQL.name:
+            sortopts = self.saved_sortopts.load_options()
+            try:
+                sortlist = [x[0] for x in dmls.SORTFIELDS]
+            except AttributeError:
+                pass
+        if not sortlist:
+            sortlist = [x for x in self.parent.ctitels]
+            sortlist[1] = "Soort"
+        sortlist.insert(0, "(geen)")
+        args = sortopts, sortlist
+        test = gui.show_dialog(self.gui, gui.SortOptionsDialog, args)
+        if not test:
             return
         if self.sort_via_options:
-            self.p0list.setSortingEnabled(False)
+            self.gui.enable_sorting(False)
             self.parent.rereadlist = True
             try:
                 self.vulp()
-            except DataError as msg:
+            except shared.DataError as msg:
                 self.parent.rereadlist = False
-                qtw.QMessageBox.information(self, "Oeps", str(msg))
+                gui.show_message(self, str(msg))
         else:
-            self.p0list.setSortingEnabled(True)
+            self.gui.enable_sorting(True)
 
     def archiveer(self):
         "archiveren of herleven van het geselecteerde item"
-        selindx = self.parent.current_item.data(0, core.Qt.UserRole)
-        selindx = data2str(selindx) if self.parent.parent.datatype == shared.DataType.XML else data2int(selindx)
+        selindx = self.parent.parent.get_selected_action()
+        if self.parent.parent.datatype == shared.DataType.XML.name:
+            selindx = shared.data2str(selindx)
+        else:
+            selindx = shared.data2int(selindx)
         self.readp(selindx)
         if self.parent.parent.datatype == shared.DataType.XML.name:
             self.parent.pagedata.arch = not self.parent.pagedata.arch
             hlp = "gearchiveerd" if self.parent.pagedata.arch else "herleefd"
-            self.parent.pagedata.events.append((get_dts(), "Actie {0}".format(hlp)))
+            self.parent.pagedata.events.append((shared.get_dts(), "Actie {0}".format(hlp)))
         elif self.parent.parent.datatype == shared.DataType.SQL.name:
             self.parent.pagedata.set_arch(not self.parent.pagedata.arch)
         self.update_actie()  # self.parent.pagedata.write()
         self.parent.rereadlist = True
         self.vulp()
-        self.parent.parent.zetfocus(0)
+        self.parent.parent.gui.set_tabfocus(0)
         # het navolgende geldt alleen voor de selectie "gearchiveerd en actief"
         if self.sel_args.get("arch", "") == "alles":
-            self.p0list.scrollToItem(self.parent.current_item)
+            self.gui.ensure_visible(self.parent.current_item)
             hlp = "&Herleef" if self.parent.pagedata.arch else "&Archiveer"
-            self.archive_button.setText(hlp)
+            self.gui.set_archive_button_text(hlp)
 
-    # def enable_buttons(self):
-    #     "buttons wel of niet bruikbaar maken"
-    #     self.filter_button.setEnabled(bool(self.parent.parent.user))
-    #     self.go_button.setEnabled(self.p0list.has_selection)
-    #     self.new_button.setEnabled(self.parent.parent.is_user)
-    #     if self.p0list.has_selection:
-    #         self.sort_button.setEnabled(bool(self.parent.parent.user))
-    #         self.archive_button.setEnabled(self.parent.parent.is_user)
-    #     else:
-    #         self.sort_button.setEnabled(False)
-    #         self.archive_button.setEnabled(False)
+    def enable_buttons(self):
+        "buttons wel of niet bruikbaar maken"
+        self.gui.enable_buttons()
 
     def get_items(self):
         "retrieve all listitems"
@@ -892,113 +832,9 @@ class Page0(Page):
 class Page1(Page):
     "pagina 1: startscherm actie"
     def __init__(self, parent):
-        Page.__init__(self, parent, pageno=1, standard=False)
-
-        self.id_text = qtw.QLineEdit(self)
-        self.id_text.setMaximumWidth(120)
-        self.date_text = qtw.QLineEdit(self)
-        self.date_text.setMaximumWidth(150)
-
-        self.proc_entry = qtw.QLineEdit(self)
-        self.proc_entry.setMaximumWidth(150)
-        self.proc_entry.textChanged.connect(self.on_text)
-        self.desc_entry = qtw.QLineEdit(self)
-        self.desc_entry.setMaximumWidth(360)
-        self.desc_entry.textChanged.connect(self.on_text)
-
-        self.cat_choice = qtw.QComboBox(self)
-        self.cat_choice.setEditable(False)
-        self.cat_choice.setMaximumWidth(180)
-        self.cat_choice.currentIndexChanged.connect(self.on_text)
-        self.stat_choice = qtw.QComboBox(self)
-        self.stat_choice.setEditable(False)
-        self.id_text.setMaximumWidth(140)
-        self.stat_choice.currentIndexChanged.connect(self.on_text)
-
-        self.archive_text = qtw.QLabel(self)
-        self.archive_button = qtw.QPushButton("Archiveren", self)
-        self.archive_button.clicked.connect(self.archiveer)
-
-        self.save_button = qtw.QPushButton('Sla wijzigingen op (Ctrl-S)', self)
-        self.save_button.clicked.connect(self.savep)
-        action = qtw.QShortcut('Ctrl+S', self, self.savep)
-        self.saveandgo_button = qtw.QPushButton('Sla op en ga verder (Ctrl-G)', self)
-        self.saveandgo_button.clicked.connect(self.savepgo)
-        action = qtw.QShortcut('Ctrl+G', self, self.savepgo)
-        self.cancel_button = qtw.QPushButton('Maak wijzigingen ongedaan (Alt-Ctrl-Z)',
-                                             self)
-        self.cancel_button.clicked.connect(self.restorep)
-        action = qtw.QShortcut('Alt+Ctrl+Z', self, self.restorep)  # Ctrl-Z zit al in text control
-        action = qtw.QShortcut('Alt+N', self, self.nieuwp)
-
-    def doelayout(self):
-        "layout page"
-        sizer0 = qtw.QVBoxLayout()
-        sizer0.addSpacing(10)
-
-        sizerx = qtw.QHBoxLayout()
-        sizerx.addSpacing(10)
-
-        sizer1 = qtw.QGridLayout()
-        row = 0
-        sizer1.setRowMinimumHeight(row, 10)
-        sizer1.setColumnStretch(2, 1)
-        row += 1
-        sizer1.addWidget(qtw.QLabel("Actie-id:", self), row, 0)
-        sizer1.addWidget(self.id_text, row, 1)
-        row += 1
-        sizer1.setRowMinimumHeight(row, 5)
-        row += 1
-        sizer1.addWidget(qtw.QLabel("Datum/tijd:", self), row, 0)
-        sizer1.addWidget(self.date_text, row, 1)
-        row += 1
-        sizer1.setRowMinimumHeight(row, 5)
-        row += 1
-        sizer1.addWidget(qtw.QLabel("Job/\ntransactie:", self), row, 0)
-        sizer1.addWidget(self.proc_entry, row, 1)
-        row += 1
-        sizer1.setRowMinimumHeight(row, 5)
-        row += 1
-        sizer1.addWidget(qtw.QLabel("Melding/code/\nomschrijving:", self), row, 0)
-        sizer1.addWidget(self.desc_entry, row, 1, 1, 2)
-        row += 1
-        sizer1.setRowMinimumHeight(row, 5)
-        row += 1
-        sizer1.addWidget(qtw.QLabel("Categorie:", self), row, 0)
-        sizer1.addWidget(self.cat_choice, row, 1)
-        row += 1
-        sizer1.setRowMinimumHeight(row, 5)
-        row += 1
-        sizer1.addWidget(qtw.QLabel("Status:", self), row, 0)
-        sizer1.addWidget(self.stat_choice, row, 1)
-        row += 1
-        sizer1.setRowMinimumHeight(row, 5)
-        row += 1
-        sizery = qtw.QHBoxLayout()
-        sizery.addWidget(self.archive_text)
-        sizery.addStretch()
-        sizer1.addLayout(sizery, row, 1)
-        row += 1
-        sizery = qtw.QHBoxLayout()
-        sizery.addWidget(self.archive_button)
-        sizery.addStretch()
-        sizer1.addLayout(sizery, row, 1)
-
-        sizerx.addLayout(sizer1)
-
-        sizer0.addLayout(sizerx)
-
-        sizer0.addStretch()
-
-        sizer2 = qtw.QHBoxLayout()
-        sizer2.addStretch()
-        sizer2.addWidget(self.save_button)
-        sizer2.addWidget(self.saveandgo_button)
-        sizer2.addWidget(self.cancel_button)
-        sizer2.addStretch()
-        sizer0.addLayout(sizer2)
-
-        self.setLayout(sizer0)
+        self.parent = parent
+        Page.__init__(self, parent, pageno=0, standard=False)
+        self.gui = gui.Page1Gui(parent, self)
 
     def vulp(self):
         """te tonen gegevens invullen in velden e.a. initialisaties
@@ -1006,17 +842,11 @@ class Page1(Page):
         methode aan te roepen voorafgaand aan het tonen van de pagina"""
         Page.vulp(self)
         self.initializing = True
-        self.id_text.clear()
-        self.date_text.clear()
-        self.proc_entry.clear()
-        self.desc_entry.clear()
-        self.archive_text.setText("")
-        self.cat_choice.setCurrentIndex(0)
-        self.stat_choice.setCurrentIndex(0)
+        self.gui.init_fields()
         self.parch = False
         if self.parent.pagedata is not None:  # and not self.parent.newitem:
-            self.id_text.setText(str(self.parent.pagedata.id))
-            self.date_text.setText(self.parent.pagedata.datum)
+            self.gui.set_text('id', str(self.parent.pagedata.id))
+            self.gui.set_text('date', self.parent.pagedata.datum)
             self.parch = self.parent.pagedata.arch
             if self.parent.parent.datatype == shared.DataType.XML.name:
                 if self.parent.pagedata.titel is not None:
@@ -1024,58 +854,52 @@ class Page1(Page):
                         hlp = self.parent.pagedata.titel.split(" - ", 1)
                     else:
                         hlp = self.parent.pagedata.titel.split(": ", 1)
-                    self.proc_entry.setText(hlp[0])
+                    self.gui.set_text('proc', hlp[0])
                     if len(hlp) > 1:
-                        self.desc_entry.setText(hlp[1])
+                        self.gui.set_text('desc', hlp[1])
             elif self.parent.parent.datatype == shared.DataType.SQL.name:
-                self.proc_entry.setText(self.parent.pagedata.over)
-                self.desc_entry.setText(self.parent.pagedata.titel)
-            for x in range(len(self.parent.stats)):
-                y = data2str(self.stat_choice.itemData(x))
-                if y == self.parent.pagedata.status:
-                    self.stat_choice.setCurrentIndex(x)
-                    break
-            for x in range(len(self.parent.cats)):
-                y = data2str(self.cat_choice.itemData(x))
-                if y == self.parent.pagedata.soort:
-                    self.cat_choice.setCurrentIndex(x)
-                    break
-        self.oldbuf = (str(self.proc_entry.text()), str(self.desc_entry.text()),
-                       int(self.stat_choice.currentIndex()),
-                       int(self.cat_choice.currentIndex()))
+                self.gui.set_text('proc', self.parent.pagedata.over)
+                self.gui.set_text('desc', self.parent.pagedata.titel)
+            self.gui.set_choice('stat', self.parent.pagedata.status)
+            self.gui.set_choice('cat', self.parent.pagedata.soort)
+
+        self.oldbuf = self.gui.set_oldbuf()
         if self.parch:
             aanuit = False
-            self.archive_text.setText("Deze actie is gearchiveerd")
-            self.archive_button.setText("Herleven")
+            if self.parent.parent.datatype == shared.DataType.XML.name:
+                if self.parent.pagedata.titel is not None:
+                    if " - " in self.parent.pagedata.titel:
+                        hlp = self.parent.pagedata.titel.split(" - ", 1)
+                    else:
+                        hlp = self.parent.pagedata.titel.split(": ", 1)
+                    self.gui.set_text('proc', hlp[0])
+                    if len(hlp) > 1:
+                        self.gui.set_text('desc', hlp[1])
+            elif self.parent.parent.datatype == shared.DataType.SQL.name:
+                self.gui.set_text('proc', self.parent.pagedata.over)
+                self.gui.set_text('desc', self.parent.pagedata.titel)
+            self.gui.set_text('arch', "Deze actie is gearchiveerd")
+            self.gui.set_archive_button_text("Herleven")
         else:
             aanuit = True
-            self.archive_text.setText("")
-            self.archive_button.setText("Archiveren")
+            self.gui.set_text('arch', '')
+            self.gui.set_archive_button_text("Archiveren")
+
         if not self.parent.parent.is_user:
             aanuit = False
-        self.id_text.setEnabled(False)
-        self.date_text.setEnabled(False)
-        self.proc_entry.setEnabled(aanuit)
-        self.desc_entry.setEnabled(aanuit)
-        self.cat_choice.setEnabled(aanuit)
-        self.stat_choice.setEnabled(aanuit)
-        if self.parent.newitem or not self.parent.parent.is_user:
-            self.archive_button.setEnabled(False)
-        else:
-            self.archive_button.setEnabled(True)
+        self.gui.enable_fields(aanuit)
+
         self.initializing = False
 
     def savep(self):
         "opslaan van de paginagegevens"
         Page.savep(self)
-        proc = str(self.proc_entry.text())
-        proc = proc.capitalize()
-        self.proc_entry.setText(proc)
+        proc = self.gui.get_text('proc')
+        self.gui.set_text('proc', proc.capitalize())
         self.enable_buttons(False)
-        desc = str(self.desc_entry.text())
+        desc = self.gui.get_text('desc')
         if proc == "" or desc == "":
-            qtw.QMessageBox.information(self, "Oeps",
-                                        "Beide tekstrubrieken moeten worden ingevuld")
+            gui.show_message(self.gui, "Beide tekstrubrieken moeten worden ingevuld")
             return False
         wijzig = False
         procdesc = " - ".join((proc, desc))
@@ -1085,33 +909,28 @@ class Page1(Page):
             elif self.parent.parent.datatype == shared.DataType.SQL.name:
                 self.parent.pagedata.over = proc
                 self.parent.pagedata.events.append(
-                    (get_dts(), 'Onderwerp gewijzigd in "{0}"'.format(proc)))
+                    (shared.get_dts(), 'Onderwerp gewijzigd in "{0}"'.format(proc)))
                 self.parent.pagedata.titel = procdesc = desc
             self.parent.pagedata.events.append(
-                (get_dts(), 'Titel gewijzigd in "{0}"'.format(procdesc)))
+                (shared.get_dts(), 'Titel gewijzigd in "{0}"'.format(procdesc)))
             wijzig = True
-        idx = self.stat_choice.currentIndex()
-        # newstat = data2str(self.stat_choice.itemData(idx))  # xml versie?
-        newstat = data2int(self.stat_choice.itemData(idx))
+        newstat, sel = self.gui.get_choice_data('stat')
         if newstat != self.parent.pagedata.status:
             self.parent.pagedata.status = newstat
-            sel = self.stat_choice.currentText()
             self.parent.pagedata.events.append(
-                (get_dts(), 'Status gewijzigd in "{0}"'.format(sel)))
+                (shared.get_dts(), 'Status gewijzigd in "{0}"'.format(sel)))
             wijzig = True
-        idx = self.cat_choice.currentIndex()
-        newcat = data2str(self.cat_choice.itemData(idx))
+        newcat, sel = self.gui.get_choice_data('cat')
         if newcat != self.parent.pagedata.soort:
             self.parent.pagedata.soort = newcat
-            sel = str(self.cat_choice.currentText())
             self.parent.pagedata.events.append(
-                (get_dts(), 'Categorie gewijzigd in "{0}"'.format(sel)))
+                (shared.get_dts(), 'Categorie gewijzigd in "{0}"'.format(sel)))
             wijzig = True
         if self.parch != self.parent.pagedata.arch:
             self.parent.pagedata.set_arch(self.parch)
             hlp = "gearchiveerd" if self.parch else "herleefd"
             self.parent.pagedata.events.append(
-                (get_dts(), "Actie {0}".format(hlp)))
+                (shared.get_dts(), "Actie {0}".format(hlp)))
             wijzig = True
         if wijzig:
             self.update_actie()
@@ -1119,38 +938,32 @@ class Page1(Page):
                 # nieuwe entry maken in de tabel voor panel 0
                 self.parent.current_item = len(self.parent.data)  # + 1
                 self.parent.data[self.parent.current_item] = (
-                    str(self.date_text.text()),
-                    " - ".join((str(self.proc_entry.text()),
-                                str(self.desc_entry.text()))),
-                    int(self.stat_choice.currentIndex()),
-                    int(self.cat_choice.currentIndex()),
-                    str(self.id_text.text()))
+                    self.gui.get_text('date'),
+                    " - ".join((self.gui.get_text('proc'), self.gui.get_text('desc'))),
+                    self.gui.get_choice_data('stat')[0], self.gui.get_choice_data('cat')[0],
+                    self.gui.get_text('id'))
                 # ook nieuwe entry maken in de visuele tree
-                new_item = qtw.QTreeWidgetItem()
-                new_item.setData(0, self.parent.current_item, core.Qt.UserRole)
-                self.parent.page0.p0list.addTopLevelItem(new_item)
-                self.parent.page0.p0list.setCurrentItem(new_item)
-                self.parent.newitem = False
+                # new_item = qtw.QTreeWidgetItem()
+                # new_item.setData(0, self.parent.current_item, core.Qt.UserRole)
+                # self.parent.page0.p0list.addTopLevelItem(new_item)
+                new_item = self.parent.page0.gui.set_listitem_values(self.parent.current_item)
+                # self.parent.page0.p0list.setCurrentItem(new_item)
+                self.parent.page0.set_selection()
+                self.parent.newitem = False  # is None niet correcter?
                 self.parent.rereadlist = True
                 self.parent.page0.enable_buttons(True)
             # teksten op panel 0 bijwerken
-            self.parent.page0.p0list.currentItem().setText(
-                1, self.parent.pagedata.get_soorttext()[0].upper())
-            self.parent.page0.p0list.currentItem().setText(
-                2, self.parent.pagedata.get_statustext())
-            self.parent.page0.p0list.currentItem().setText(
-                3, self.parent.pagedata.updated)
+            item = self.parent.page0.get_selection()
+            self.parent.page0.set_item_text(item, 1,
+                                            self.parent.pagedata.get_soorttext()[0].upper())
+            self.parent.page0.set_item_text(item, 2, self.parent.pagedata.get_statustext())
+            self.parent.page0.set_item_text(item, 3, self.parent.pagedata.updated)
             if self.parent.parent.datatype == shared.DataType.XML.name:
-                self.parent.page0.p0list.currentItem().setText(
-                    4, self.parent.pagedata.titel)
+                self.parent.page0.set_item_text(item, 4, self.parent.pagedata.titel)
             elif self.parent.parent.datatype == shared.DataType.SQL.name:
-                self.parent.page0.p0list.currentItem().setText(
-                    4, self.parent.pagedata.over)
-                self.parent.page0.p0list.currentItem().setText(
-                    5, self.parent.pagedata.titel)
-            self.oldbuf = (str(self.proc_entry.text()), str(self.desc_entry.text()),
-                           int(self.stat_choice.currentIndex()),
-                           int(self.cat_choice.currentIndex()))
+                self.parent.page0.set_item_text(item, 4, self.parent.pagedata.over)
+                self.parent.page0.set_item_text(item, 5, self.parent.pagedata.titel)
+            self.oldbuf = self.set_oldbuf()
         return True
 
     def archiveer(self):
@@ -1352,8 +1165,8 @@ class Page6(Page):
         """
         if self.initializing:
             return
-        if item is None or data2int(item.data(core.Qt.UserRole)) == -1:
-            datum, self.oldtext = get_dts(), ''
+        if item is None or shared.data2int(item.data(core.Qt.UserRole)) == -1:
+            datum, self.oldtext = shared.get_dts(), ''
             newitem = qtw.QListWidgetItem('{} - {}'.format(datum, self.oldtext))
             newitem.setData(core.Qt.UserRole, 0)
             self.progress_list.insertItem(1, newitem)
@@ -1423,474 +1236,6 @@ class Page6(Page):
                 if len(short_text) >= 80:
                     short_text = short_text[:80] + "..."
                 item.setText(short_text)
-
-
-class SortOptionsDialog():
-    """dialoog om de sorteer opties in te stellen
-    """
-    _asc_id = 1
-    _desc_id = 2
-
-    def __init__(self, parent):
-        self.parent = parent
-        self.parent.not_implemented_message()
-        return
-        self.sortopts = {}
-        self._data = None
-
-        lijst = []
-        if self.parent.parent.parent.datatype == shared.DataType.SQL.name:
-            try:
-                lijst = [x[0] for x in dmls.SORTFIELDS]
-            except AttributeError:
-                pass
-        if not lijst:
-            lijst = [x for x in parent.parent.ctitels]
-            lijst[1] = "Soort"
-        lijst.insert(0, "(geen)")
-        super().__init__(parent)
-        self.setWindowTitle("Sorteren op meer dan 1 kolom")
-
-        sizer = qtw.QVBoxLayout()
-        grid = qtw.QGridLayout()
-        row = 0
-        tekst = 'Multi-sorteren mogelijk maken'
-        ## tekst = 'Sorteren via instellingen ipv. via control'
-        self.on_off = qtw.QCheckBox(tekst, self)
-        self.on_off.stateChanged.connect(self.enable_fields)
-        grid.addWidget(self.on_off, row, 0, 1, 4)
-        self._widgets = []
-        row += 1
-        while row < len(lijst):
-            lbl = qtw.QLabel("  {}.".format(row), self)
-            grid.addWidget(lbl, row, 0)
-            cmb = qtw.QComboBox(self)
-            cmb.setEditable(False)
-            cmb.addItems(lijst)
-            cmb.setCurrentIndex(0)
-            grid.addWidget(cmb, row, self._asc_id)
-            rbg = qtw.QButtonGroup(self)
-            rba = qtw.QRadioButton(" Asc ", self)
-            rbg.addButton(rba, 1)
-            grid.addWidget(rba, row, self._desc_id)
-            rbd = qtw.QRadioButton(" Desc ", self)
-            rbg.addButton(rbd, 2)
-            rbg.button(self._asc_id).setChecked(True)
-            grid.addWidget(rbd, row, 3)
-            self._widgets.append((lbl, cmb, rbg))
-            row += 1
-
-        sizer.addLayout(grid)
-
-        buttonbox = qtw.QDialogButtonBox(qtw.QDialogButtonBox.Ok |
-                                         qtw.QDialogButtonBox.Cancel)
-        sizer.addWidget(buttonbox)
-        self.setLayout(sizer)
-
-        self.set_defaults()
-
-        buttonbox.accepted.connect(self.accept)
-        buttonbox.rejected.connect(self.reject)
-
-    def set_defaults(self):
-        """set atart values for dialog
-        """
-        self.enable_fields(False)
-        self.on_off.setChecked(self.parent.sort_via_options)
-        if self.parent.parent.parent.datatype == shared.DataType.SQL.name:
-            self.sortopts = self.parent._data.load_options()
-        for ix, line in enumerate(self._widgets):
-            _, combobox, rbgroup = line
-            if ix in sorted(self.sortopts):
-                fieldname, orient = self.sortopts[ix]
-                combobox.setCurrentText(fieldname)
-                if orient == 'desc':
-                    rbgroup.button(self._desc_id).setChecked(True)
-                else:
-                    rbgroup.button(self._asc_id).setChecked(True)
-
-    def enable_fields(self, state):
-        "enable/disable widgets"
-        for lbl, cmb, rbg in self._widgets:
-            lbl.setEnabled(state)
-            cmb.setEnabled(state)
-            for btn in rbg.buttons():
-                btn.setEnabled(state)
-
-    def accept(self):
-        """sorteerkolommen en -volgordes teruggeven aan hoofdscherm
-        """
-        if self.parent.parent.parent.datatype == shared.DataType.XML.name:
-            qtw.QMessageBox.information(self, 'Probreg', 'Sorry, werkt nog niet')
-            return
-        new_sortopts = {}
-        for ix, line in enumerate(self._widgets):
-            _, combobox, rbgroup = line
-            fieldname = combobox.currentText()
-            checked_id = rbgroup.checkedId()
-            if fieldname and fieldname != '(geen)':
-                if checked_id == self._asc_id:
-                    orient = 'asc'
-                elif checked_id == self._desc_id:
-                    orient = 'desc'
-                new_sortopts[ix] = (fieldname, orient)
-        via_options = self.on_off.isChecked()
-        if via_options == self.parent.sort_via_options and new_sortopts == self.sortopts:
-            qtw.QMessageBox.information(self, 'Probreg', 'U heeft niets gewijzigd')
-            return
-        self.parent.sort_via_options = via_options
-        if via_options:
-            if self.parent._data:      # alleen SQL versie
-                self.parent._data.save_options(new_sortopts)
-        super().accept()
-
-
-class SelectOptionsDialog():
-    """dialoog om de selectie op te geven
-
-    sel_args is de dictionary waarin de filterwaarden zitten, bv:
-    {'status': ['probleem'], 'idlt': '2006-0009', 'titel': 'x', 'soort': ['gemeld'],
-     'id': 'and', 'idgt': '2005-0019'}
-    voor de Django versie is deze overbodig want de selectie ligt vast in de database
-    """
-    def __init__(self, parent, sel_args):
-        self.parent = parent
-        self.datatype = self.parent.parent.parent.datatype
-        self.parent.not_implemented_message()
-        return
-        super().__init__(parent)
-        self.setWindowTitle("Selecteren")
-
-        self.check_options = qtw.QButtonGroup()
-        self.check_options.setExclusive(False)
-
-        self.check_options.addButton(qtw.QCheckBox(parent.parent.ctitels[0] +
-                                                   '   -', self))
-        self.text_gt = qtw.QLineEdit(self)
-        self.text_gt.textChanged.connect(functools.partial(self.on_text, 'gt'))
-        self.radio_id = qtw.QButtonGroup(self)
-        for text in ('en', 'of'):
-            radio = qtw.QRadioButton(text, self)
-            self.radio_id.addButton(radio)
-        self.text_lt = qtw.QLineEdit(self)
-        self.text_lt.textChanged.connect(functools.partial(self.on_text, 'lt'))
-
-        self.check_options.addButton(qtw.QCheckBox("soort   -", self))
-        self.check_cats = qtw.QButtonGroup(self)
-        self.check_cats.setExclusive(False)
-        for x in [self.parent.parent.cats[y] for y in sorted(
-                self.parent.parent.cats.keys())]:
-            check = qtw.QCheckBox(x[0], self)
-            check.toggled.connect(functools.partial(self.on_checked, 'cat'))
-            self.check_cats.addButton(check)
-
-        self.check_options.addButton(qtw.QCheckBox(parent.parent.ctitels[2] + '   -',
-                                                   self))
-        self.check_stats = qtw.QButtonGroup(self)
-        self.check_stats.setExclusive(False)
-        for x in [self.parent.parent.stats[y] for y in sorted(
-                self.parent.parent.stats.keys())]:
-            check = qtw.QCheckBox(x[0], self)
-            check.toggled.connect(functools.partial(self.on_checked, 'stat'))
-            self.check_stats.addButton(check)
-
-        if self.datatype == shared.DataType.XML.name:
-            self.check_options.addButton(qtw.QCheckBox(parent.parent.ctitels[4] +
-                                                       '   -', self))
-            self.text_zoek = qtw.QLineEdit(self)
-            self.text_zoek.textChanged.connect(functools.partial(self.on_text, 'zoek'))
-        elif self.datatype == shared.DataType.SQL.name:
-            self.check_options.addButton(qtw.QCheckBox('zoek in   -', self))
-            self.text_zoek = qtw.QLineEdit(self)
-            self.text_zoek.textChanged.connect(functools.partial(self.on_text, 'zoek'))
-            self.radio_id2 = qtw.QButtonGroup(self)
-            for text in ('en', 'of'):
-                radio = qtw.QRadioButton(text, self)
-                self.radio_id2.addButton(radio)
-            self.text_zoek2 = qtw.QLineEdit(self)
-            self.text_zoek2.textChanged.connect(functools.partial(self.on_text, 'zoek'))
-
-        self.check_options.addButton(qtw.QCheckBox("Archief    -", self))
-        self.radio_arch = qtw.QButtonGroup(self)
-        for text in ("Alleen gearchiveerd", "gearchiveerd en lopend"):
-            radio = qtw.QRadioButton(text, self)
-            self.radio_arch.addButton(radio)
-            radio.toggled.connect(functools.partial(self.on_checked, 'arch'))
-
-        self.buttonbox = qtw.QDialogButtonBox(qtw.QDialogButtonBox.Ok |
-                                              qtw.QDialogButtonBox.Cancel)
-        self.buttonbox.accepted.connect(self.accept)
-        self.buttonbox.rejected.connect(self.reject)
-
-        self.set_defaults(sel_args)
-        self.doelayout()
-
-    def doelayout(self):
-        """realize the dialog layout
-        """
-        sizer = qtw.QVBoxLayout()
-        grid = qtw.QGridLayout()
-
-        vbox = qtw.QVBoxLayout()
-        vbox.addWidget(self.check_options.buttons()[0])
-        vbox.addStretch()
-        grid.addLayout(vbox, 0, 0)
-
-        vbox = qtw.QVBoxLayout()
-        hgrid = qtw.QGridLayout()
-        hgrid.addWidget(qtw.QLabel('groter dan:', self), 0, 0)
-        hgrid.addWidget(self.text_gt, 0, 1)
-        hbox = qtw.QHBoxLayout()
-        for rb in self.radio_id.buttons():
-            hbox.addWidget(rb)
-        hgrid.addLayout(hbox, 1, 0)
-        hgrid.addWidget(qtw.QLabel('kleiner dan:', self), 2, 0)
-        hgrid.addWidget(self.text_lt, 2, 1)
-        vbox.addLayout(hgrid)
-        grid.addLayout(vbox, 0, 2)
-
-        vbox = qtw.QVBoxLayout()
-        vbox.addWidget(self.check_options.buttons()[1])
-        vbox.addStretch()
-        grid.addLayout(vbox, 1, 0)
-
-        hbox = qtw.QHBoxLayout()
-        vbox = qtw.QVBoxLayout()
-        vbox.addWidget(qtw.QLabel("selecteer een of meer:", self))
-        vbox.addStretch()
-        hbox.addLayout(vbox)
-        vbox = qtw.QVBoxLayout()
-        for check in self.check_cats.buttons():
-            vbox.addWidget(check)
-        hbox.addLayout(vbox)
-        grid.addLayout(hbox, 1, 2)
-
-        vbox = qtw.QVBoxLayout()
-        vbox.addWidget(self.check_options.buttons()[2])
-        vbox.addStretch()
-        grid.addLayout(vbox, 2, 0)
-
-        hbox = qtw.QHBoxLayout()
-        vbox = qtw.QVBoxLayout()
-        vbox.addWidget(qtw.QLabel("selecteer een of meer:", self))
-        vbox.addStretch()
-        hbox.addLayout(vbox)
-        vbox = qtw.QVBoxLayout()
-        for check in self.check_stats.buttons():
-            vbox.addWidget(check)
-        hbox.addLayout(vbox)
-        grid.addLayout(hbox, 2, 2)
-
-        vbox = qtw.QVBoxLayout()
-        vbox.addWidget(self.check_options.buttons()[3])
-        vbox.addStretch()
-        grid.addLayout(vbox, 3, 0)
-
-        hbox = qtw.QHBoxLayout()
-        if self.datatype == shared.DataType.XML.name:
-            hbox.addWidget(qtw.QLabel('zoek naar:', self))
-            hbox.addWidget(self.text_zoek)
-        elif self.datatype == shared.DataType.SQL.name:
-            grid2 = qtw.QGridLayout()
-            grid2.addWidget(qtw.QLabel(self.parent.parent.ctitels[4] + ":", self),
-                            0, 0)
-            grid2.addWidget(self.text_zoek, 0, 1)
-            hbox2 = qtw.QHBoxLayout()
-            for rb in self.radio_id2.buttons():
-                hbox2.addWidget(rb)
-            grid2.addLayout(hbox2, 1, 0)
-            grid2.addWidget(qtw.QLabel(self.parent.parent.ctitels[5] + ":", self),
-                            2, 0)
-            grid2.addWidget(self.text_zoek2, 2, 1)
-            hbox.addLayout(grid2)
-        grid.addLayout(hbox, 3, 2)
-
-        vbox = qtw.QVBoxLayout()
-        vbox.addWidget(self.check_options.buttons()[4])
-        vbox.addStretch()
-        grid.addLayout(vbox, 4, 0)
-        hbox = qtw.QHBoxLayout()
-        for radio in self.radio_arch.buttons():
-            hbox.addWidget(radio)
-        grid.addLayout(hbox, 4, 2)
-        sizer.addLayout(grid)
-
-        sizer.addWidget(self.buttonbox)
-        self.setLayout(sizer)
-
-    def set_defaults(self, sel_args):
-        """get search settings and present them in the dialog
-        """
-        test = self.parent.parent.fnaam
-        self._data = None
-        if self.parent.parent.parent.datatype == shared.DataType.SQL.name:
-            self._data = dmls.SelectOptions(test, self.parent.parent.parent.user)
-            args, sel_args = self._data.load_options(), {}
-            for key, value in args.items():
-                if key == 'nummer':
-                    for item in value:  # splitsen in idgt, id en idlt
-                        if len(item) == 1:
-                            sel_args['id'] = 'and' if item[0] == 'en' else 'or'
-                        elif item[1] == 'GT':
-                            sel_args['idgt'] = item[0]
-                        elif item[1] == 'LT':
-                            sel_args['idlt'] = item[0]
-                # elif key == 'arch':
-                #     sel_args[key] = {0: 'narch', 1: 'arch', 2: 'alles'}[value]
-                elif value:
-                    sel_args[key] = value
-        if "idgt" in sel_args:
-            self.text_gt.setText(sel_args["idgt"])
-        if "id" in sel_args:
-            if sel_args["id"] == "and":
-                self.radio_id.buttons()[0].setChecked(True)
-            else:
-                self.radio_id.buttons()[1].setChecked(True)
-            self.check_options.buttons()[0].setChecked(True)
-        if "idlt" in sel_args:
-            self.text_lt.setText(sel_args["idlt"])
-
-        if self.datatype == shared.DataType.XML.name:
-            itemindex = 1
-        elif self.datatype == shared.DataType.SQL.name:
-            itemindex = 2
-        if "soort" in sel_args:
-            for x in self.parent.parent.cats.keys():
-                if self.parent.parent.cats[x][itemindex] in sel_args["soort"]:
-                    self.check_cats.buttons()[int(x)].setChecked(True)
-            self.check_options.buttons()[1].setChecked(True)
-
-        if "status" in sel_args:
-            for x in self.parent.parent.stats.keys():
-                if self.parent.parent.stats[x][itemindex] in sel_args["status"]:
-                    self.check_stats.buttons()[int(x)].setChecked(True)
-            self.check_options.buttons()[2].setChecked(True)
-
-        if "titel" in sel_args:
-            try:
-                self.text_zoek.setText(sel_args["titel"])
-            except TypeError:
-                for item in sel_args["titel"]:
-                    if item[0] == 'about':
-                        self.text_zoek.setText(item[1])
-                    elif item[0] == 'title':
-                        self.text_zoek2.setText(item[1])
-                    elif item[0] == 'of':
-                        self.radio_id2.buttons()[0].setChecked(True)
-                    else:
-                        self.radio_id2.buttons()[1].setChecked(True)
-            self.check_options.buttons()[3].setChecked(True)
-
-        if "arch" in sel_args:
-            if sel_args["arch"] == "arch":
-                self.radio_arch.buttons()[0].setChecked(True)
-            if sel_args["arch"] == "alles":
-                self.radio_arch.buttons()[1].setChecked(True)
-            self.check_options.buttons()[4].setChecked(True)
-
-    def on_text(self, arg, text):
-        "callback voor activiteitnummer checkboxes"
-        if arg in ('gt', 'lt'):
-            obj = self.check_options.buttons()[0]
-        elif arg == 'zoek':
-            obj = self.check_options.buttons()[3]
-        if text == "":
-            obj.setChecked(False)
-        else:
-            obj.setChecked(True)
-
-    def on_checked(self, arg, val):
-        "callback voor status en soort checkboxes"
-        if arg == 'cat':
-            obj = self.check_options.buttons()[1]
-            grp = self.check_cats
-        elif arg == 'stat':
-            obj = self.check_options.buttons()[2]
-            grp = self.check_stats
-        elif arg == 'arch':
-            obj = self.check_options.buttons()[4]
-            grp = self.radio_arch
-        oneormore = False
-        for btn in grp.buttons():
-            if btn.isChecked():
-                oneormore = True
-                break
-        if oneormore:
-            obj.setChecked(True)
-        else:
-            obj.setChecked(False)
-
-    def accept(self):
-        "aangegeven opties verwerken in sel_args dictionary"
-        selection = 'excl.gearchiveerde'
-        sel_args = {}
-        if self.check_options.buttons()[0].isChecked():
-            selection = '(gefilterd)'
-            id_gt, id_lt = str(self.text_gt.text()), str(self.text_lt.text())
-            if id_gt:
-                sel_args["idgt"] = id_gt
-            if id_lt:
-                sel_args["idlt"] = id_lt
-            if self.radio_id.buttons()[0].isChecked():
-                sel_args["id"] = "and"
-            elif self.radio_id.buttons()[1].isChecked():
-                sel_args["id"] = "or"
-        if self.datatype == shared.DataType.XML.name:
-            itemindex = 1
-        elif self.datatype == shared.DataType.SQL.name:
-            itemindex = 2
-        if self.check_options.buttons()[1].isChecked():
-            selection = '(gefilterd)'
-            if self.datatype == shared.DataType.XML.name:
-                lst = [self.parent.parent.cats[x][itemindex]
-                       for x in range(len(self.parent.parent.cats.keys()))
-                       if self.check_cats.buttons()[x].isChecked()]
-            elif self.datatype == shared.DataType.SQL.name:
-                lst = [self.parent.parent.cats[x][itemindex]
-                       for x in range(len(self.parent.parent.cats.keys()))
-                       if self.check_cats.buttons()[x].isChecked()]
-            if lst:
-                sel_args["soort"] = lst
-        if self.check_options.buttons()[2].isChecked():
-            selection = '(gefilterd)'
-            if self.datatype == shared.DataType.XML.name:
-                lst = [self.parent.parent.stats[x][itemindex]
-                       for x in range(len(self.parent.parent.stats.keys()))
-                       if self.check_stats.buttons()[x].isChecked()]
-            elif self.datatype == shared.DataType.SQL.name:
-                lst = [self.parent.parent.stats[x][itemindex]
-                       for x in range(len(self.parent.parent.stats.keys()))
-                       if self.check_stats.buttons()[x].isChecked()]
-            if lst:
-                sel_args["status"] = lst
-        if self.check_options.buttons()[3].isChecked():
-            selection = '(gefilterd)'
-            if self.datatype == shared.DataType.XML.name:
-                sel_args["titel"] = str(self.text_zoek.text())
-            elif self.datatype == shared.DataType.SQL.name:
-                sel_args["titel"] = [('about', str(self.text_zoek.text()))]
-                if self.radio_id2.buttons()[0].isChecked():
-                    sel_args["titel"].append(("and",))
-                elif self.radio_id2.buttons()[1].isChecked():
-                    sel_args["titel"].append(("or",))
-                else:
-                    sel_args["titel"].append((""))
-                sel_args["titel"].append(('title', str(self.text_zoek2.text())))
-
-        if self.check_options.buttons()[4].isChecked():
-            if self.radio_arch.buttons()[0].isChecked():
-                sel_args["arch"] = "arch"
-                if selection != '(gefilterd)':
-                    selection = '(gearchiveerd)'
-            elif self.radio_arch.buttons()[1].isChecked():
-                sel_args["arch"] = "alles"
-                if selection != '(gefilterd)':
-                    selection = ''
-        self.parent.selection = selection
-        self.parent.sel_args = sel_args
-        if self._data:
-            self._data.save_options(sel_args)
-        super().accept()
 
 
 class OptionsDialog():
@@ -2124,47 +1469,6 @@ class CatOptions(OptionsDialog):
         self.parent.save_settings("cat", self.newcats)
 
 
-class LoginBox():
-    """Sign in with userid & password
-    """
-    def __init__(self, parent):
-        self.parent = parent
-        self.parent.dialog_data = ()
-        self.parent.not_implemented_message()
-        return
-        super().__init__(parent)
-        vbox = qtw.QVBoxLayout()
-        grid = qtw.QGridLayout()
-        grid.addWidget(qtw.QLabel('Userid', self), 0, 0)
-        self.t_username = qtw.QLineEdit(self)
-        grid.addWidget(self.t_username, 0, 1)
-        grid.addWidget(qtw.QLabel('Password', self), 1, 0)
-        self.t_password = qtw.QLineEdit(self)
-        self.t_password.setEchoMode(qtw.QLineEdit.Password)
-        grid.addWidget(self.t_password, 1, 1)
-        vbox.addLayout(grid)
-        bbox = qtw.QDialogButtonBox(qtw.QDialogButtonBox.Ok |
-                                    qtw.QDialogButtonBox.Cancel)
-        ## bbox.button(qtw.QDialogButtonBox.Ok).setDefault(True)  # -- werkt ook al niet
-        vbox.addWidget(bbox)
-        self.setLayout(vbox)
-        bbox.accepted.connect(self.accept)
-        bbox.rejected.connect(self.reject)
-
-    def accept(self):
-        """check login credentials
-        """
-        test = dmls.validate_user(self.t_username.text(),
-                                  self.t_password.text(),
-                                  self.parent.filename)
-        if not test:
-            qtw.QMessageBox.information(self, self.parent.title, 'Login failed')
-            return
-        qtw.QMessageBox.information(self, self.parent.title, 'Login accepted')
-        self.parent.dialog_data = test
-        super().accept()
-
-
 class MainWindow():
     """Hoofdscherm met menu, statusbalk, notebook en een "quit" button"""
     def __init__(self, parent, fnaam="", version=None):
@@ -2204,13 +1508,14 @@ class MainWindow():
                             self.filename = x[0]
                         break
             shared.log('SQL: %s', self.filename)
-        self.gui = MainGui(self)
+        self.gui = gui.MainGui(self)
         self.create_book_pages()
 
         self.user = None    # start without user
         self.is_user = self.is_admin = False
-        if self.datatype == shared.DataType.SQL.name:   # was XML maar volgens mij moet het SQL zijn
-            self.is_user = self.is_admin = True  # force editability
+        if self.datatype == shared.DataType.XML.name:
+            self.user = 1  # pretend user
+            self.is_user = self.is_admin = True  # force editability for XML mode
 
         if self.datatype == shared.DataType.XML.name:
             if self.filename == "":
@@ -2223,7 +1528,6 @@ class MainWindow():
             else:
                 self.open_sql()
         self.initializing = False
-        # self.zetfocus(0)
 
     def get_menu_data(self):
         """Define application menu
@@ -2283,17 +1587,17 @@ class MainWindow():
     def create_book_pages(self):
         "add the pages to the tabbed widget"
         self.book.page0 = Page0(self.book)
-        # self.book.page1 = Page1(self.book)
+        self.book.page1 = Page1(self.book)
         # self.book.page2 = Page(self.book, 2)
         # self.book.page3 = Page(self.book, 3)
         # self.book.page4 = Page(self.book, 4)
         # self.book.page5 = Page(self.book, 5)
         # self.book.page6 = Page6(self.book)
-        self.book.pages = 1  # 7
+        self.book.pages = 2  # 7
         self.book.checked_for_leaving = True
 
         self.gui.add_book_tab(self.book.page0, "&" + self.book.tabs[0])
-        # self.gui.add_book_tab(self.book.page1, "&" + self.book.tabs[1])
+        self.gui.add_book_tab(self.book.page1, "&" + self.book.tabs[1])
         # self.gui.add_book_tab(self.book.page2, "&" + self.book.tabs[2])
         # self.gui.add_book_tab(self.book.page3, "&" + self.book.tabs[3])
         # self.gui.add_book_tab(self.book.page4, "&" + self.book.tabs[4])
@@ -2303,7 +1607,7 @@ class MainWindow():
 
     def not_implemented_message(self):
         "information"
-        show_message(self.gui, "Sorry, werkt nog niet")
+        gui.show_message(self.gui, "Sorry, werkt nog niet")
 
     def new_file(self, event=None):
         "Menukeuze: nieuw file"
@@ -2311,8 +1615,8 @@ class MainWindow():
             self.not_implemented_message()
             return
         self.is_newfile = False
-        self.dirname = str(self.dirname)  # defaults to '.' so no need for `or os.getcwd()`
-        fname = get_save_filename(self)
+        # self.dirname = str(self.dirname)  # defaults to '.' so no need for `or os.getcwd()`
+        fname = gui.get_save_filename(self.gui, start=self.dirname)
         if fname:
             test = pathlib.Path(fname)
             self.dirname, self.filename = test.parent, test.name
@@ -2325,7 +1629,7 @@ class MainWindow():
         "Menukeuze: open file"
         shared.log('in open_xml: %s', self.filename)
         self.dirname = self.dirname or os.getcwd()
-        fname = get_open_filename(self.gui, start=self.dirname)
+        fname = gui.get_open_filename(self.gui, start=self.dirname)
         if fname:
             test = pathlib.Path(fname)
             self.dirname, self.filename = test.parent, test.name
@@ -2339,8 +1643,8 @@ class MainWindow():
         if self.filename in data:
             current = data.index(self.filename)
         if do_sel:
-            choice = get_choice_item(self.gui, 'Kies een project om te openen',
-                                     [": ".join((h[0], h[2])) for h in data], current)
+            choice = gui.get_choice_item(self.gui, 'Kies een project om te openen',
+                                         [": ".join((h[0], h[2])) for h in data], current)
         else:
             for idx, h in enumerate(data):
                 shared.log(h)
@@ -2420,7 +1724,7 @@ class MainWindow():
     def print_actie(self, event=None):
         "Menukeuze: print deze actie"
         if self.book.pagedata is None or self.book.newitem:
-            show_message(self.gui, "Wel eerst een actie kiezen om te printen")
+            gui.show_message(self.gui, "Wel eerst een actie kiezen om te printen")
             return
         self.hdr = ("Actie: {} {}".format(self.book.pagedata.id, self.book.pagedata.titel))
         tekst = self.book.pagedata.titel
@@ -2510,7 +1814,7 @@ class MainWindow():
 
     def about_help(self, event=None):
         "Menukeuze: help - about"
-        show_message(self.gui, "PyQt versie van mijn actiebox")
+        gui.show_message(self.gui, "PyQt versie van mijn actiebox")
 
     def hotkey_help(self, event=None):
         "menukeuze: help - keys"
@@ -2541,11 +1845,11 @@ class MainWindow():
             elif self.datatype == shared.DataType.SQL.name:
                 help.insert(8, "    Ctrl-O: selecteer een (ander) pr_o_ject")
             self.helptext = "\n".join(help)
-        show_message(self.gui, self.helptext)
+        gui.show_message(self.gui, self.helptext)
 
     def silly_menu(self, event=None):
         "Menukeuze: settings - het leven"
-        show_message(self.gui, "Yeah you wish...\nHet leven is niet in te stellen helaas")
+        gui.show_message(self.gui, "Yeah you wish...\nHet leven is niet in te stellen helaas")
 
     def startfile(self):
         "initialisatie t.b.v. nieuw bestand"
@@ -2553,7 +1857,7 @@ class MainWindow():
             fullname = self.dirname / self.filename
             retval = dmlx.checkfile(fullname, self.is_newfile)
             if retval != '':
-                show_message(self.gui, retval)
+                gui.show_message(self.gui, retval)
                 return retval
             self.book.fnaam = fullname
             self.title = self.filename
@@ -2687,12 +1991,10 @@ class MainWindow():
         met behulp van de vulp methode
         """
         old = self.book.current_tab
-        new = self.book.current_tab = self.book.currentIndex()
+        new = self.book.current_tab = self.gui.get_page()
         if LIN and old == -1:  # bij initialisatie en bij afsluiten - op Windows is deze altijd -1?
             return
-        for i in range(self.book.count()):
-            if i != self.book.current_tab:
-                self.book.setTabEnabled(i, True)
+        self.gui.enable_all_other_tabs()
         if new == 0:
             self.book.page0.vulp()
         elif new == 1:
@@ -2705,30 +2007,13 @@ class MainWindow():
             self.book.page4.vulp()
         elif new == 5:
             self.book.page5.vulp()
-        elif new == 6:
+        elif new == 6:  # TODO: use correct methods
             if old == new:
                 item = self.book.page6.progress_list.currentRow()  # remember current item
             self.book.page6.vulp()
             if old == new:
                 self.book.page6.progress_list.setCurrentRow(item)  # reselect item
-        self.zetfocus(self.book.current_tab)
-
-    def zetfocus(self, tabno):
-        "focus geven aan de gekozen tab"
-        if tabno == 0:
-            self.book.page0.p0list.setFocus()
-        elif tabno == 1:
-            self.book.page1.proc_entry.setFocus()
-        elif tabno == 2:
-            self.book.page2.text1.setFocus()
-        elif tabno == 3:
-            self.book.page3.text1.setFocus()
-        elif tabno == 4:
-            self.book.page4.text1.setFocus()
-        elif tabno == 5:
-            self.book.page5.text1.setFocus()
-        elif tabno == 6:
-            self.book.page6.progress_list.setFocus()
+        self.gui.set_tabfocus(self.book.current_tab)
 
     def preview(self):
         "callback voor print preview"
@@ -2752,10 +2037,20 @@ class MainWindow():
     def sign_in(self):
         """aanloggen in SQL/Django mode
         """
-        dlg = LoginBox(self)
-        dlg.exec_()
-        if self.dialog_data:
-            self.user, self.is_user, self.is_admin = self.dialog_data
+        logged_in = False
+        while not logged_in:
+            ok = gui.show_dialog(self.gui, gui.LoginBox)
+            if not ok:
+                break
+            test = dmls.validate_user(*self.gui.dialog_data)
+            if test:
+                text = 'Login accepted'
+                logged_in = True
+            else:
+                text = 'Login failed'
+            gui.show_message(self.gui, text)
+        if logged_in:
+            self.user, self.is_user, self.is_admin = test
             self.book.rereadlist = True
             self.on_page_changing(0)
 
@@ -2781,6 +2076,10 @@ class MainWindow():
             else:
                 msg = 'Niet aangemeld'
         self.gui.show_username(msg)
+
+    def get_selected_action(self):
+        "return the index of the selected action"
+        return shared.data2str(self.book.current_item.data(0, core.Qt.UserRole))
 
 
 def main(arg=None):
