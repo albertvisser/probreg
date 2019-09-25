@@ -18,7 +18,7 @@ from mako.template import Template
 ## import probreg.pr_globals as pr
 import probreg.shared as shared
 LIN = True if os.name == 'posix' else False
-# HERE = os.path.dirname(__file__)
+HERE = os.path.dirname(__file__)
 sortorder = {shared.Order.A.name: core.Qt.AscendingOrder,
              shared.Order.D.name: core.Qt.DescendingOrder}
 xmlfilter = "XML files (*.xml);;all files (*.*)"
@@ -31,15 +31,16 @@ def show_message(win, message):
 
 def get_open_filename(parent, start=pathlib.Path.cwd()):
     "get the name of a file to open"
-    fname, pattern = qtw.QFileDialog.getOpenFileName(
-        parent, shared.app_title + " - kies een gegevensbestand", str(start), xmlfilter)
+    fname = qtw.QFileDialog.getOpenFileName(parent,
+                                            shared.app_title + " - kies een gegevensbestand",
+                                            str(start), xmlfilter)[0]
     return fname
 
 
 def get_save_filename(parent, start=pathlib.Path.cwd()):
     "get the name of a file to save"
-    fname, pattern = qtw.QFileDialog.getSaveFileName(
-        parent, shared.app_title + " - nieuw gegevensbestand", str(start), xmlfilter)
+    fname = qtw.QFileDialog.getSaveFileName(parent, shared.app_title + " - nieuw gegevensbestand",
+                                            str(start), xmlfilter)[0]
     return fname
 
 
@@ -56,7 +57,7 @@ def ask_cancel_question(win, message):
     "ask the user a question with an option to cancel the process"
     retval = qtw.QMessageBox.question(win, shared.app_title, message,
                                       buttons=qtw.QMessageBox.Yes | qtw.QMessageBox.No |
-                                                                    qtw.QMessageBox.Cancel)
+                                      qtw.QMessageBox.Cancel)
     return retval == qtw.QMessageBox.Yes, retval == qtw.QMessageBox.Cancel
 
 
@@ -70,7 +71,7 @@ def show_dialog(win, dlg, args=None):
     return ok == qtw.QDialog.Accepted
 
 
-class EditorPanelGui(qtw.QTextEdit):    # TODO: mogelijk alleen hier
+class EditorPanel(qtw.QTextEdit):
     "Rich text editor displaying the selected note"
 
     def __init__(self, parent):
@@ -339,18 +340,17 @@ class PageGui(qtw.QFrame):
             return
         self.actiondict = collections.OrderedDict()
         self.create_toolbar()
-        self.create_text_field(self.master.pageno)
+        self.create_text_field()
         self.save_button = qtw.QPushButton('Sla wijzigingen op (Ctrl-S)', self)
-        self.save_button.clicked.connect(self.savep)
-        action = qtw.QShortcut('Ctrl+S', self, self.savep)
+        self.save_button.clicked.connect(self.master.savep)
+        qtw.QShortcut('Ctrl+S', self, self.master.savep)
         self.saveandgo_button = qtw.QPushButton('Sla op en ga verder (Ctrl-G)', self)
-        self.saveandgo_button.clicked.connect(self.savepgo)
-        action = qtw.QShortcut('Ctrl+G', self, self.savepgo)
-        self.cancel_button = qtw.QPushButton('Zet originele tekst terug (Alt-Ctrl-Z)',
-                                             self)
-        self.cancel_button.clicked.connect(self.restorep)
-        action = qtw.QShortcut('Alt+Ctrl+Z', self, self.restorep)  # Ctrl-Z zit al in text control
-        action = qtw.QShortcut('Alt+N', self, self.nieuwp)
+        self.saveandgo_button.clicked.connect(self.master.savepgo)
+        qtw.QShortcut('Ctrl+G', self, self.master.savepgo)
+        self.cancel_button = qtw.QPushButton('Zet originele tekst terug (Alt-Ctrl-Z)', self)
+        self.cancel_button.clicked.connect(self.master.restorep)
+        qtw.QShortcut('Alt+Ctrl+Z', self, self.master.restorep)
+        qtw.QShortcut('Alt+N', self, self.master.nieuwp)
 
     def create_toolbar(self):
         """build toolbar wih buttons for changing text style
@@ -430,13 +430,13 @@ class PageGui(qtw.QFrame):
             self.actiondict[label] = action
         self.toolbar = toolbar
 
-    def create_text_field(self, pageno):
+    def create_text_field(self):
         """build rich text area with style changing properties
         """
         high = 330 if LIN else 430
         self.text1 = EditorPanel(self)
         self.text1.resize(490, high)
-        self.text1.textChanged.connect(self.on_text)
+        self.text1.textChanged.connect(self.master.on_text)
         for action, callback in zip(self.actiondict.values(), [
                 self.text1.text_bold,
                 self.text1.text_italic,
@@ -478,103 +478,17 @@ class PageGui(qtw.QFrame):
         self.setLayout(sizer0)
         return True
 
-    def vulp(self):
-        """te tonen gegevens invullen in velden e.a. initialisaties
-
-        methode aan te roepen voorafgaand aan het tonen van de pagina"""
-        self.initializing = True
-        self.parent.parent.settingsmenu.setEnabled(self.parent.parent.is_admin)
-        if self.parent.current_tab == 0:
-            text = self.seltitel
+    def reset_font(self, win):
+        "initialize to standard values"
+        if self.master.parent.current_tab == 6:
+            win = self.progress_text
         else:
-            self.enable_buttons(False)
-            text = self.parent.tabs[self.parent.current_tab].split(None, 1)
-            if self.parent.pagedata:
-                text = str(self.parent.pagedata.id) + ' ' + self.parent.pagedata.titel
-        self.parent.parent.setWindowTitle("{} | {}".format(self.parent.parent.title, text))
-        self.parent.parent.set_statusmessage()
-        if 1 < self.parent.current_tab < 6:
-            self.oldbuf = ''
-            if self.parent.pagedata is not None:
-                if self.parent.current_tab == 2 and self.parent.pagedata.melding:
-                    self.oldbuf = self.parent.pagedata.melding
-                if self.parent.current_tab == 3 and self.parent.pagedata.oorzaak:
-                    self.oldbuf = self.parent.pagedata.oorzaak
-                if self.parent.current_tab == 4 and self.parent.pagedata.oplossing:
-                    self.oldbuf = self.parent.pagedata.oplossing
-                if self.parent.current_tab == 5 and self.parent.pagedata.vervolg:
-                    self.oldbuf = self.parent.pagedata.vervolg
-                self.text1.setReadOnly(self.parent.pagedata.arch)
-            self.text1.set_contents(self.oldbuf)
-            self.text1.setReadOnly(not self.parent.parent.is_user)
-            self.toolbar.setEnabled(self.parent.parent.is_user)
-            self.oldbuf = self.text1.get_contents()  # make sure it's rich text
-        self.initializing = False
-        self.parent.checked_for_leaving = True
-
-    def savep(self):
-        "gegevens van een actie opslaan afhankelijk van pagina"
-        if not self.save_button.isEnabled():
-            return False
-        self.enable_buttons(False)
-        if self.parent.current_tab <= 1 or self.parent.current_tab == 6:
-            return False
-        wijzig = False
-        text = self.text1.get_contents()
-        if self.parent.current_tab == 2 and text != self.parent.pagedata.melding:
-            self.oldbuf = self.parent.pagedata.melding = text
-            self.parent.pagedata.events.append((shared.get_dts(), "Meldingtekst aangepast"))
-            wijzig = True
-        if self.parent.current_tab == 3 and text != self.parent.pagedata.oorzaak:
-            self.oldbuf = self.parent.pagedata.oorzaak = text
-            self.parent.pagedata.events.append((shared.get_dts(), "Beschrijving oorzaak aangepast"))
-            wijzig = True
-        if self.parent.current_tab == 4 and text != self.parent.pagedata.oplossing:
-            self.oldbuf = self.parent.pagedata.oplossing = text
-            self.parent.pagedata.events.append((shared.get_dts(), "Beschrijving oplossing aangepast"))
-            wijzig = True
-        if self.parent.current_tab == 5 and text != self.parent.pagedata.vervolg:
-            self.oldbuf = self.parent.pagedata.vervolg = text
-            self.parent.pagedata.events.append((shared.get_dts(), "Tekst vervolgactie aangepast"))
-            wijzig = True
-        if wijzig:
-            self.update_actie()
-            self.parent.page0.p0list.currentItem().setText(3, self.parent.pagedata.updated)
-        return True
-
-    def restorep(self):
-        "oorspronkelijke (laatst opgeslagen) inhoud van de pagina herstellen"
-        # reset font - are these also needed: case? indent? linespacing? paragraphspacing?
-        if self.parent.current_tab > 1:
-            if self.parent.current_tab == 6:
-                win = self.progress_text
-            else:
-                win = self.text1
+            win = self.text1
         win.setFontWeight(gui.QFont.Normal)
         win.setFontItalic(False)
         win.setFontUnderline(False)
         win.setFontFamily(win.defaultfamily)
         win.setFontPointSize(win.defaultsize)
-        self.vulp()
-
-    def on_text(self):
-        """callback voor EVT_TEXT
-
-        de initializing flag wordt uitgevraagd omdat deze event ook tijdens vulp()
-        en tijdens vul_combos plaatsvindt"""
-        if not self.initializing:
-            newbuf = self.build_newbuf()
-            changed = newbuf != self.oldbuf
-            self.enable_buttons(changed)
-
-    def build_newbuf(self):
-        """read widget contents into the compare buffer
-        """
-        return self.text1.get_contents()
-
-    def on_choice(self):
-        "callback voor combobox"
-        self.enable_buttons()
 
     def enable_buttons(self, state=True):
         "buttons wel of niet bruikbaar maken"
@@ -583,34 +497,9 @@ class PageGui(qtw.QFrame):
             self.saveandgo_button.setEnabled(state)
         self.cancel_button.setEnabled(state)
 
-    def goto_actie(self):
-        "naar startpagina actie gaan"
-        self.goto_page(1)
-
-    def goto_next(self):
-        "naar de volgende pagina gaan"
-        if not self.leavep():
-            return
-        next = self.parent.current_tab + 1
-        if next > self.parent.pages:
-            next = 0
-        self.parent.setCurrentIndex(next)
-
-    def goto_prev(self):
-        "naar de vorige pagina gaan"
-        if not self.leavep():
-            return
-        next = self.parent.current_tab - 1
-        if next < 0:
-            next = self.parent.pages
-        self.parent.setCurrentIndex(next)
-
-    def goto_page(self, page_num, check=True):
-        "naar de aangegeven pagina gaan"
-        if check and not self.leavep():
-            return
-        if 0 <= page_num <= self.parent.pages:
-            self.parent.setCurrentIndex(page_num)
+    def move_cursor_to_end(self):
+        "position the cursor at the end of the text"
+        self.text1.moveCursor(gui.QTextCursor.End, gui.QTextCursor.MoveAnchor)
 
     def get_entry_text(self):
         "get the page text"
@@ -664,8 +553,8 @@ class Page0Gui(PageGui):
         for indx, wid in enumerate(widths):
             self.p0hdr.resizeSection(indx, wid)
         self.p0hdr.setStretchLastSection(True)
-        self.p0list.itemActivated.connect(self.master.on_activate_item)
-        self.p0list.currentItemChanged.connect(self.master.on_change_selected)
+        self.p0list.itemActivated.connect(self.on_activate_item)
+        self.p0list.currentItemChanged.connect(self.on_change_selected)
 
         self.sort_button.clicked.connect(self.master.sort_items)
         self.filter_button.clicked.connect(self.master.select_items)
@@ -705,6 +594,23 @@ class Page0Gui(PageGui):
         else:
             self.sort_button.setEnabled(False)
             self.archive_button.setEnabled(False)
+
+    def on_change_selected(self, item_n, item_o):
+        """callback voor wijzigen geselecteerd item, o.a. door verplaatsen van de
+        cursor of door klikken
+
+        item_n en item_o zijn de parameters vanuit de event
+        """
+        if item_n is None:  # o.a. self.p0list.clear() veroorzaakt dit
+            return
+        self.master.change_selected(item_n)
+
+    def on_activate_item(self, item):
+        """callback voor activeren van item, door doubleclick of enter
+
+        item is de parameter vanuit de event
+        """
+        self.master.activate_item()
 
     def clear_list(self):
         "initialize the list"
@@ -748,7 +654,7 @@ class Page0Gui(PageGui):
 
     def set_selection(self):
         "set selected item if any"
-        if self.parent.current_item is not None:
+        if self.parent.current_item:  # is not None
             self.p0list.setCurrentItem(self.parent.current_item)
 
     def get_selection(self):
@@ -767,6 +673,14 @@ class Page0Gui(PageGui):
     def set_archive_button_text(self, txt):
         "set button text according to archive status"
         self.archive_button.setText(txt)
+
+    def get_selected_action(self):
+        "return the index of the selected action"
+        return shared.data2str(self.p0list.currentItem().data(0, core.Qt.UserRole))
+
+    # def get_selected_action(self):
+    #     "return the index of the selected action"
+    #     return shared.data2str(self.master.parent.book.current_item.data(0, core.Qt.UserRole))
 
 
 class Page1Gui(PageGui):
@@ -803,14 +717,14 @@ class Page1Gui(PageGui):
 
         self.save_button = qtw.QPushButton('Sla wijzigingen op (Ctrl-S)', self)
         self.save_button.clicked.connect(self.master.savep)
-        action = qtw.QShortcut('Ctrl+S', self, self.master.savep)
+        qtw.QShortcut('Ctrl+S', self, self.master.savep)
         self.saveandgo_button = qtw.QPushButton('Sla op en ga verder (Ctrl-G)', self)
         self.saveandgo_button.clicked.connect(self.master.savepgo)
-        action = qtw.QShortcut('Ctrl+G', self, self.master.savepgo)
+        qtw.QShortcut('Ctrl+G', self, self.master.savepgo)
         self.cancel_button = qtw.QPushButton('Maak wijzigingen ongedaan (Alt-Ctrl-Z)', self)
         self.cancel_button.clicked.connect(self.master.restorep)
-        action = qtw.QShortcut('Alt+Ctrl+Z', self, self.master.restorep)  # Ctrl-Z is al op
-        action = qtw.QShortcut('Alt+N', self, self.master.nieuwp)
+        qtw.QShortcut('Alt+Ctrl+Z', self, self.master.restorep)  # Ctrl-Z is al in gebruik
+        qtw.QShortcut('Alt+N', self, self.master.nieuwp)
 
     def doelayout(self):
         "layout page"
@@ -967,11 +881,11 @@ class Page1Gui(PageGui):
             # newstat = shared.data2str(self.stat_choice.itemData(idx))  # xml versie?
             indx = shared.data2int(self.stat_choice.itemData(idx))
             sel = self.stat_choice.currentText()
-        elif fieldcat == 'cat':
+        elif fieldtype == 'cat':
             idx = self.cat_choice.currentIndex()
             indx = shared.data2str(self.cat_choice.itemData(idx))
             sel = str(self.cat_choice.currentText())
-        return indx, text
+        return indx, sel
 
     def set_oldbuf(self):
         "get fieldvalues for comparison of entry was changed"
@@ -1024,10 +938,10 @@ class Page1Gui(PageGui):
 
 class Page6Gui(PageGui):
     "pagina 6: voortgang"
-    def __init__(self, parent):
-        PageGui.__init__(self, parent, pageno=6, standard=False)
-        self.current_item = 0
-        self.oldtext = ""
+    def __init__(self, parent, master):
+        self.parent = parent
+        self.master = master
+        super().__init__(parent, master)
         ## sizes = 200, 100 if LIN else 280, 110
         sizes = 350, 100 if LIN else 280, 110
         self.pnl = qtw.QSplitter(self)
@@ -1044,8 +958,8 @@ class Page6Gui(PageGui):
                                                                 self.progress_list.item(0)))
         textpanel = qtw.QFrame(self)
         self.actiondict = collections.OrderedDict()
-        Page.create_toolbar(self)
-        Page.create_text_field(self, 6)
+        PageGui.create_toolbar(self)
+        PageGui.create_text_field(self)
         self.progress_text = self.text1  # to save modifying all references (TODO: fix - why?)
         sizer0 = qtw.QHBoxLayout()
         sizer1 = qtw.QVBoxLayout()
@@ -1058,14 +972,13 @@ class Page6Gui(PageGui):
         self.pnl.addWidget(textpanel)
         self.pnl.setSizes(sizes)
         self.save_button = qtw.QPushButton('Sla wijzigingen op (Ctrl-S)', self)
-        self.save_button.clicked.connect(self.savep)
-        action = qtw.QShortcut('Ctrl+S', self, self.savep)
-        self.cancel_button = qtw.QPushButton('Maak wijzigingen ongedaan (Alt-Ctrl-Z)',
-                                             self)
-        self.cancel_button.clicked.connect(self.restorep)
-        action = qtw.QShortcut('Alt+Ctrl+Z', self, self.restorep)  # Ctrl-Z zit al in text control
-        action = qtw.QShortcut('Shift+Ctrl+Up', self, self.goto_prev)
-        action = qtw.QShortcut('Shift+Ctrl+Down', self, self.goto_next)
+        self.save_button.clicked.connect(self.master.savep)
+        qtw.QShortcut('Ctrl+S', self, self.master.savep)
+        self.cancel_button = qtw.QPushButton('Maak wijzigingen ongedaan (Alt-Ctrl-Z)', self)
+        self.cancel_button.clicked.connect(self.master.restorep)
+        qtw.QShortcut('Alt+Ctrl+Z', self, self.master.restorep)
+        qtw.QShortcut('Shift+Ctrl+Up', self, self.master.goto_prev)
+        qtw.QShortcut('Shift+Ctrl+Down', self, self.master.goto_next)
 
     def doelayout(self):
         "layout page"
@@ -1081,193 +994,148 @@ class Page6Gui(PageGui):
         sizer0.addLayout(sizer2)
         self.setLayout(sizer0)
 
-    def vulp(self):
-        """te tonen gegevens invullen in velden e.a. initialisaties
-
-        methode aan te roepen voorafgaand aan het tonen van de pagina"""
-        Page.vulp(self)
-        self.initializing = True
-        self.event_list, self.event_data, self.old_list, self.old_data = [], [], [], []
-        self.progress_text.clear()
-        self.progress_text.setReadOnly(True)
-        if self.parent.pagedata:
-            self.event_list = [x[0] for x in self.parent.pagedata.events]
-            self.event_list.reverse()
-            self.old_list = self.event_list[:]
-            self.event_data = [x[1] for x in self.parent.pagedata.events]
-            self.event_data.reverse()
-            self.old_data = self.event_data[:]
-            self.progress_list.clear()
-            if self.parent.parent.is_user:
-                text = '-- doubleclick or press Shift-Ctrl-N to add new item --'
-            else:
-                text = '-- adding new items is disabled --'
-            first_item = qtw.QListWidgetItem(text)
-            first_item.setData(core.Qt.UserRole, -1)
-            self.progress_list.addItem(first_item)
-            for idx, datum in enumerate(self.event_list):
-                # convert to HTML (if needed) and back
-                self.progress_text.set_contents(self.event_data[idx])
-                tekst_plat = self.progress_text.toPlainText()
-                try:
-                    text = tekst_plat.split("\n")[0].strip()
-                except AttributeError:
-                    text = tekst_plat or ""
-                text = text if len(text) < 80 else text[:80] + "..."
-                newitem = qtw.QListWidgetItem('{} - {}'.format(datum, text))
-                newitem.setData(core.Qt.UserRole, idx)
-                self.progress_list.addItem(newitem)
-        if self.parent.parent.datatype == shared.DataType.SQL.name:
-            if self.parent.parent.is_user:
-                self.progress_list.itemActivated.connect(self.on_activate_item)
-                # action = qtw.QShortcut('Shift+Ctrl+N', self, functools.partial(
-                #     self.on_activate_item, self.progress_list.item(0)))
-                self.new_action.activated.connect(functools.partial(self.on_activate_item,
-                                                                    self.progress_list.item(0)))
-            else:
-                try:
-                    self.progress_list.itemActivated.disconnect()
-                    self.new_action.activated.disconnect()
-                except TypeError:
-                    # avoid "disconnect() failed between 'itemActivated' and all its connections"
-                    pass
-        self.progress_text.clear()
-        self.oldbuf = (self.old_list, self.old_data)
-        self.oldtext = ''
-        self.initializing = False
-
-    def savep(self):
-        "opslaan van de paginagegevens"
-        Page.savep(self)
-        # voor het geval er na het aanpassen van een tekst direkt "sla op" gekozen is
-        # nog even kijken of de tekst al in self.event_data is aangepast.
-        idx = self.current_item
-        hlp = str(self.progress_text.get_contents())
-        if idx > 0:
-            idx -= 1
-        if self.event_data[idx] != hlp:
-            self.event_data[idx] = hlp
-            self.oldtext = hlp
-            short_text = hlp.split("\n")[0]
-            if len(short_text) < 80:
-                short_text = short_text[:80] + "..."
-            if self.parent.parent.datatype == shared.DataType.XML.name:
-                short_text = short_text.encode('latin-1')
-            self.progress_list.item(idx + 1).setText("{} - {}".format(
-                self.event_list[idx], short_text))
-            self.progress_list.item(idx + 1).setData(idx, core.Qt.UserRole)
-        wijzig = False
-        if self.event_list != self.old_list or self.event_data != self.old_data:
-            wijzig = True
-            hlp = len(self.event_list) - 1
-            for idx, data in enumerate(self.parent.pagedata.events):
-                if data != (self.event_list[hlp - idx], self.event_data[hlp - idx]):
-                    self.parent.pagedata.events[idx] = (self.event_list[hlp - idx],
-                                                        self.event_data[hlp - idx])
-            for idx in range(len(self.parent.pagedata.events), hlp + 1):
-                if self.event_data[hlp - idx]:
-                    self.parent.pagedata.events.append((self.event_list[hlp - idx],
-                                                        self.event_data[hlp - idx]))
-        if wijzig:
-            self.update_actie()
-            self.parent.current_item.setText(4, self.parent.pagedata.updated)
-            self.parent.page0.p0list.currentItem().setText(
-                3, self.parent.pagedata.updated)
-            self.old_list = self.event_list[:]
-            self.old_data = self.event_data[:]
-            self.oldbuf = (self.old_list, self.old_data)
-        else:
-            print("Leuk hoor, er was niks gewijzigd ! @#%&*Grrr")
-        return True
-
-    def goto_prev(self):
-        test = self.progress_list.currentRow() - 1
-        if test > 0:
-            self.progress_list.setCurrentRow(test)
-
-    def goto_next(self):
-        test = self.progress_list.currentRow() + 1
-        if test < self.progress_list.count():
-            self.progress_list.setCurrentRow(test)
-
     def on_activate_item(self, item=None):
         """callback voor dubbelklik of Enter op een item
-
-        wanneer dit gebeurt op het eerste item kan een nieuwe worden aangemaakt
         """
-        if self.initializing:
-            return
-        if item is None or shared.data2int(item.data(core.Qt.UserRole)) == -1:
-            datum, self.oldtext = shared.get_dts(), ''
-            newitem = qtw.QListWidgetItem('{} - {}'.format(datum, self.oldtext))
-            newitem.setData(core.Qt.UserRole, 0)
-            self.progress_list.insertItem(1, newitem)
-            self.event_list.insert(0, datum)
-            self.event_data.insert(0, self.oldtext)
-            self.progress_list.setCurrentRow(1)
-            self.progress_text.setText(self.oldtext)
-            self.progress_text.setReadOnly(False)
-            self.progress_text.setFocus()
+        if item:
+            self.master.activate_item(item)
 
     def on_select_item(self, item_n, item_o):
         """callback voor het selecteren van een item
 
-        selecteren van (klikken op) een regel in de listbox doet de inhoud van de
-        textctrl ook veranderen. eerst controleren of de tekst veranderd is
-        dat vragen moet ook in de situatie dat je op een geactiveerde knop klikt,
-        het panel wilt verlaten of afsluiten
-        de knoppen onderaan doen de hele lijst bijwerken in self.parent.book.p
+        item_n en item_o worden door de event meegegeven
         """
-        self.progress_text.setReadOnly(True)
+        self.protect_textfield()
         if item_n is None:
             # als ik al eens eerder op page 6 geweest ben en er terugkom of bij reset
             return
-        self.current_item = self.progress_list.currentRow()
-        indx = self.current_item - 1
-        if indx == -1:
-            self.oldtext = ""
+        self.master.select_item()
+
+    def init_textfield(self):
+        "set up text field"
+        self.clear_textfield()
+        self.protect_textfield()
+
+    def init_list(self, text):
+        "set up events list widget"
+        self.progress_list.clear()
+        first_item = qtw.QListWidgetItem(text)
+        first_item.setData(core.Qt.UserRole, -1)
+        self.progress_list.addItem(first_item)
+
+    def add_item_to_list(self, idx, datum):
+        """add an entry to the events list widget (when initializing)
+        first convert to HTML (if needed) and back
+        """
+        self.progress_text.set_contents(self.master.event_data[idx])
+        tekst_plat = self.progress_text.toPlainText()
+        try:
+            text = tekst_plat.split("\n")[0].strip()
+        except AttributeError:
+            text = tekst_plat or ""
+        text = text if len(text) < 80 else text[:80] + "..."
+        newitem = qtw.QListWidgetItem('{} - {}'.format(datum, text))
+        newitem.setData(core.Qt.UserRole, idx)
+        self.progress_list.addItem(newitem)
+
+    def add_entry(self):
+        "add an new event to the event list and the master tables"
+        datum, oldtext = shared.get_dts(), ''
+        newitem = qtw.QListWidgetItem('{} - {}'.format(datum, oldtext))
+        newitem.setData(core.Qt.UserRole, 0)
+        self.progress_list.insertItem(1, newitem)
+        self.master.event_list.insert(0, datum)
+        self.master.event_data.insert(0, oldtext)
+        self.progress_list.setCurrentRow(1)
+        self.progress_text.setText(oldtext)
+        self.progress_text.setReadOnly(False)
+        self.progress_text.setFocus()
+        return oldtext
+
+    def set_list_callback(self):
+        "depending on whether user is logged in"
+        if self.master.parent.parent.is_user:
+            self.progress_list.itemActivated.connect(self.on_activate_item)
+            # action = qtw.QShortcut('Shift+Ctrl+N', self, functools.partial(
+            #     self.on_activate_item, self.progress_list.item(0)))
+            self.new_action.activated.connect(functools.partial(self.on_activate_item,
+                                                                self.progress_list.item(0)))
         else:
-            self.oldtext = self.event_data[indx]  # dan wel item_n.text()
-        self.initializing = True
-        self.progress_text.set_contents(self.oldtext)
-        self.oldtext = self.progress_text.get_contents()
-        self.initializing = False
-        if not self.parent.pagedata.arch:
-            if indx > -1:
-                self.progress_text.setReadOnly(not self.parent.parent.is_user)
-                self.toolbar.setEnabled(self.parent.parent.is_user)
-            self.progress_text.moveCursor(gui.QTextCursor.End,
-                                          gui.QTextCursor.MoveAnchor)
+            try:
+                self.progress_list.itemActivated.disconnect()
+                self.new_action.activated.disconnect()
+            except TypeError:
+                # avoid "disconnect() failed between 'itemActivated' and all its connections"
+                pass
+
+    def clear_textfield(self):
+        "empty textfield context"
+        self.progress_text.clear()
+
+    def protect_textfield(self, value=True):
+        "make textfield (not) editable"
+        self.progress_text.setReadOnly(value)
+
+    def get_textfield_contents(self):
+        "return contents of text area"
+        return str(self.progress_text.get_contents())
+
+    def set_textfield_contents(self, text):
+        "set contents of textarea"
+        self.progress_text.set_contents(text)
+
+    def set_listitem_text(self, itemindex, text):
+        "set text for the given listitem"
+        self.progress_list.item(itemindex).setText(text)
+
+    def set_listitem_data(self, itemindex):
+        "return the given listitem's text"
+        self.progress_list.item(itemindex).setData(itemindex - 1, core.Qt.UserRole)
+
+    def enable_toolbar(self, value):
+        "make toolbar accessible (or not)"
+        self.toolbar.setEnabled(value)
+
+    def get_list_row(self):
+        "return the event list's selected row index"
+        return self.progress_list.currentRow()
+
+    def set_list_row(self, num):
+        "set the event list's row selection"
+        self.progress_list.setCurrentRow(num)
+
+    def get_list_rowcount(self):
+        "return the number of rows in the event list (minus the top one)"
+        return self.progress_list.count()
+
+    def is_first_line(self, item):
+        "only the first item has an invalid event id"
+        return shared.data2int(item.data(core.Qt.UserRole)) == -1
+
+    def move_cursor_to_end(self):
+        "position cursor at the end of the text"
+        self.progress_text.moveCursor(gui.QTextCursor.End, gui.QTextCursor.MoveAnchor)
+
+    def set_focus_to_textfield(self):
+        "make sure input will be entered in the correct field"
         self.progress_text.setFocus()
 
-    def on_text(self):
-        """callback voor wanneer de tekst gewijzigd is
+    def convert_text(self, text, to):
+        """convert plain text to html or back and return the result
 
-        de initializing flag wordt uitgevraagd omdat deze event ook tijdens vulp()
-        en wijzigen van list positie plaatsvindt
+        `to` should be "html" or "plain"
         """
-        if self.initializing:
-            return
-        # lees de inhoud van het tekstveld en vergelijk deze met de buffer
-        tekst = str(self.progress_text.get_contents())  # self.progress_list.GetItemText(ix)
-        if tekst != self.oldtext:
-            # stel de buffer in op de nieuwe tekst
-            self.oldtext = tekst
-            # maak er platte tekst van om straks in de listbox bij te werken
-            tekst_plat = self.progress_text.toPlainText()
-            # stel in dat we niet van dit scherm af kunnen zonder te updaten
-            if self.parent.parent.is_user:
-                self.enable_buttons()
-            self.current_item = self.progress_list.currentRow()
-            if self.current_item > 0:
-                indx = self.current_item - 1
-                self.event_data[indx] = tekst
-                item = self.progress_list.currentItem()
-                datum = str(item.text()).split(' - ')[0]
-                short_text = ' - '.join((datum, tekst_plat.split("\n")[0]))
-                if len(short_text) >= 80:
-                    short_text = short_text[:80] + "..."
-                item.setText(short_text)
+        retval = ''
+        if to == 'rich':
+            self.progress_text.set_contents(text)
+            retval = str(self.progress_text.get_contents())
+        elif to == 'plain':
+            retval = self.progress_text.toPlainText()
+        return retval
+
+    def get_listitem_text(self, itemindex):
+        "return the indicated listitem's text"
+        return self.progress_list.item(itemindex).text()
 
     def build_newbuf(self):
         """read widget contents into the compare buffer
@@ -1375,8 +1243,8 @@ class SortOptionsDialog(qtw.QDialog):
             return
         self.parent.master.sort_via_options = via_options
         if via_options:
-            if self.parent._data:      # alleen SQL versie
-                self.parent._data.save_options(new_sortopts)
+            if self.parent.saved_sortopts:      # alleen SQL versie
+                self.parent.saved_sortopts.save_options(new_sortopts)
         super().accept()
 
 
@@ -1555,7 +1423,7 @@ class SelectOptionsDialog(qtw.QDialog):
     def set_default_values(self, sel_args):
         """get search settings and present them in the dialog
         """
-        test = self.parent.parent.fnaam
+        # test = self.parent.parent.fnaam
         if "idgt" in sel_args:
             self.text_gt.setText(sel_args["idgt"])
         if "id" in sel_args:
@@ -1616,7 +1484,7 @@ class SelectOptionsDialog(qtw.QDialog):
         else:
             obj.setChecked(True)
 
-    def on_checked(self, arg, val):
+    def on_checked(self, arg):  # , val):
         "callback voor status en soort checkboxes"
         if arg == 'cat':
             obj = self.check_options.buttons()[1]
@@ -1711,16 +1579,30 @@ class SelectOptionsDialog(qtw.QDialog):
         super().accept()
 
 
-class OptionsGui(qtw.QDialog):
+class SettOptionsDialog(qtw.QDialog):
     """base class voor de opties dialogen
 
+    cls is hulpklasse met metoden voor methoen specifiek voor het type options
     nu nog F2 en dubbelklikken mogelijk maken om editen te starten"""
-    def __init__(self, parent, title, size=(300, 300)):
+    def __init__(self, parent, args):
         self.parent = parent
+        cls = None
+        size = (350, 200)
+        title = shared.app_title
+        if len(args) == 1:
+            title = args[0]
+        elif len(args) > 1:
+            try:
+                cls = args[0]
+                title = args[1]
+                size = args[2]
+            except IndexError:
+                pass    # wat er niet is is er niet
+        self.cls = cls
         super().__init__(parent)
         self.resize(size[0], size[1])
         self.setWindowTitle(title)
-        self.initstuff()
+        self.initstuff(parent)
         sizer = qtw.QVBoxLayout()
 
         sizer.addWidget(qtw.QLabel(self.titel, self))
@@ -1763,11 +1645,12 @@ class OptionsGui(qtw.QDialog):
         buttonbox.accepted.connect(self.accept)
         buttonbox.rejected.connect(self.reject)
 
-    def initstuff(self):
-        """placeholder voor aanvullende initialisatie methode
-
-        tevens om te tonen welke dingen er hier ingesteld moeten worden
+    def initstuff(self, parent):
+        """call method with the same name on the helper class if provided
         """
+        if self.cls is not None:
+            self.cls.initstuff(self, parent)
+            return
         self.titel = ""
         self.data = []
         self.tekst = ["", ""]
@@ -1792,6 +1675,7 @@ class OptionsGui(qtw.QDialog):
         """callback for end of editing
 
         FIXME: (how) is this used?
+        item_n en item_o zijn parameters van de event neem ik aan
         """
         self.elb.closePersistentEditor(item_o)
 
@@ -1837,8 +1721,13 @@ class OptionsGui(qtw.QDialog):
         self.elb.setCurrentItem(item_to_replace)
 
     def leesuit(self):
-        "pass changed options to parent"
-        return "This method is implemented in the subclasses"
+        """call method with the same name on the helper class if provided
+        """
+        if self.cls is not None:
+            self.cls.leesuit(self, self.parent,
+                             [self.elb.item(x).text() for x in range(self.elb.count())])
+            return
+        raise NotImplementedError
 
     def accept(self):
         """Confirm changes to parent window
@@ -1848,96 +1737,6 @@ class OptionsGui(qtw.QDialog):
             qtw.QMessageBox.information(self, 'Probreg', message)
             return
         super().accept()
-
-
-class TabOptionsGui(OptionsGui):
-    "dialoog voor mogelijke tab headers"
-    def initstuff(self):
-        "aanvullende initialisatie"
-        self.titel = "Tab titels"
-        self.data = []
-        for key in sorted(self.parent.book.tabs.keys()):
-            tab_id, tab_text = self.parent.book.tabs[key].split(" ", 1)
-            self.data.append(tab_text)
-        self.tekst = ["De tab titels worden getoond in de volgorde",
-                      "zoals ze van links naar rechts staan.",
-                      "Er kunnen geen tabs worden verwijderd of toegevoegd."]
-        self.editable = False
-
-    def leesuit(self):
-        "wijzigingen doorvoeren"
-        self.newtabs = {}
-        ## for idx, item in enumerate(self.elb.items()):
-        for idx in range(self.elb.count()):
-            item = self.elb.item(idx).text()
-            self.newtabs[str(idx)] = str(item)
-        self.parent.save_settings("tab", self.newtabs)
-
-
-class StatOptionsGui(OptionsGui):
-    "dialoog voor de mogelijke statussen"
-    def initstuff(self):
-        "aanvullende initialisatie"
-        self.titel = "Status codes en waarden"
-        self.data = []
-        for key in sorted(self.parent.book.stats.keys()):
-            if self.parent.datatype == shared.DataType.XML.name:
-                item_text, item_value = self.parent.book.stats[key]
-                self.data.append(": ".join((item_value, item_text)))
-            elif self.parent.datatype == shared.DataType.SQL.name:
-                item_text, item_value, row_id = self.parent.book.stats[key]
-                self.data.append(": ".join((item_value, item_text, row_id)))
-        self.tekst = ["De waarden voor de status worden getoond in dezelfde volgorde",
-                      "als waarin ze in de combobox staan.",
-                      "Vóór de dubbele punt staat de code, erachter de waarde.",
-                      "Denk erom dat als je codes wijzigt of statussen verwijdert, deze",
-                      "ook niet meer getoond en gebruikt kunnen worden in de registratie."]
-        self.editable = True
-
-    def leesuit(self):
-        "wijzigingen doorvoeren"
-        self.newstats = {}
-        for sortkey in range(self.elb.count()):
-            item = self.elb.item(sortkey).text()
-            try:
-                value, text = str(item).split(": ")
-            except ValueError:
-                return 'Foutieve waarde: bevat geen dubbele punt'
-            self.newstats[value] = (text, sortkey)
-        self.parent.save_settings("stat", self.newstats)
-
-
-class CatOptionsGui(OptionsGui):
-    "dialoog voor de mogelijke categorieen"
-    def initstuff(self):
-        "aanvullende initialisatie"
-        self.titel = "Soort codes en waarden"
-        self.data = []
-        for key in sorted(self.parent.book.cats.keys()):
-            if self.parent.datatype == shared.DataType.XML.name:
-                item_value, item_text = self.parent.book.cats[key]
-                self.data.append(": ".join((item_text, item_value)))
-            elif self.parent.datatype == shared.DataType.SQL.name:
-                item_value, item_text, row_id = self.parent.book.cats[key]
-                self.data.append(": ".join((item_text, item_value, str(row_id))))
-        self.tekst = ["De waarden voor de soorten worden getoond in dezelfde volgorde",
-                      "als waarin ze in de combobox staan.",
-                      "Vóór de dubbele punt staat de code, erachter de waarde.",
-                      "Denk erom dat als je codes wijzigt of soorten verwijdert, deze",
-                      "ook niet meer getoond en gebruikt kunnen worden in de registratie."]
-        self.editable = True
-
-    def leesuit(self):
-        "wijzigingen doorvoeren"
-        self.newcats = {}
-        for sortkey in range(self.elb.count()):
-            item = self.elb.item(sortkey).text()
-            try:
-                value, text = str(item).split(": ")
-            except ValueError:
-                return 'Foutieve waarde: bevat geen dubbele punt'
-            self.newcats[value] = (text, sortkey)
-        self.parent.save_settings("cat", self.newcats)
 
 
 class LoginBox(qtw.QDialog):
@@ -2031,13 +1830,11 @@ class MainGui(qtw.QMainWindow):
     def create_actions(self):
         """Create additional application actions
         """
-        return  # skip for now
-        action = qtw.QShortcut('Ctrl+P', self, self.print_)
-        action = qtw.QShortcut('Alt+Left', self, self.go_prev)
-        action = qtw.QShortcut('Alt+Right', self, self.go_next)
+        qtw.QShortcut('Ctrl+P', self, self.print_)
+        qtw.QShortcut('Alt+Left', self, self.go_prev)
+        qtw.QShortcut('Alt+Right', self, self.go_next)
         for char in '0123456':
-            action = qtw.QShortcut('Alt+{}'.format(char), self,
-                                   functools.partial(self.go_to, int(char)))
+            qtw.QShortcut('Alt+{}'.format(char), self, functools.partial(self.go_to, int(char)))
 
     def create_book(self):
         "build the tabbed widget"
@@ -2045,7 +1842,7 @@ class MainGui(qtw.QMainWindow):
         self.bookwidget.resize(300, 300)
         self.bookwidget.sorter = None
         self.bookwidget.textcallbacks = {}
-        self.bookwidget.currentChanged.connect(self.master.on_page_changing)
+        self.bookwidget.currentChanged.connect(self.on_page_changing)
         # return self.bookwidget
         self.master.create_book(self.bookwidget)
 
@@ -2065,6 +1862,15 @@ class MainGui(qtw.QMainWindow):
         self.show()
         # self.set_tabfocus(0)
         sys.exit(self.app.exec_())
+
+    def on_page_changing(self, newtabnum):
+        """deze methode is bedoeld om wanneer er van pagina gewisseld gaat worden
+        te controleren of dat wel mogelijk is en zo niet, te melden waarom en de
+        paginawissel tegen te houden (ok, terug te gaan naar de vorige pagina).
+
+        newtabnum wordt door de event meegegeven
+        """
+        self.master.page_changing()
 
     def not_implemented_message(self):
         "information"
@@ -2139,17 +1945,17 @@ class MainGui(qtw.QMainWindow):
     def go_next(self):
         """redirect to the method of the current page
         """
-        Page.goto_next(self.book.widget(self.book.current_tab))
+        self.master.goto_next()
 
     def go_prev(self):
         """redirect to the method of the current page
         """
-        Page.goto_prev(self.book.widget(self.book.current_tab))
+        self.master.goto_prev()
 
     def go_to(self, page):
         """redirect to the method of the current page
         """
-        Page.goto_page(self.book.widget(self.book.current_tab), page)
+        self.master.goto_page(page)
 
     def preview(self):
         "callback voor print preview"
@@ -2189,8 +1995,8 @@ class MainGui(qtw.QMainWindow):
 
     def set_tab_titles(self, tabs):
         "(re)build the titles on the tabs"
-        for x in self.master.book.tabs.keys():
-            self.bookwidget.setTabText(x, self.master.book.tabs[x])
+        for x in tabs.keys():
+            self.bookwidget.setTabText(x, tabs[x])
 
     def select_first_tab(self):
         "set selection to first page"
