@@ -95,12 +95,12 @@ class Page():
                     self.oldbuf = self.parent.pagedata.vervolg
                 # self.text1.setReadOnly(self.parent.pagedata.arch)
                 is_readonly = self.parent.pagedata.arch
-            self.gui.set_text_contents(self.oldbuf)
+            self.gui.set_textarea_contents(self.oldbuf)
             if not is_readonly:
                 is_readonly = not self.parent.parent.is_user
             self.gui.set_text_readonly(is_readonly)
             self.gui.enable_toolbar(self.parent.parent.is_user)
-            self.oldbuf = self.gui.get_text_contents()  # make sure it's rich text
+            self.oldbuf = self.gui.get_textarea_contents()  # make sure it's rich text
             self.gui.move_cursor_to_end()
         self.initializing = False
         self.parent.checked_for_leaving = True
@@ -151,15 +151,17 @@ class Page():
             if not self.parent.parent.mag_weg and not self.parent.newitem:
                 ok_to_leave = False
         elif newbuf != self.oldbuf:
+            print(self.oldbuf)
+            print(newbuf)
             message = "\n".join(("De gegevens op de pagina zijn gewijzigd, ",
-                                 "wilt u de wijzigingen opslaan voordat u verder gaat?")),
+                                 "wilt u de wijzigingen opslaan voordat u verder gaat?"))
             ok, cancel = gui.ask_cancel_question(self.gui, message)
             if ok:
                 ok_to_leave = self.savep()
             elif cancel:
                 self.parent.checked_for_leaving = ok_to_leave = False
             if not cancel:
-                self.parent.enable_all_other_tabs()
+                self.parent.parent.gui.enable_all_other_tabs()
         return ok_to_leave
 
     def savep(self):
@@ -189,8 +191,8 @@ class Page():
             wijzig = True
         if wijzig:
             self.update_actie()
-            self.parent.page0.set_item_text(self.parent.page0.get_selection(), 3,
-                                            self.parent.pagedata.updated)
+            self.parent.page0.gui.set_item_text(self.parent.page0.gui.get_selection(), 3,
+                                                self.parent.pagedata.updated)
         return True
 
     def savepgo(self):
@@ -272,10 +274,6 @@ class Page():
             return
         if 0 <= page_num <= self.parent.pages:
             self.parent.parent.gui.set_page(page_num)
-
-    def get_entry_text(self):
-        "get the page text"
-        return self.gui.get_entry_text()
 
 
 class Page0(Page):
@@ -381,15 +379,20 @@ class Page0(Page):
             return
 
         for _, data in items:
-            self.gui.set_listitem_values([data[0]] + list(data[2:]))
+            new_item = self.gui.add_listitem(data[0])
+            self.gui.set_listitem_values(new_item, [data[0]] + list(data[2:]))
 
     def change_selected(self, item_n):
         """callback voor wijzigen geselecteerd item, o.a. door verplaatsen van de
         cursor of door klikken
         """
+        print('in page0.change_selected')
         self.parent.current_item = item_n
+        self.gui.set_selection()
+        print('  current_item is', item_n)
         if not self.parent.newitem:
             selindx = self.gui.get_selected_action()
+            print('  got selected action:', selindx)
             self.readp(selindx)
         hlp = "&Herleef" if self.parent.pagedata.arch else "&Archiveer"
         self.gui.set_archive_button_text(hlp)
@@ -397,6 +400,7 @@ class Page0(Page):
     def activate_item(self):
         """callback voor activeren van item, door doubleclick of enter
         """
+        print('in page0.change_selected')
         self.goto_actie()
 
     def select_items(self):
@@ -594,12 +598,14 @@ class Page1(Page):
                 (shared.get_dts(), 'Titel gewijzigd in "{0}"'.format(procdesc)))
             wijzig = True
         newstat, sel = self.gui.get_choice_data('stat')
+        print(newstat, sel)
         if newstat != self.parent.pagedata.status:
             self.parent.pagedata.status = newstat
             self.parent.pagedata.events.append(
                 (shared.get_dts(), 'Status gewijzigd in "{0}"'.format(sel)))
             wijzig = True
         newcat, sel = self.gui.get_choice_data('cat')
+        print(newcat, sel)
         if newcat != self.parent.pagedata.soort:
             self.parent.pagedata.soort = newcat
             self.parent.pagedata.events.append(
@@ -615,32 +621,29 @@ class Page1(Page):
             self.update_actie()
             if self.parent.newitem:
                 # nieuwe entry maken in de tabel voor panel 0
-                self.parent.current_item = len(self.parent.data)  # + 1
-                self.parent.data[self.parent.current_item] = (
-                    self.gui.get_text('date'),
-                    " - ".join((self.gui.get_text('proc'), self.gui.get_text('desc'))),
-                    self.gui.get_choice_data('stat')[0], self.gui.get_choice_data('cat')[0],
-                    self.gui.get_text('id'))
+                newindex = len(self.parent.data)  # + 1
+                itemdata = (self.gui.get_text('date'),
+                            " - ".join((self.gui.get_text('proc'), self.gui.get_text('desc'))),
+                            self.gui.get_choice_data('stat')[0], self.gui.get_choice_data('cat')[0],
+                            self.gui.get_text('id'))
+                self.parent.data[newindex] = itemdata  # waarom niet append?
                 # ook nieuwe entry maken in de visuele tree
-                # new_item = qtw.QTreeWidgetItem()
-                # new_item.setData(0, self.parent.current_item, core.Qt.UserRole)
-                # self.parent.page0.p0list.addTopLevelItem(new_item)
-                self.parent.page0.gui.set_listitem_values(self.parent.current_item)
-                self.parent.page0.set_selection()
+                self.parent.current_item = self.parent.page0.gui.add_listitem(itemdata[0])
+                self.parent.page0.gui.set_selection()
                 self.parent.newitem = False  # is None niet correcter?
                 self.parent.rereadlist = True
-                self.parent.page0.enable_buttons(True)
+                self.parent.page0.enable_buttons()  # True)
             # teksten op panel 0 bijwerken
-            item = self.parent.page0.get_selection()
-            self.parent.page0.set_item_text(item, 1,
-                                            self.parent.pagedata.get_soorttext()[0].upper())
-            self.parent.page0.set_item_text(item, 2, self.parent.pagedata.get_statustext())
-            self.parent.page0.set_item_text(item, 3, self.parent.pagedata.updated)
+            item = self.parent.page0.gui.get_selection()
+            self.parent.page0.gui.set_item_text(item, 1,
+                                                self.parent.pagedata.get_soorttext()[0].upper())
+            self.parent.page0.gui.set_item_text(item, 2, self.parent.pagedata.get_statustext())
+            self.parent.page0.gui.set_item_text(item, 3, self.parent.pagedata.updated)
             if self.parent.parent.datatype == shared.DataType.XML.name:
-                self.parent.page0.set_item_text(item, 4, self.parent.pagedata.titel)
+                self.parent.page0.gui.set_item_text(item, 4, self.parent.pagedata.titel)
             elif self.parent.parent.datatype == shared.DataType.SQL.name:
-                self.parent.page0.set_item_text(item, 4, self.parent.pagedata.over)
-                self.parent.page0.set_item_text(item, 5, self.parent.pagedata.titel)
+                self.parent.page0.gui.set_item_text(item, 4, self.parent.pagedata.over)
+                self.parent.page0.gui.set_item_text(item, 5, self.parent.pagedata.titel)
             self.oldbuf = self.gui.set_oldbuf()
         return True
 
@@ -664,7 +667,8 @@ class Page1(Page):
             self.gui.add_stat_choice(text, value)
         self.initializing = False
 
-    def get_entry_text(self, entry_type):  # methode van Page1
+    def get_entry_text(self, entry_type):
+        "return an entry field's text"
         return self.gui.get_entry_text(entry_type)
 
 
@@ -772,7 +776,8 @@ class Page6(Page):
             # waar is deze voor (self.book.current_item.setText) ?
             # self.parent.current_item = self.parent.page0.p0list.topLevelItem(x)
             # self.parent.current_item.setText(4, self.parent.pagedata.updated)
-            self.parent.page0.set_item_text(3, self.parent.pagedata.updated)
+            self.parent.page0.gui.set_item_text(self.parent.current_item, 3,
+                                                self.parent.pagedata.updated)
             # dit was self.parent.page0.p0list.currentItem().setText( -- is dat niet hetzelfde?
             self.old_list = self.event_list[:]
             self.old_data = self.event_data[:]
@@ -800,10 +805,10 @@ class Page6(Page):
         """
         if self.initializing:
             return
-        if self.gui.is_first_line(item):
+        if item is None:  # or self.gui.is_first_line(item): -- blijkt niet nodig te zijn
             self.oldtext = self.gui.add_entry()
 
-    def on_select_item(self):
+    def select_item(self):
         """callback voor het selecteren van een item
 
         selecteren van (klikken op) een regel in de listbox doet de inhoud van de
@@ -1139,7 +1144,6 @@ class MainWindow():
 
     def print_scherm(self, event=None):
         "Menukeuze: print dit scherm"
-        print('printing current screen')
         self.printdict = {'lijst': [], 'actie': [], 'sections': [], 'events': []}
         self.hdr = "Actie: {} {}".format(self.book.pagedata.id,
                                          self.book.pagedata.titel)
@@ -1183,13 +1187,13 @@ class MainWindow():
         elif 2 <= self.book.current_tab <= 5:
             title = self.book.tabs[self.book.current_tab].split(None, 1)[1]
             if self.book.current_tab == 2:
-                text = self.book.page2.get_entry_text()
+                text = self.book.page2.get_textarea_contents()
             elif self.book.current_tab == 3:
-                text = self.book.page3.get_entry_text()
+                text = self.book.page3.get_textarea_contents()
             elif self.book.current_tab == 4:
-                text = self.book.page4.get_entry_text()
+                text = self.book.page4.get_textarea_contents()
             elif self.book.current_tab == 5:
-                text = self.book.page5.get_entry_text()
+                text = self.book.page5.get_textarea_contents()
             self.printdict['sections'] = [(title, text.replace('\n', '<br>'))]
         elif self.book.current_tab == 6:
             events = []
@@ -1199,7 +1203,7 @@ class MainWindow():
                 events.append((data, self.book.page6.event_data[idx].replace('\n',
                                                                              '<br>')))
             self.printdict['events'] = events
-        self.preview()
+        self.gui.preview()
 
     def print_actie(self, event=None):
         "Menukeuze: print deze actie"
@@ -1244,7 +1248,7 @@ class MainWindow():
         self.printdict['sections'] = sections
         self.printdict['events'] = [(x, y.replace('\n', '<br>')) for x, y in
                                     self.book.pagedata.events] or []
-        self.preview()
+        self.gui.preview()
 
     def exit_app(self, event=None):
         "Menukeuze: exit applicatie"
@@ -1346,6 +1350,7 @@ class MainWindow():
         self.lees_settings()
         self.gui.set_tab_titles(self.book.tabs)
         self.book.page0.clear_selection()
+        self.book.page1.vul_combos()
         if self.book.current_tab == 0:
             self.book.page0.vulp()
         else:
@@ -1389,7 +1394,7 @@ class MainWindow():
             if self.datatype == shared.DataType.XML.name:
                 self.book.tabs[int(tab_num)] = " ".join((tab_num, tab_text))
             elif self.datatype == shared.DataType.SQL.name:
-                tab_text, tab_adr = tab_text
+                tab_text = tab_text[0]  # , tab_adr = tab_text
                 self.book.tabs[int(tab_num)] = " ".join((tab_num, tab_text.title()))
 
     def save_settings(self, srt, data):
@@ -1445,20 +1450,20 @@ class MainWindow():
             else:
                 self.print_actie()
 
-    def go_next(self):
+    def goto_next(self):
         """redirect to the method of the current page
         """
-        Page.goto_next(self.book.widget(self.book.current_tab))
+        Page.goto_next(self.book.widget(self.book.current_tab).master)
 
-    def go_prev(self):
+    def goto_prev(self):
         """redirect to the method of the current page
         """
-        Page.goto_prev(self.book.widget(self.book.current_tab))
+        Page.goto_prev(self.book.widget(self.book.current_tab).master)
 
-    def go_to(self, page):
+    def goto_page(self, page):
         """redirect to the method of the current page
         """
-        Page.goto_page(self.book.widget(self.book.current_tab), page)
+        Page.goto_page(self.book.widget(self.book.current_tab).master, page)
 
     def page_changing(self):
         """deze methode is bedoeld om wanneer er van pagina gewisseld gaat worden
@@ -1496,12 +1501,12 @@ class MainWindow():
                 self.book.page6.set_list_row(item)  # reselect item
         self.gui.set_tabfocus(self.book.current_tab)
 
-    def preview(self):
-        "callback voor print preview"
-        self.not_implemented_message()
-        # self.print_dlg = qtp.QPrintPreviewDialog(self)
-        # self.print_dlg.paintRequested.connect(self.afdrukken)
-        # self.print_dlg.exec_()
+    # def preview(self):
+    #     "callback voor print preview"
+    #     self.not_implemented_message()
+    #     # self.print_dlg = qtp.QPrintPreviewDialog(self)
+    #     # self.print_dlg.paintRequested.connect(self.afdrukken)
+    #     # self.print_dlg.exec_()
 
     # def afdrukken(self, printer):
     #     "wordt aangeroepen door de menuprint methodes"

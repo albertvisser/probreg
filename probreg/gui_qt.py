@@ -56,7 +56,7 @@ def get_choice_item(parent, caption, choices, current=0):
 def ask_cancel_question(win, message):
     "ask the user a question with an option to cancel the process"
     retval = qtw.QMessageBox.question(win, shared.app_title, message,
-                                      buttons=qtw.QMessageBox.Yes | qtw.QMessageBox.No |
+                                      qtw.QMessageBox.Yes | qtw.QMessageBox.No |
                                       qtw.QMessageBox.Cancel)
     return retval == qtw.QMessageBox.Yes, retval == qtw.QMessageBox.Cancel
 
@@ -478,7 +478,7 @@ class PageGui(qtw.QFrame):
         self.setLayout(sizer0)
         return True
 
-    def reset_font(self, win):
+    def reset_font(self):
         "initialize to standard values"
         if self.master.parent.current_tab == 6:
             win = self.progress_text
@@ -501,15 +501,11 @@ class PageGui(qtw.QFrame):
         "position the cursor at the end of the text"
         self.text1.moveCursor(gui.QTextCursor.End, gui.QTextCursor.MoveAnchor)
 
-    def get_entry_text(self):
-        "get the page text"
-        return self.text1.get_contents()
-
-    def set_text_contents(self, data):
+    def set_textarea_contents(self, data):
         "set the page text"
         self.text1.set_contents(data)
 
-    def get_text_contents(self):
+    def get_textarea_contents(self):
         "get the page text"
         return self.text1.get_contents()
 
@@ -528,6 +524,11 @@ class PageGui(qtw.QFrame):
     def can_save(self):
         "check if we are allowed/able to do this"
         return self.save_button.isEnabled()
+
+    def build_newbuf(self):
+        """read widget contents into the compare buffer
+        """
+        return self.get_textarea_contents()
 
 
 class Page0Gui(PageGui):
@@ -617,9 +618,15 @@ class Page0Gui(PageGui):
         self.p0list.clear()
         self.p0list.has_selection = False
 
-    def set_listitem_values(self, data):
-        "set column values for list entry"
+    def add_listitem(self, data):
+        "add an item to the list"
         new_item = qtw.QTreeWidgetItem()
+        new_item.setData(0, core.Qt.UserRole, data)
+        self.p0list.addTopLevelItem(new_item)
+        return new_item
+
+    def set_listitem_values(self, item, data):
+        "set column values for list entry"
         for col, value in enumerate(data):
             if col == 1:
                 pos = value.index(".") + 1
@@ -627,9 +634,7 @@ class Page0Gui(PageGui):
             elif col == 2:
                 pos = value.index(".") + 1
                 value = value[pos:]
-            new_item.setText(col, value)
-        new_item.setData(0, core.Qt.UserRole, data[0])
-        self.p0list.addTopLevelItem(new_item)
+            item.setText(col, value)
         self.p0list.has_selection = True
 
     def get_items(self):
@@ -832,6 +837,7 @@ class Page1Gui(PageGui):
 
     # TODO: een van deze beiden kiezen
     def get_entry_text(self, entry_type):
+        "get textfield value"
         if entry_type == 'actie':
             return self.id_text.text()
         elif entry_type == 'datum':
@@ -848,6 +854,7 @@ class Page1Gui(PageGui):
 
     def vul_combos(self):
         "vullen comboboxen"
+        print('in vul_combos')
         self.initializing = True
         self.stat_choice.clear()
         self.cat_choice.clear()
@@ -878,14 +885,13 @@ class Page1Gui(PageGui):
         "get selected entry in a combobox"
         if fieldtype == 'stat':
             idx = self.stat_choice.currentIndex()
-            # newstat = shared.data2str(self.stat_choice.itemData(idx))  # xml versie?
-            indx = shared.data2int(self.stat_choice.itemData(idx))
-            sel = self.stat_choice.currentText()
+            code = shared.data2str(self.stat_choice.itemData(idx))
+            text = self.stat_choice.currentText()
         elif fieldtype == 'cat':
             idx = self.cat_choice.currentIndex()
-            indx = shared.data2str(self.cat_choice.itemData(idx))
-            sel = str(self.cat_choice.currentText())
-        return indx, sel
+            code = shared.data2str(self.cat_choice.itemData(idx))
+            text = str(self.cat_choice.currentText())
+        return code, text
 
     def set_oldbuf(self):
         "get fieldvalues for comparison of entry was changed"
@@ -954,8 +960,9 @@ class Page6Gui(PageGui):
             self.progress_list.itemActivated.connect(self.on_activate_item)
             # action = qtw.QShortcut('Shift+Ctrl+N', self, functools.partial(
             #     self.on_activate_item, self.progress_list.item(0)))
-            self.new_action.activated.connect(functools.partial(self.on_activate_item,
-                                                                self.progress_list.item(0)))
+            self.new_action.activated.connect(self.on_activate_item)
+            # self.new_action.activated.connect(functools.partial(self.on_activate_item,
+            #                                                     self.progress_list.item(0)))
         textpanel = qtw.QFrame(self)
         self.actiondict = collections.OrderedDict()
         PageGui.create_toolbar(self)
@@ -997,8 +1004,7 @@ class Page6Gui(PageGui):
     def on_activate_item(self, item=None):
         """callback voor dubbelklik of Enter op een item
         """
-        if item:
-            self.master.activate_item(item)
+        self.master.activate_item(item)
 
     def on_select_item(self, item_n, item_o):
         """callback voor het selecteren van een item
@@ -1040,6 +1046,7 @@ class Page6Gui(PageGui):
 
     def add_entry(self):
         "add an new event to the event list and the master tables"
+        print('adding entry')
         datum, oldtext = shared.get_dts(), ''
         newitem = qtw.QListWidgetItem('{} - {}'.format(datum, oldtext))
         newitem.setData(core.Qt.UserRole, 0)
@@ -1110,6 +1117,7 @@ class Page6Gui(PageGui):
 
     def is_first_line(self, item):
         "only the first item has an invalid event id"
+        print(item.data(core.Qt.UserRole))
         return shared.data2int(item.data(core.Qt.UserRole)) == -1
 
     def move_cursor_to_end(self):
@@ -1140,7 +1148,7 @@ class Page6Gui(PageGui):
     def build_newbuf(self):
         """read widget contents into the compare buffer
         """
-        return (self.event_list, self.event_data)
+        return (self.master.event_list, self.master.event_data)
 
 
 class SortOptionsDialog(qtw.QDialog):
@@ -1967,12 +1975,12 @@ class MainGui(qtw.QMainWindow):
         "wordt aangeroepen door de menuprint methodes"
         self.css = ""
         if self.css:
-            self.printdict['css'] = self.css
-        self.printdict['hdr'] = self.hdr
+            self.master.printdict['css'] = self.css
+        self.master.printdict['hdr'] = self.master.hdr
         doc = gui.QTextDocument(self)
-        html = Template(filename='probreg/actie.tpl').render(**self.printdict)
+        html = Template(filename='probreg/actie.tpl').render(**self.master.printdict)
         doc.setHtml(html)
-        printer.setOutputFileName(self.hdr)
+        printer.setOutputFileName(self.master.hdr)
         doc.print_(printer)
         self.print_dlg.done(True)
 
