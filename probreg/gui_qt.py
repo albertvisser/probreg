@@ -1,13 +1,8 @@
-#! usr/bin/env python
-# -*- coding: UTF-8 -*-
 """Actie (was: problemen) Registratie, PyQT5 versie
 """
-from __future__ import print_function
 import os
 import sys
 import pathlib
-# import enum
-# import pprint
 import collections
 import functools
 import PyQt5.QtWidgets as qtw
@@ -15,7 +10,6 @@ import PyQt5.QtPrintSupport as qtp
 import PyQt5.QtGui as gui
 import PyQt5.QtCore as core
 from mako.template import Template
-## import probreg.pr_globals as pr
 import probreg.shared as shared
 LIN = True if os.name == 'posix' else False
 HERE = os.path.dirname(__file__)
@@ -683,10 +677,6 @@ class Page0Gui(PageGui):
         "return the index of the selected action"
         return shared.data2str(self.p0list.currentItem().data(0, core.Qt.UserRole))
 
-    # def get_selected_action(self):
-    #     "return the index of the selected action"
-    #     return shared.data2str(self.master.parent.book.current_item.data(0, core.Qt.UserRole))
-
 
 class Page1Gui(PageGui):
     "pagina 1: startscherm actie"
@@ -835,26 +825,8 @@ class Page1Gui(PageGui):
             value = str(self.desc_entry.text())
         return value
 
-    # TODO: een van deze beiden kiezen
-    def get_entry_text(self, entry_type):
-        "get textfield value"
-        if entry_type == 'actie':
-            return self.id_text.text()
-        elif entry_type == 'datum':
-            return self.date_text.text()
-        elif entry_type == 'oms':
-            return self.proc_entry.text()
-        elif entry_type == 'tekst':
-            return self.desc_entry.text()
-        elif entry_type == 'soort':
-            return self.cat_choice.currentText()
-        elif entry_type == 'status':
-            return self.stat_choice.currentText()
-        return None
-
     def vul_combos(self):
         "vullen comboboxen"
-        print('in vul_combos')
         self.initializing = True
         self.stat_choice.clear()
         self.cat_choice.clear()
@@ -866,7 +838,6 @@ class Page1Gui(PageGui):
             self.stat_choice.addItem(text, value)
         self.initializing = False
 
-    # TODO een van deze beiden kiezen oid
     def set_choice(self, fieldtype, value):
         "set selected entry in a combobox"
         if fieldtype == 'stat':
@@ -897,6 +868,14 @@ class Page1Gui(PageGui):
         "get fieldvalues for comparison of entry was changed"
         return (str(self.proc_entry.text()), str(self.desc_entry.text()),
                 int(self.stat_choice.currentIndex()), int(self.cat_choice.currentIndex()))
+
+    def get_field_text(self, entry_type):
+        "return a screen field's value"
+        test = ('actie', 'datum', 'oms', 'tekst', 'status', 'soort').index(entry_type)
+        dest = ('id', 'date', 'proc', 'desc', 'stat', 'cat')[test]
+        if test > 3:
+            return self.get_choice_data(dest)[1]
+        return self.get_text(dest)
 
     def set_archive_button_text(self, value):
         "set the text for the archive button"
@@ -1046,7 +1025,6 @@ class Page6Gui(PageGui):
 
     def add_entry(self):
         "add an new event to the event list and the master tables"
-        print('adding entry')
         datum, oldtext = shared.get_dts(), ''
         newitem = qtw.QListWidgetItem('{} - {}'.format(datum, oldtext))
         newitem.setData(core.Qt.UserRole, 0)
@@ -1117,7 +1095,6 @@ class Page6Gui(PageGui):
 
     def is_first_line(self, item):
         "only the first item has an invalid event id"
-        print(item.data(core.Qt.UserRole))
         return shared.data2int(item.data(core.Qt.UserRole)) == -1
 
     def move_cursor_to_end(self):
@@ -1366,6 +1343,7 @@ class SelectOptionsDialog(qtw.QDialog):
 
         hbox = qtw.QHBoxLayout()
         vbox = qtw.QVBoxLayout()
+        vbox.addSpacing(3)
         vbox.addWidget(qtw.QLabel("selecteer een of meer:", self))
         vbox.addStretch()
         hbox.addLayout(vbox)
@@ -1382,6 +1360,7 @@ class SelectOptionsDialog(qtw.QDialog):
 
         hbox = qtw.QHBoxLayout()
         vbox = qtw.QVBoxLayout()
+        vbox.addSpacing(3)
         vbox.addWidget(qtw.QLabel("selecteer een of meer:", self))
         vbox.addStretch()
         hbox.addLayout(vbox)
@@ -1682,7 +1661,9 @@ class SettOptionsDialog(qtw.QDialog):
     def end_edit(self, item_n, item_o):
         """callback for end of editing
 
-        FIXME: (how) is this used?
+        dit lijkt aangeroepen te worden voorafgaand aan een openPersistentEditor call
+        pas op dat moment wordt de gewijzigde waarde doorgegeven aan de dialoog (vanwege
+        de closePersistenteditor call)
         item_n en item_o zijn parameters van de event neem ik aan
         """
         self.elb.closePersistentEditor(item_o)
@@ -1731,6 +1712,9 @@ class SettOptionsDialog(qtw.QDialog):
     def leesuit(self):
         """call method with the same name on the helper class if provided
         """
+        # force checking in the latest change
+        # (this is a workaround as it's not needed in the original version)
+        self.elb.closePersistentEditor(self.elb.currentItem())
         if self.cls is not None:
             self.cls.leesuit(self, self.parent,
                              [self.elb.item(x).text() for x in range(self.elb.count())])
@@ -1936,20 +1920,6 @@ class MainGui(qtw.QMainWindow):
         elif tabno == 6:
             self.master.book.page6.gui.progress_list.setFocus()
 
-    def print_(self):
-        """callback voor ctrl-P(rint)
-
-        vraag om printen scherm of actie, bv. met een InputDialog
-        """
-        choice, ok = qtw.QInputDialog.getItem(self, 'Afdrukken', 'Wat wil je afdrukken?',
-                                              ['huidig scherm', 'huidige actie'])
-        if ok:
-            print('printing', choice)
-            if choice == 0:
-                self.print_scherm()
-            else:
-                self.print_actie()
-
     def go_next(self):
         """redirect to the method of the current page
         """
@@ -1964,6 +1934,18 @@ class MainGui(qtw.QMainWindow):
         """redirect to the method of the current page
         """
         self.master.goto_page(page)
+
+    def print_(self):
+        """callback voor ctrl-P(rint)
+
+        vraag om printen scherm of actie, bv. met een InputDialog
+        """
+        choices = ['huidig scherm', 'huidige actie']
+        choice = get_choice_item(self, 'Wat wil je afdrukken?', choices)
+        if choice == choices[0]:
+            self.master.print_scherm()
+        elif choice == choices[1]:
+            self.master.print_actie()
 
     def preview(self):
         "callback voor print preview"
@@ -1988,7 +1970,7 @@ class MainGui(qtw.QMainWindow):
         "instellen of gebruik van settingsmenu mogelijk is"
         self.settingsmenu.setEnabled(self.master.is_admin)
 
-    def set_statusmessage(self, msg):
+    def set_statusmessage(self, msg=''):
         """stel tekst in statusbar in
         """
         self.statusmessage.setText(msg)
