@@ -1,6 +1,9 @@
 <%!
 def ntobr(input):
-    return input.replace('\\n', '<br>')
+    if input.startswith('<!DOCTYPE'):  # input is al HTML
+        return input.replace('\n', '').replace('<br /></p>', '</p>')
+    else:
+        return input.replace('\n', '<br>')
 %>
 <html>
 <head>
@@ -10,6 +13,8 @@ def ntobr(input):
     <title>${hdr}</title>
 </head>
 <body>
+    <h2>${hdr}</h2>
+    <p>&nbsp;</p>
     % if lijst:
         <table>
         % for action, title, catg, started, l_wijz in lijst:
@@ -33,12 +38,17 @@ def ntobr(input):
         </table>
     % endif
     % for title, text in sections:
-        <hr>
-        <p><b>${title}</b><br>${text | ntobr}</p>
+        % if actie:
+            <hr>
+        % endif
+        <p><b>Beschrijving ${title}</b><br>${text | ntobr}</p>
     % endfor
-    <hr>
+    % if events:
+	<hr>
+        <p><b>Events:</b></p>
+    % endif
     % for date, text in events:
-        <p><b>${date}</b><br>${text | ntobr}</p>
+        <br><i>${date}</i> ${text | ntobr}
     % endfor
 </body>
 </html>
