@@ -569,9 +569,10 @@ class Actie:
                     break
         if found:
             x.set("updated", dt.datetime.today().isoformat(' ')[:10])
+            print(self.soort)
             h = self.soort
-            if h is None:
-                self.soort = ""
+            if h is None or h == '':
+                self.soort = " "
             x.set("soort", self.soort)
             x.set("status", self.status)
             if self.arch:
