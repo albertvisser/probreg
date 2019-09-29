@@ -533,12 +533,6 @@ class Page0Gui(PageGui):
         super().__init__(parent, master)
 
         self.p0list = qtw.QTreeWidget(self)
-        self.sort_button = qtw.QPushButton('S&Orteer', self)
-        self.filter_button = qtw.QPushButton('F&Ilter', self)
-        self.go_button = qtw.QPushButton('&Ga naar melding', self)
-        self.archive_button = qtw.QPushButton('&Archiveer', self)
-        self.new_button = qtw.QPushButton('Voer &Nieuwe melding op', self)
-
         # self.sort_via_options = False
         self.p0list.setSortingEnabled(True)
         self.p0list.setHeaderLabels(self.parent.ctitels)
@@ -551,6 +545,11 @@ class Page0Gui(PageGui):
         self.p0list.itemActivated.connect(self.on_activate_item)
         self.p0list.currentItemChanged.connect(self.on_change_selected)
 
+        self.sort_button = qtw.QPushButton('S&Orteer', self)
+        self.filter_button = qtw.QPushButton('F&Ilter', self)
+        self.go_button = qtw.QPushButton('&Ga naar melding', self)
+        self.archive_button = qtw.QPushButton('&Archiveer', self)
+        self.new_button = qtw.QPushButton('Voer &Nieuwe melding op', self)
         self.sort_button.clicked.connect(self.master.sort_items)
         self.filter_button.clicked.connect(self.master.select_items)
         self.go_button.clicked.connect(self.master.goto_actie)
@@ -1863,10 +1862,6 @@ class MainGui(qtw.QMainWindow):
         newtabnum wordt door de event meegegeven
         """
         self.master.page_changing()
-
-    def not_implemented_message(self):
-        "information"
-        qtw.QMessageBox.information(self, "Oeps", "Sorry, werkt nog niet")
 
     def enable_all_book_tabs(self, state):
         "make all tabs (in)accessible"
