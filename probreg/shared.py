@@ -22,7 +22,7 @@ get_acties = {DataType.XML.name: dmlx.get_acties, DataType.SQL.name: dmls.get_ac
 Actie = {DataType.XML.name: dmlx.Actie, DataType.SQL.name: dmls.Actie}
 Settings = {DataType.XML.name: dmlx.Settings, DataType.SQL.name: dmls.Settings}
 Order = enum.Enum('Order', 'A D')
-logfile = pathlib.Path('/tmp') / 'logs' / 'apropos.log'
+logfile = pathlib.Path('/tmp') / 'logs' / 'actiereg.log'
 logfile.parent.mkdir(exist_ok=True)
 logging.basicConfig(filename=logfile, level=logging.DEBUG,
                     format='%(asctime)s %(module)s: %(message)s')
