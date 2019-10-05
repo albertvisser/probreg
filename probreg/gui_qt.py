@@ -673,7 +673,7 @@ class Page0Gui(PageGui):
         self.archive_button.setText(txt)
 
     def get_selected_action(self):
-        "return the index of the selected action"
+        "return the key of the selected action"
         return shared.data2str(self.p0list.currentItem().data(0, core.Qt.UserRole))
 
 
@@ -823,19 +823,6 @@ class Page1Gui(PageGui):
         elif fieldtype == 'desc':
             value = str(self.desc_entry.text())
         return value
-
-    def vul_combos(self):
-        "vullen comboboxen"
-        self.initializing = True
-        self.stat_choice.clear()
-        self.cat_choice.clear()
-        for key in sorted(self.parent.cats.keys()):
-            text, value = self.parent.cats[key][:2]
-            self.cat_choice.addItem(text, value)
-        for key in sorted(self.parent.stats.keys()):
-            text, value = self.parent.stats[key][:2]
-            self.stat_choice.addItem(text, value)
-        self.initializing = False
 
     def set_choice(self, fieldtype, value):
         "set selected entry in a combobox"
@@ -1173,16 +1160,15 @@ class SortOptionsDialog(qtw.QDialog):
 
         buttonbox = qtw.QDialogButtonBox(qtw.QDialogButtonBox.Ok |
                                          qtw.QDialogButtonBox.Cancel)
+        buttonbox.accepted.connect(self.accept)
+        buttonbox.rejected.connect(self.reject)
         sizer.addWidget(buttonbox)
         self.setLayout(sizer)
 
         self.set_defaults()
 
-        buttonbox.accepted.connect(self.accept)
-        buttonbox.rejected.connect(self.reject)
-
     def set_defaults(self):
-        """set atart values for dialog
+        """set start values for dialog
         """
         self.enable_fields(False)
         self.on_off.setChecked(self.parent.master.sort_via_options)
@@ -1568,8 +1554,8 @@ class SelectOptionsDialog(qtw.QDialog):
 class SettOptionsDialog(qtw.QDialog):
     """base class voor de opties dialogen
 
-    cls is hulpklasse met metoden voor methoen specifiek voor het type options
-    nu nog F2 en dubbelklikken mogelijk maken om editen te starten"""
+    cls is hulpklasse met methoden specifiek voor het type options
+    """
     def __init__(self, parent, args):
         self.parent = parent
         cls = None
@@ -1708,8 +1694,10 @@ class SettOptionsDialog(qtw.QDialog):
         item.setText(text_to_replace)
         self.elb.setCurrentItem(item_to_replace)
 
-    def leesuit(self):
-        """call method with the same name on the helper class if provided
+    def accept(self):
+        """Confirm changes to parent window
+
+        call method on the helper class if provided
         """
         # force checking in the latest change
         # (this is a workaround as it's not needed in the original version)
@@ -1717,17 +1705,8 @@ class SettOptionsDialog(qtw.QDialog):
         if self.cls is not None:
             self.cls.leesuit(self, self.parent,
                              [self.elb.item(x).text() for x in range(self.elb.count())])
-            return
+            super().accept()
         raise NotImplementedError
-
-    def accept(self):
-        """Confirm changes to parent window
-        """
-        message = self.leesuit()
-        if message:
-            qtw.QMessageBox.information(self, 'Probreg', message)
-            return
-        super().accept()
 
 
 class LoginBox(qtw.QDialog):
@@ -1859,9 +1838,26 @@ class MainGui(qtw.QMainWindow):
         te controleren of dat wel mogelijk is en zo niet, te melden waarom en de
         paginawissel tegen te houden (ok, terug te gaan naar de vorige pagina).
 
+        PyQT kent geen aparte beforechanging methode, daarom is deze methode
+        tevens bedoeld om ervoor te zorgen dat na het wisselen van pagina
+        het veld / de velden van de nieuwe pagina een waarde krijgen met behulp van de vulp methode
+
         newtabnum wordt door de event meegegeven
         """
-        self.master.page_changing()
+        old = self.master.book.current_tab
+        new = self.master.book.current_tab = self.get_page()
+        if LIN and old == -1:  # bij initialisatie en bij afsluiten - op Windows is deze altijd -1?
+            return
+        self.enable_all_other_tabs()
+        if 0 <= new <= 5:
+            self.master.book.pages[new].vulp()
+        elif new == 6:
+            if old == new:
+                item = self.book.pages[6].get_list_row()  # remember current item
+            self.book.pages[6].vulp()
+            if old == new:
+                self.book.pages[6].set_list_row(item)  # reselect item
+        self.gui.set_tabfocus(self.book.current_tab)
 
     def enable_all_book_tabs(self, state):
         "make all tabs (in)accessible"
@@ -1900,20 +1896,14 @@ class MainGui(qtw.QMainWindow):
 
     def set_tabfocus(self, tabno):
         "focus geven aan de gekozen tab"
-        if tabno == 0:
-            self.master.book.page0.gui.p0list.setFocus()
-        elif tabno == 1:
-            self.master.book.page1.gui.set_focus()  # proc_entry.setFocus()
-        elif tabno == 2:
-            self.master.book.page2.gui.text1.setFocus()
-        elif tabno == 3:
-            self.master.book.page3.gui.text1.setFocus()
-        elif tabno == 4:
-            self.master.book.page4.gui.text1.setFocus()
-        elif tabno == 5:
-            self.master.book.page5.gui.text1.setFocus()
-        elif tabno == 6:
-            self.master.book.page6.gui.progress_list.setFocus()
+        widgets = [self.master.book.pages[0].gui.p0list,
+                   self.master.book.pages[1].gui.proc_entry,
+                   self.master.book.pages[2].gui.text1,
+                   self.master.book.pages[3].gui.text1,
+                   self.master.book.pages[4].gui.text1,
+                   self.master.book.pages[5].gui.text1,
+                   self.master.book.pages[6].gui.progress_list]
+        widgets[tabno].SetFocus()
 
     def go_next(self):
         """redirect to the method of the current page
