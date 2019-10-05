@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """dml voor probreg va de ORM van de Django versie
 
 importeer settings uit top package omdat Django het wil
@@ -6,8 +5,6 @@ lees apps.dat uit package dir voor alle huidige projecten
 importeer core uit top package voor basis dml routines
 importeer models uit alle subdirectories/packages voor benaderen gewenste data
 """
-from __future__ import print_function
-
 import sys
 import os
 import datetime as dt

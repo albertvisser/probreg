@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """dml voor probreg met sql om dezelfde data te gebruiken die de Django versie
 gebruikt
 

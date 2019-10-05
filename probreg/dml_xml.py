@@ -1,7 +1,4 @@
-# -*- coding: UTF-8 -*-
 "data managenent voor ProbReg XML versie"
-from __future__ import print_function
-
 ## import sys
 import os
 import pathlib
