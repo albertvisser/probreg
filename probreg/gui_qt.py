@@ -66,7 +66,7 @@ def show_dialog(win, dlg, args=None):
 
 
 class EditorPanel(qtw.QTextEdit):
-    "Rich text editor displaying the selected note"
+    "Rich text editor displaying the selected comment"
 
     def __init__(self, parent):
         self.tbparent = parent
@@ -968,19 +968,54 @@ class Page6Gui(PageGui):
 
     def on_activate_item(self, item=None):
         """callback voor dubbelklik of Enter op een item
+
+        wanneer dit gebeurt op het eerste item kan een nieuwe worden aangemaakt
         """
-        self.master.activate_item(item)
+        if self.initializing:
+            return
+        if item is None:  # or self.gui.is_first_line(item): -- blijkt niet nodig te zijn
+            if self.master.parent.parent.is_user:
+                datum, oldtext = shared.get_dts(), ''
+                newitem = qtw.QListWidgetItem('{} - {}'.format(datum, oldtext))
+                newitem.setData(core.Qt.UserRole, 0)
+                self.progress_list.insertItem(1, newitem)
+                self.master.event_list.insert(0, datum)
+                self.master.event_data.insert(0, oldtext)
+                self.progress_list.setCurrentRow(1)
+                self.progress_text.setText(oldtext)
+                self.progress_text.setReadOnly(False)
+                self.progress_text.setFocus()
+                self.oldtext = oldtext
 
     def on_select_item(self, item_n, item_o):
         """callback voor het selecteren van een item
 
+        selecteren van (klikken op) een regel in de listbox doet de inhoud van de
+        textctrl ook veranderen. eerst controleren of de tekst veranderd is
+        dat vragen moet ook in de situatie dat je op een geactiveerde knop klikt,
+        het panel wilt verlaten of afsluiten
+        de knoppen onderaan doen de hele lijst bijwerken in self.parent.book.p
         item_n en item_o worden door de event meegegeven
         """
         self.protect_textfield()
         if item_n is None:
             # als ik al eens eerder op page 6 geweest ben en er terugkom of bij reset
             return
-        self.master.select_item()
+        self.current_item = self.get_list_row()
+        indx = self.current_item - 1
+        if indx == -1:
+            self.oldtext = ""
+        else:
+            self.oldtext = self.event_data[indx]  # dan wel item_n.text()
+        self.initializing = True
+        self.oldtext = self.convert_text(self.oldtext, to='rich')
+        self.initializing = False
+        if not self.parent.pagedata.arch:
+            if indx > -1:
+                self.protect_textfield(not self.parent.parent.is_user)
+                self.enable_toolbar(self.parent.parent.is_user)
+            self.move_cursor_to_end()
+        self.set_focus_to_textfield()
 
     def init_textfield(self):
         "set up text field"
@@ -1009,35 +1044,11 @@ class Page6Gui(PageGui):
         newitem.setData(core.Qt.UserRole, idx)
         self.progress_list.addItem(newitem)
 
-    def add_entry(self):
-        "add an new event to the event list and the master tables"
-        datum, oldtext = shared.get_dts(), ''
-        newitem = qtw.QListWidgetItem('{} - {}'.format(datum, oldtext))
-        newitem.setData(core.Qt.UserRole, 0)
-        self.progress_list.insertItem(1, newitem)
-        self.master.event_list.insert(0, datum)
-        self.master.event_data.insert(0, oldtext)
-        self.progress_list.setCurrentRow(1)
-        self.progress_text.setText(oldtext)
-        self.progress_text.setReadOnly(False)
-        self.progress_text.setFocus()
-        return oldtext
-
     def set_list_callback(self):
-        "depending on whether user is logged in"
-        if self.master.parent.parent.is_user:
-            self.progress_list.itemActivated.connect(self.on_activate_item)
-            # action = qtw.QShortcut('Shift+Ctrl+N', self, functools.partial(
-            #     self.on_activate_item, self.progress_list.item(0)))
-            self.new_action.activated.connect(functools.partial(self.on_activate_item,
-                                                                self.progress_list.item(0)))
-        else:
-            try:
-                self.progress_list.itemActivated.disconnect()
-                self.new_action.activated.disconnect()
-            except TypeError:
-                # avoid "disconnect() failed between 'itemActivated' and all its connections"
-                pass
+        "depending on which GUI toolkit is used"
+        self.progress_list.itemActivated.connect(self.on_activate_item)
+        self.new_action.activated.connect(functools.partial(self.on_activate_item,
+                                                            self.progress_list.item(0)))
 
     def clear_textfield(self):
         "empty textfield context"
@@ -1063,10 +1074,6 @@ class Page6Gui(PageGui):
         "return the given listitem's text"
         self.progress_list.item(itemindex).setData(itemindex - 1, core.Qt.UserRole)
 
-    def enable_toolbar(self, value):
-        "make toolbar accessible (or not)"
-        self.toolbar.setEnabled(value)
-
     def get_list_row(self):
         "return the event list's selected row index"
         return self.progress_list.currentRow()
@@ -1078,10 +1085,6 @@ class Page6Gui(PageGui):
     def get_list_rowcount(self):
         "return the number of rows in the event list (minus the top one)"
         return self.progress_list.count()
-
-    def is_first_line(self, item):
-        "only the first item has an invalid event id"
-        return shared.data2int(item.data(core.Qt.UserRole)) == -1
 
     def move_cursor_to_end(self):
         "position cursor at the end of the text"
@@ -1857,7 +1860,7 @@ class MainGui(qtw.QMainWindow):
             self.book.pages[6].vulp()
             if old == new:
                 self.book.pages[6].set_list_row(item)  # reselect item
-        self.gui.set_tabfocus(self.book.current_tab)
+        self.set_tabfocus(self.master.book.current_tab)
 
     def enable_all_book_tabs(self, state):
         "make all tabs (in)accessible"

@@ -140,7 +140,7 @@ class Page():
             shared.log('%s %s', self.parent.parent.mag_weg, self.parent.newitem)
             if not self.parent.parent.mag_weg and not self.parent.newitem:
                 ok_to_leave = False
-        elif newbuf != self.gui.oldbuf:
+        elif newbuf != self.oldbuf:
             message = "\n".join(("De gegevens op de pagina zijn gewijzigd, ",
                                  "wilt u de wijzigingen opslaan voordat u verder gaat?"))
             ok, cancel = gui.ask_cancel_question(self.gui, message)
@@ -721,7 +721,7 @@ class Page6(Page):
             #     except TypeError:
             #         # avoid "disconnect() failed between 'itemActivated' and all its connections"
             #         pass
-        self.gui.clear_textfield()
+        # self.gui.clear_textfield() - zit al in init_textfield
         self.oldbuf = (self.old_list, self.old_data)
         self.oldtext = ''
         self.initializing = False
@@ -784,42 +784,7 @@ class Page6(Page):
         if test < self.gui.get_list_rowcount():
             self.gui.set_list.row(test)
 
-    def activate_item(self, item):  # , *args)
-        """callback voor dubbelklik of Enter op een item
-
-        wanneer dit gebeurt op het eerste item kan een nieuwe worden aangemaakt
-        """
-        if self.initializing:
-            return
-        if item is None:  # or self.gui.is_first_line(item): -- blijkt niet nodig te zijn
-            self.oldtext = self.gui.add_entry()
-
-    def select_item(self):  # , *args)
-        """callback voor het selecteren van een item
-
-        selecteren van (klikken op) een regel in de listbox doet de inhoud van de
-        textctrl ook veranderen. eerst controleren of de tekst veranderd is
-        dat vragen moet ook in de situatie dat je op een geactiveerde knop klikt,
-        het panel wilt verlaten of afsluiten
-        de knoppen onderaan doen de hele lijst bijwerken in self.parent.book.p
-        """
-        self.current_item = self.gui.get_list_row()
-        indx = self.current_item - 1
-        if indx == -1:
-            self.oldtext = ""
-        else:
-            self.oldtext = self.event_data[indx]  # dan wel item_n.text()
-        self.initializing = True
-        self.oldtext = self.gui.convert_text(self.oldtext, to='rich')
-        self.initializing = False
-        if not self.parent.pagedata.arch:
-            if indx > -1:
-                self.gui.protect_textfield(not self.parent.parent.is_user)
-                self.gui.enable_toolbar(self.parent.parent.is_user)
-            self.gui.move_cursor_to_end()
-        self.gui.set_focus_to_textfield()
-
-    def on_text(self):  # , *args)
+    def on_text(self, *args):
         """callback voor wanneer de tekst gewijzigd is
 
         de initializing flag wordt uitgevraagd omdat deze event ook tijdens vulp()
@@ -1063,21 +1028,15 @@ class MainWindow():
         "add the pages to the tabbed widget"
         self.book.pages.append(Page0(self.book))
         self.book.pages.append(Page1(self.book))
-        # self.book.pages.append(Page(self.book, 2))
-        # self.book.pages.append(Page(self.book, 3))
-        # self.book.pages.append(Page(self.book, 4))
-        # self.book.pages.append(Page(self.book, 5))
-        # self.book.pages.append(Page6(self.book))
+        self.book.pages.append(Page(self.book, 2))
+        self.book.pages.append(Page(self.book, 3))
+        self.book.pages.append(Page(self.book, 4))
+        self.book.pages.append(Page(self.book, 5))
+        self.book.pages.append(Page6(self.book))
         self.book.checked_for_leaving = True
 
         for i, page in enumerate(self.book.pages):
             self.gui.add_book_tab(page, "&" + self.book.tabs[i])
-        # self.gui.add_book_tab(self.book.page1, "&" + self.book.tabs[1])
-        # # self.gui.add_book_tab(self.book.page2, "&" + self.book.tabs[2])
-        # # self.gui.add_book_tab(self.book.page3, "&" + self.book.tabs[3])
-        # # self.gui.add_book_tab(self.book.page4, "&" + self.book.tabs[4])
-        # # self.gui.add_book_tab(self.book.page5, "&" + self.book.tabs[5])
-        # # self.gui.add_book_tab(self.book.page6, "&" + self.book.tabs[6])
         self.gui.enable_all_book_tabs(False)
 
     def not_implemented_message(self):
