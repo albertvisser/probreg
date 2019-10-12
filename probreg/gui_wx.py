@@ -417,7 +417,7 @@ class PageGui(wx.Panel):
     def choose_font(self, event):
         """show font dialog
          """
-         # TODO: how to apply?
+        # TODO: how to apply?
         # self.curFont = self.sampleText.GetFont()
         # self.curClr = wx.BLACK
         data = wx.FontData()
@@ -1044,7 +1044,6 @@ class Page6Gui(PageGui):
         de knoppen onderaan doen de hele lijst bijwerken in self.parent.book.p
         """
         self.current_item = event.Index  # - 1
-        print('in Page6.on_select_item, index is', self.current_item)
         # tekst = self.progress_list.GetItemText(self.current_item)  # niet gebruikt (tbv debuggen)
         self.progress_text.SetEditable(False)
         if not self.parent.pagedata.arch:
@@ -1053,8 +1052,9 @@ class Page6Gui(PageGui):
             self.master.oldtext = ""
         else:
             self.master.oldtext = self.master.event_data[self.current_item - 1]
-        print(self.master.oldtext)
-        self.set_textfield_contents(self.master.oldtext)
+        self.master.initializing = True
+        self.set_textfield_contents(self.master.oldtext)  # convert already?
+        self.master.initializing = False
         self.progress_text.Enable(True)
         self.progress_text.SetFocus()
         # event.Skip()
