@@ -115,7 +115,7 @@ class EditorPanel(qtw.QTextEdit):
             self.setText(data)
         fmt = gui.QTextCharFormat()
         self.charformat_changed(fmt)
-        self.oldtext = data
+        # self.oldtext = data
 
     def get_contents(self):
         "return contents from editor"
@@ -323,6 +323,15 @@ class EditorPanel(qtw.QTextEdit):
         "make text accessible (or not)"
         self.setReadOnly(not value)
 
+    def update_bold(self):
+        "compatibility"
+
+    def update_italic(self):
+        "compatibility"
+
+    def update_underline(self):
+        "compatibility"
+
 
 class PageGui(qtw.QFrame):
     "base class for notebook page"
@@ -333,8 +342,8 @@ class PageGui(qtw.QFrame):
         if not self.master.is_text_page:
             return
         self.actiondict = collections.OrderedDict()
-        self.create_toolbar()
-        self.create_text_field()
+        self.text1 = self.create_text_field()
+        self.create_toolbar(textfield=self.text1)
         self.save_button = qtw.QPushButton('Sla wijzigingen op (Ctrl-S)', self)
         self.save_button.clicked.connect(self.master.savep)
         qtw.QShortcut('Ctrl+S', self, self.master.savep)
@@ -346,9 +355,11 @@ class PageGui(qtw.QFrame):
         qtw.QShortcut('Alt+Ctrl+Z', self, self.master.restorep)
         qtw.QShortcut('Alt+N', self, self.master.nieuwp)
 
-    def create_toolbar(self):
+    def create_toolbar(self, textfield=None):
         """build toolbar wih buttons for changing text style
         """
+        if textfield is not None:
+            data = self.master.get_toolbar_data(textfield)
         toolbar = qtw.QToolBar('styles')
         toolbar.setIconSize(core.QSize(16, 16))
         self.combo_font = qtw.QFontComboBox(toolbar)
@@ -363,43 +374,11 @@ class PageGui(qtw.QFrame):
             self.fontsizes.append(str(size))
         toolbar.addSeparator()
 
-        data = (
-            ('&Bold', 'Ctrl+B', 'icons/sc_bold', 'CheckB'),
-            ('&Italic', 'Ctrl+I', 'icons/sc_italic', 'CheckI'),
-            ('&Underline', 'Ctrl+U', 'icons/sc_underline', 'CheckU'),
-            ('Strike&through', 'Ctrl+~', 'icons/sc_strikethrough.png', 'CheckS'),
-            ## ("Toggle &Monospace", 'Shift+Ctrl+M', 'icons/text',
-            ##     'Switch using proportional font off/on'),
-            (),
-            ("&Enlarge text", 'Ctrl+Up', 'icons/sc_grow', 'Use bigger letters'),
-            ("&Shrink text", 'Ctrl+Down', 'icons/sc_shrink', 'Use smaller letters'),
-            (),
-            ('To &Lower Case', 'Shift+Ctrl+L', 'icons/sc_changecasetolower',
-             'Use all lower case letters'),
-            ('To &Upper Case', 'Shift+Ctrl+U', 'icons/sc_changecasetoupper',
-             'Use all upper case letters'),
-            (),
-            ("Indent &More", 'Ctrl+]', 'icons/sc_incrementindent',
-             'Increase indentation'),
-            ("Indent &Less", 'Ctrl+[', 'icons/sc_decrementindent',
-             'Decrease indentation'),
-            (),
-            ## ("Normal Line Spacing", '', 'icons/sc_spacepara1',
-            ##     'Set line spacing to 1'),
-            ## ("1.5 Line Spacing",    '', 'icons/sc_spacepara15',
-            ##     'Set line spacing to 1.5'),
-            ## ("Double Line Spacing", '', 'icons/sc_spacepara2',
-            ##     'Set line spacing to 2'),
-            ## (),
-            ("Increase Paragraph &Spacing", '', 'icons/sc_paraspaceincrease',
-             'Increase spacing between paragraphs'),
-            ("Decrease &Paragraph Spacing", '', 'icons/sc_paraspacedecrease',
-             'Decrease spacing between paragraphs'))
         for menudef in data:
             if not menudef:
                 toolbar.addSeparator()
                 continue
-            label, shortcut, icon, info = menudef
+            label, shortcut, icon, info, *callback = menudef
             if icon:
                 action = qtw.QAction(gui.QIcon(os.path.join(HERE, icon)), label, self)
                 toolbar.addAction(action)
@@ -407,9 +386,9 @@ class PageGui(qtw.QFrame):
                 action = qtw.QAction(label, self)
             if shortcut:
                 action.setShortcuts([x for x in shortcut.split(",")])
-            if info.startswith("Check"):
+            if info.startswith("Toggle"):
                 action.setCheckable(True)
-                info = info[5:]
+                info = info[7]
                 if info in ('B', 'I', 'U', 'S'):
                     font = gui.QFont()
                     if info == 'B':
@@ -421,37 +400,22 @@ class PageGui(qtw.QFrame):
                     elif info == 'S':
                         font.setStrikeOut(True)
                     action.setFont(font)
-            self.actiondict[label] = action
+                self.actiondict[label] = action
+            action.triggered.connect(callback[0])
+        if textfield is not None:
+            self.combo_font.activated[str].connect(textfield.text_family)
+            self.combo_size.activated[str].connect(textfield.text_size)
+            textfield.font_changed(textfield.font())
         self.toolbar = toolbar
 
     def create_text_field(self):
         """build rich text area with style changing properties
         """
         high = 330 if LIN else 430
-        self.text1 = EditorPanel(self)
-        self.text1.resize(490, high)
-        self.text1.textChanged.connect(self.master.on_text)
-        for action, callback in zip(self.actiondict.values(), [
-                self.text1.text_bold,
-                self.text1.text_italic,
-                self.text1.text_underline,
-                self.text1.text_strikethrough,
-                ## self.text1.toggle_monospace,
-                self.text1.enlarge_text,
-                self.text1.shrink_text,
-                self.text1.case_lower,
-                self.text1.case_upper,
-                self.text1.indent_more,
-                self.text1.indent_less,
-                self.text1.linespacing_1,
-                self.text1.linespacing_15,
-                self.text1.linespacing_2,
-                self.text1.increase_paragraph_spacing,
-                self.text1.decrease_paragraph_spacing]):
-            action.triggered.connect(callback)
-        self.combo_font.activated[str].connect(self.text1.text_family)
-        self.combo_size.activated[str].connect(self.text1.text_size)
-        self.text1.font_changed(self.text1.font())
+        textfield = EditorPanel(self)
+        textfield.resize(490, high)
+        textfield.textChanged.connect(self.master.on_text)
+        return textfield
 
     def doelayout(self):
         "layout page"
@@ -537,6 +501,7 @@ class Page0Gui(PageGui):
         self.p0list.setSortingEnabled(True)
         self.p0list.setHeaderLabels(self.parent.ctitels)
         self.p0list.setAlternatingRowColors(True)
+        self.p0list.has_selection = False
         self.p0hdr = self.p0list.header()
         self.p0hdr.setSectionsClickable(True)
         for indx, wid in enumerate(widths):
@@ -581,7 +546,7 @@ class Page0Gui(PageGui):
         "buttons wel of niet bruikbaar maken"
         self.filter_button.setEnabled(bool(self.parent.parent.user))
         self.go_button.setEnabled(self.p0list.has_selection)
-        self.new_button.setEnabled(self.parent.parent.is_user)
+        self.new_button.setEnabled(self.parent.parent.is_user and bool(self.parent.parent.filename))
         if self.p0list.has_selection:
             self.sort_button.setEnabled(bool(self.parent.parent.user))
             self.archive_button.setEnabled(self.parent.parent.is_user)
@@ -930,9 +895,8 @@ class Page6Gui(PageGui):
             #                                                     self.progress_list.item(0)))
         textpanel = qtw.QFrame(self)
         self.actiondict = collections.OrderedDict()
-        PageGui.create_toolbar(self)
-        PageGui.create_text_field(self)
-        self.progress_text = self.text1  # to save modifying all references (TODO: fix - why?)
+        self.progress_text = super().create_text_field()
+        super().create_toolbar(textfield=self.progress_text)
         sizer0 = qtw.QHBoxLayout()
         sizer1 = qtw.QVBoxLayout()
         sizer1.addWidget(self.toolbar)
@@ -971,6 +935,7 @@ class Page6Gui(PageGui):
 
         wanneer dit gebeurt op het eerste item kan een nieuwe worden aangemaakt
         """
+        print('in on_activate_item; item is', item)
         if self.initializing:
             return
         if item is None:  # or self.gui.is_first_line(item): -- blijkt niet nodig te zijn
@@ -985,7 +950,7 @@ class Page6Gui(PageGui):
                 self.progress_text.setText(oldtext)
                 self.progress_text.setReadOnly(False)
                 self.progress_text.setFocus()
-                self.oldtext = oldtext
+                self.master.oldtext = oldtext
 
     def on_select_item(self, item_n, item_o):
         """callback voor het selecteren van een item
@@ -1004,11 +969,11 @@ class Page6Gui(PageGui):
         self.current_item = self.get_list_row()
         indx = self.current_item - 1
         if indx == -1:
-            self.oldtext = ""
+            self.master.oldtext = ""
         else:
-            self.oldtext = self.event_data[indx]  # dan wel item_n.text()
+            self.master.oldtext = self.master.event_data[indx]  # dan wel item_n.text()
         self.initializing = True
-        self.oldtext = self.convert_text(self.oldtext, to='rich')
+        self.master.oldtext = self.convert_text(self.master.oldtext, to='rich')
         self.initializing = False
         if not self.parent.pagedata.arch:
             if indx > -1:
@@ -1045,10 +1010,18 @@ class Page6Gui(PageGui):
         self.progress_list.addItem(newitem)
 
     def set_list_callback(self):
-        "depending on which GUI toolkit is used"
-        self.progress_list.itemActivated.connect(self.on_activate_item)
-        self.new_action.activated.connect(functools.partial(self.on_activate_item,
-                                                            self.progress_list.item(0)))
+        "connect or disconnect depending on user's permissions"
+        if self.parent.parent.is_user:
+            self.progress_list.itemActivated.connect(self.on_activate_item)
+            self.new_action.activated.connect(functools.partial(self.on_activate_item,
+                                                                self.progress_list.item(0)))
+        else:
+            try:
+                self.progress_list.itemActivated.disconnect()
+                self.new_action.activated.disconnect()
+            except TypeError:
+                # avoid "disconnect() failed between 'itemActivated' and all its connections"
+                pass
 
     def clear_textfield(self):
         "empty textfield context"
@@ -1803,9 +1776,9 @@ class MainGui(qtw.QMainWindow):
     def create_actions(self):
         """Create additional application actions
         """
-        qtw.QShortcut('Ctrl+P', self, self.print_)
-        qtw.QShortcut('Alt+Left', self, self.go_prev)
-        qtw.QShortcut('Alt+Right', self, self.go_next)
+        qtw.QShortcut('Ctrl+P', self, self.master.print_something)
+        qtw.QShortcut('Alt+Left', self, self.master.goto_prev)
+        qtw.QShortcut('Alt+Right', self, self.master.goto_next)
         for char in '0123456':
             qtw.QShortcut('Alt+{}'.format(char), self, functools.partial(self.go_to, int(char)))
 
@@ -1857,9 +1830,9 @@ class MainGui(qtw.QMainWindow):
         elif new == 6:
             if old == new:
                 item = self.book.pages[6].get_list_row()  # remember current item
-            self.book.pages[6].vulp()
+            self.master.book.pages[6].vulp()
             if old == new:
-                self.book.pages[6].set_list_row(item)  # reselect item
+                self.master.book.pages[6].set_list_row(item)  # reselect item
         self.set_tabfocus(self.master.book.current_tab)
 
     def enable_all_book_tabs(self, state):
@@ -1906,7 +1879,7 @@ class MainGui(qtw.QMainWindow):
                    self.master.book.pages[4].gui.text1,
                    self.master.book.pages[5].gui.text1,
                    self.master.book.pages[6].gui.progress_list]
-        widgets[tabno].SetFocus()
+        widgets[tabno].setFocus()
 
     def go_next(self):
         """redirect to the method of the current page

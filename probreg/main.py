@@ -21,37 +21,45 @@ class Page():
         if standard:
             self.gui = gui.PageGui(parent, self)
 
-    def get_toolbar_data(self):
+    def get_toolbar_data(self, textfield):
         "return texts, shortcuts and picture names for setting op toolbar"
-        return (('&Bold', 'Ctrl+B', 'icons/sc_bold', 'CheckB'),
-                ('&Italic', 'Ctrl+I', 'icons/sc_italic', 'CheckI'),
-                ('&Underline', 'Ctrl+U', 'icons/sc_underline', 'CheckU'),
-                ('Strike&through', 'Ctrl+~', 'icons/sc_strikethrough.png', 'CheckS'),
+        return (('&Bold', 'Ctrl+B', 'icons/sc_bold', 'Toggle Bold', textfield.text_bold,
+                 textfield.update_bold),
+                ('&Italic', 'Ctrl+I', 'icons/sc_italic', 'Toggle Italic', textfield.text_italic,
+                 textfield.update_italic),
+                ('&Underline', 'Ctrl+U', 'icons/sc_underline', 'Toggle Underline',
+                 textfield.text_underline, textfield.update_underline),
+                ('Strike&through', 'Ctrl+~', 'icons/sc_strikethrough', 'Toggle Strikethrough',
+                 textfield.text_strikethrough),
                 # ("Toggle &Monospace", 'Shift+Ctrl+M', 'icons/text',
-                #     'Switch using proportional font off/on'),
+                #     'Switch using proportional font off/on', textfield.toggle_monospace),
                 (),
-                ("&Enlarge text", 'Ctrl+Up', 'icons/sc_grow', 'Use bigger letters'),
-                ("&Shrink text", 'Ctrl+Down', 'icons/sc_shrink', 'Use smaller letters'),
+                ("&Enlarge text", 'Ctrl+Up', 'icons/sc_grow', 'Use bigger letters',
+                 textfield.enlarge_text),
+                ("&Shrink text", 'Ctrl+Down', 'icons/sc_shrink', 'Use smaller letters',
+                 textfield.shrink_text),
                 (),
                 ('To &Lower Case', 'Shift+Ctrl+L', 'icons/sc_changecasetolower',
-                 'Use all lower case letters'),
+                 'Use lower case letters', textfield.case_lower),
                 ('To &Upper Case', 'Shift+Ctrl+U', 'icons/sc_changecasetoupper',
-                 'Use all upper case letters'),
+                 'Use upper case letters', textfield.case_upper),
                 (),
-                ("Indent &More", 'Ctrl+]', 'icons/sc_incrementindent', 'Increase indentation'),
-                ("Indent &Less", 'Ctrl+[', 'icons/sc_decrementindent', 'Decrease indentation'),
+                ("Indent &More", 'Ctrl+]', 'icons/sc_incrementindent', 'Increase indentation',
+                 textfield.indent_more),
+                ("Indent &Less", 'Ctrl+[', 'icons/sc_decrementindent', 'Decrease indentation',
+                 textfield.indent_less),
                 (),
                 # ("Normal Line Spacing", '', 'icons/sc_spacepara1',
-                #     'Set line spacing to 1'),
+                #     'Set line spacing to 1', textfield.linespacing_1),
                 # ("1.5 Line Spacing",    '', 'icons/sc_spacepara15',
-                #     'Set line spacing to 1.5'),
+                #     'Set line spacing to 1.5', textfield.linespacing_15),
                 # ("Double Line Spacing", '', 'icons/sc_spacepara2',
-                #     'Set line spacing to 2'),
+                #     'Set line spacing to 2', textfield.linespacing_2),
                 # (),
                 ("Increase Paragraph &Spacing", '', 'icons/sc_paraspaceincrease',
-                 'Increase spacing between paragraphs'),
+                 'Increase spacing between paragraphs', textfield.increase_paragraph_spacing),
                 ("Decrease &Paragraph Spacing", '', 'icons/sc_paraspacedecrease',
-                 'Decrease spacing between paragraphs'))
+                 'Decrease spacing between paragraphs', textfield.decrease_paragraph_spacing))
 
     def vulp(self):
         """te tonen gegevens invullen in velden e.a. initialisaties
@@ -112,8 +120,8 @@ class Page():
                 self.parent.parent.gui.enable_book_tabs(True, tabfrom=1)
             self.parent.pagedata = shared.Actie[self.parent.parent.datatype](self.parent.fnaam, 0,
                                                                              self.parent.parent.user)
+            self.parent.pagedata.events.append((shared.get_dts(), 'Actie opgevoerd'))
             self.parent.parent.imagelist = self.parent.pagedata.imagelist
-            self.parent.newitem = True
             if self.parent.current_tab == 1:
                 self.vulp()  # om de velden leeg te maken
                 self.gui.set_focus()
@@ -157,6 +165,7 @@ class Page():
         if not self.gui.can_save:
             return False
         self.gui.enable_buttons(False)
+        print('in savep for page', self.parent.current_tab)
         if self.parent.current_tab <= 1 or self.parent.current_tab == 6:
             return False
         wijzig = False
@@ -304,6 +313,7 @@ class Page0(Page):
             widths.append(extra)
 
         self.gui = gui.Page0Gui(parent, self, widths)
+        self.gui.enable_buttons()
 
         self.sort_via_options = False
 
@@ -365,9 +375,9 @@ class Page0(Page):
         self.gui.enable_buttons()
         if self.gui.has_selection():
             self.parent.parent.gui.enable_all_book_tabs(True)
-        print('in page0.vulp - set_selection')
-        self.gui.set_selection()
-        self.gui.ensure_visible(self.parent.current_item)
+            print('in page0.vulp - set_selection')
+            self.gui.set_selection()
+            self.gui.ensure_visible(self.parent.current_item)
         self.parent.parent.set_statusmessage(msg)
 
     def populate_list(self):
@@ -523,7 +533,7 @@ class Page1(Page):
 
         methode aan te roepen voorafgaand aan het tonen van de pagina"""
         # print('in page1.vulp')
-        Page.vulp(self)
+        super().vulp()
         self.initializing = True
         self.gui.init_fields()
         self.parch = False
@@ -577,7 +587,7 @@ class Page1(Page):
 
     def savep(self, *args):
         "opslaan van de paginagegevens"
-        Page.savep(self)
+        super().savep()
         proc = self.gui.get_text('proc')
         self.gui.set_text('proc', proc.capitalize())
         self.enable_buttons(False)
@@ -661,23 +671,25 @@ class Page1(Page):
 class Page6(Page):
     "pagina 6: voortgang"
     def __init__(self, parent):
-        Page.__init__(self, parent, pageno=6, standard=False)
+        super().__init__(parent, pageno=6, standard=False)
         self.current_item = 0
         self.oldtext = ""
+        self.event_list, self.event_data, self.old_list, self.old_data = [], [], [], []
         self.gui = gui.Page6Gui(parent, self)
 
     def vulp(self):
         """te tonen gegevens invullen in velden e.a. initialisaties
 
         methode aan te roepen voorafgaand aan het tonen van de pagina"""
-        Page.vulp(self)
+        print('start of Page6.vulp')
+        super().vulp()
         self.initializing = True
-        self.event_list, self.event_data, self.old_list, self.old_data = [], [], [], []
         self.gui.init_textfield()
         # self.progress_text.clear()
         # self.progress_text.setReadOnly(True)
 
         if self.parent.pagedata:
+            print('reading page data')
             self.event_list = [x[0] for x in self.parent.pagedata.events]
             self.event_list.reverse()
             self.old_list = self.event_list[:]
@@ -688,39 +700,13 @@ class Page6(Page):
                 text = '-- doubleclick or press Shift-Ctrl-N to add new item --'
             else:
                 text = '-- adding new items is disabled --'
+            print('initializing list')
             self.gui.init_list(text)
-            # self.progress_list.clear()
-            # first_item = qtw.QListWidgetItem(text)
-            # first_item.setData(core.Qt.UserRole, -1)
-            # self.progress_list.addItem(first_item)
             for idx, datum in enumerate(self.event_list):
+                print('adding item to list', idx, datum)
                 self.gui.add_item_to_list(idx, datum)
-                # # convert to HTML (if needed) and back
-                # self.progress_text.set_contents(self.event_data[idx])
-                # tekst_plat = self.progress_text.toPlainText()
-                # try:
-                #     text = tekst_plat.split("\n")[0].strip()
-                # except AttributeError:
-                #     text = tekst_plat or ""
-                # text = text if len(text) < 80 else text[:80] + "..."
-                # newitem = qtw.QListWidgetItem('{} - {}'.format(datum, text))
-                # newitem.setData(core.Qt.UserRole, idx)
-                # self.progress_list.addItem(newitem)
         if self.parent.parent.datatype == shared.DataType.SQL.name:
             self.gui.set_list_callback()
-            # if self.parent.parent.is_user:
-            #     self.progress_list.itemActivated.connect(self.on_activate_item)
-            #     # action = qtw.QShortcut('Shift+Ctrl+N', self, functools.partial(
-            #     #     self.on_activate_item, self.progress_list.item(0)))
-            #     self.new_action.activated.connect(functools.partial(self.on_activate_item,
-            #                                                         self.progress_list.item(0)))
-            # else:
-            #     try:
-            #         self.progress_list.itemActivated.disconnect()
-            #         self.new_action.activated.disconnect()
-            #     except TypeError:
-            #         # avoid "disconnect() failed between 'itemActivated' and all its connections"
-            #         pass
         # self.gui.clear_textfield() - zit al in init_textfield
         self.oldbuf = (self.old_list, self.old_data)
         self.oldtext = ''
@@ -728,7 +714,7 @@ class Page6(Page):
 
     def savep(self, *args):
         "opslaan van de paginagegevens"
-        Page.savep(self)
+        super().savep()
         # voor het geval er na het aanpassen van een tekst direkt "sla op" gekozen is
         # nog even kijken of de tekst al in self.event_data is aangepast.
         idx = self.current_item
@@ -762,8 +748,8 @@ class Page6(Page):
             # waar is deze voor (self.book.current_item.setText) ?
             # self.parent.current_item = self.parent.page0.p0list.topLevelItem(x)
             # self.parent.current_item.setText(4, self.parent.pagedata.updated)
-            self.parent.page0.gui.set_item_text(self.parent.current_item, 3,
-                                                self.parent.pagedata.updated)
+            self.parent.pages[0].gui.set_item_text(self.parent.current_item, 3,
+                                                   self.parent.pagedata.updated)
             # dit was self.parent.page0.p0list.currentItem().setText( -- is dat niet hetzelfde?
             self.old_list = self.event_list[:]
             self.old_data = self.event_data[:]
@@ -947,19 +933,21 @@ class MainWindow():
                             self.filename = x[0]
                         break
             shared.log('SQL: %s', self.filename)
-        self.gui = gui.MainGui(self)
-        self.create_book_pages()
 
         self.user = None    # start without user
         self.is_user = self.is_admin = False
         if self.datatype == shared.DataType.XML.name:
             self.user = 1  # pretend user
             self.is_user = self.is_admin = True  # force editability for XML mode
+        self.gui = gui.MainGui(self)
+        self.create_book_pages()
 
         if self.datatype == shared.DataType.XML.name:
             if self.filename == "":
+                print('ask for open filename')
                 self.open_xml()
             else:
+                print('starting with file', self.filename)
                 self.startfile()
         elif self.datatype == shared.DataType.SQL.name:
             if self.filename:
@@ -1057,7 +1045,7 @@ class MainWindow():
             self.is_newfile = True
             self.startfile()
             self.is_newfile = False
-            self.gui.enable_all_booktabs(False)
+            self.gui.enable_all_book_tabs(False)
 
     def open_xml(self, event=None):
         "Menukeuze: open file"
@@ -1090,6 +1078,18 @@ class MainWindow():
             if self.filename in ("Demo", 'basic'):
                 self.filename = "_basic"
             self.startfile()
+
+    def print_something(self, event=None):
+        """callback voor ctrl-P(rint)
+
+        vraag om printen scherm of actie, bv. met een InputDialog
+        """
+        choices = ['huidig scherm', 'huidige actie']
+        choice = gui.get_choice_item(self, 'Wat wil je afdrukken?', choices)
+        if choice == choices[0]:
+            self.print_scherm()
+        elif choice == choices[1]:
+            self.print_actie()
 
     def print_scherm(self, event=None):
         "Menukeuze: print dit scherm"
@@ -1385,12 +1385,12 @@ class MainWindow():
                     self.book.cats[sortkey] = (item_text, item_value, row_id)
         self.book.pages[1].vul_combos()
 
-    def goto_next(self):
+    def goto_next(self, event):
         """redirect to the method of the current page
         """
         Page.goto_next(self.book.pages[self.book.current_tab])
 
-    def goto_prev(self):
+    def goto_prev(self, event):
         """redirect to the method of the current page
         """
         Page.goto_prev(self.book.pages[self.book.current_tab])
@@ -1442,6 +1442,16 @@ class MainWindow():
                 msg = 'Niet aangemeld'
             self.gui.show_username(msg)
 
+    def get_focus_widget_for_tab(self, tabno):
+        "determine field to set focus on"
+        return (self.book.pages[0].gui.p0list,
+                self.book.pages[1].gui.proc_entry,
+                self.book.pages[2].gui.text1,
+                self.book.pages[3].gui.text1,
+                self.book.pages[4].gui.text1,
+                self.book.pages[5].gui.text1,
+                self.book.pages[6].gui.progress_list)[tabno]
+
 
 def main(arg=None):
     "opstart routine"
@@ -1451,7 +1461,6 @@ def main(arg=None):
         version = shared.DataType.XML.name
     try:
         frame = MainWindow(None, arg, version)
+        frame.gui.go()
     except ValueError as err:
         print(err)
-    else:
-        frame.gui.go()
