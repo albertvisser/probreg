@@ -58,6 +58,8 @@ def check_filename(fnaam):
     fnaam is a pathlib.Path object
     """
     meld = ''
+    if not fnaam:
+        return None, '', False, 'Please provide a filename'
     if fnaam.suffix != ".xml":
         meld = "Filename incorrect (must end in .xml)"
     if fnaam.parent != "":
@@ -123,7 +125,9 @@ def get_nieuwetitel(fnaam, jaar=None):
 
 def get_acties(fnaam, select=None, arch="", user=None):
     """ lijst alle items van een bepaald soort
-    selectie meegeven mogelijk maken
+
+    fnaam is a pathlib.Path object
+
     zoeken mogelijk op id (groter dan / kleiner dan), soort, status, (deel van) titel
     een selecteer-key mag een van de volgejde waarden zijn:
     "idlt" - in dat geval moet de waarde een string zijn waarmee vergeleken wordt,
@@ -135,14 +139,15 @@ def get_acties(fnaam, select=None, arch="", user=None):
         als de string niet begint met een * dan moet de titel ermee beginnen
         als de string niet eindigt met een * dan moet de titel ermee eindigen
         als er een * in zit moet wat ervoor zit en erna komt in de titel zitten
-    het laatste argument `user` wordt niet gebruikt maar is voor compatibiliteit met de django versie
+    het laatste argument `user` wordt hier niet gebruikt maar is voor compatibiliteit
+    met de django versie
     """
     if select is None:
         select = {}
         if not arch:
             return []
     lijst = []
-    if len(select) > 0:
+    if select:
         keyfout = False
         for x in list(select.keys()):
             if x not in ("idlt", "id", "idgt", "soort", "status", "titel"):
