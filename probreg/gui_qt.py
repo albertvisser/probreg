@@ -935,8 +935,7 @@ class Page6Gui(PageGui):
 
         wanneer dit gebeurt op het eerste item kan een nieuwe worden aangemaakt
         """
-        print('in on_activate_item; item is', item)
-        if self.initializing:
+        if self.master.initializing:
             return
         if item is None:  # or self.gui.is_first_line(item): -- blijkt niet nodig te zijn
             if self.master.parent.parent.is_user:
@@ -972,9 +971,9 @@ class Page6Gui(PageGui):
             self.master.oldtext = ""
         else:
             self.master.oldtext = self.master.event_data[indx]  # dan wel item_n.text()
-        self.initializing = True
+        self.master.initializing = True
         self.master.oldtext = self.convert_text(self.master.oldtext, to='rich')
-        self.initializing = False
+        self.master.initializing = False
         if not self.parent.pagedata.arch:
             if indx > -1:
                 self.protect_textfield(not self.parent.parent.is_user)
