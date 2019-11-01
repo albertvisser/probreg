@@ -6,6 +6,7 @@ import pathlib
 import collections
 import tempfile
 import functools
+import io
 import wx
 import wx.html as html
 import wx.lib.mixins.listctrl as listmix
@@ -92,22 +93,29 @@ class EditorPanel(wxrt.RichTextCtrl):
     def __init__(self, parent=None, size=(400, 200)):  # , _id):
         super().__init__(parent, size=size, style=wx.VSCROLL | wx.HSCROLL | wx.NO_BORDER)
         self.textAttr = wxrt.RichTextAttr()
+        # self.currentCharFormatChanged.connect(self.charformat_changed)
+        # self.cursorPositionChanged.connect(self.cursorposition_changed)
 
     def set_contents(self, data):
         "load contents into editor"
+        print('in Editorpanel.set_contents, data is', data)
         # if data.startswith('<'):  # only load as html if it looks like html
         #     self.setHtml(data)
         # else:
         #     self.setText(data)
         self.Clear()
         if data.startswith('<?xml'):
+            print('  writing xml')
             handler = wxrt.RichTextXMLHandler()
             _buffer = self.GetBuffer()
             _buffer.AddHandler(handler)
             with tempfile.NamedTemporaryFile(mode='w+') as out:
+            # with io.BytesIO() as stream:
                 out.write(data)
                 handler.LoadFile(_buffer, out.name)
+                # handler.LoadFile(_buffer, stream)
         else:
+            print('  writing plaintext')
             self.SetValue(data)
         self.Refresh()
         # fmt = gui.QTextCharFormat()
@@ -116,12 +124,20 @@ class EditorPanel(wxrt.RichTextCtrl):
 
     def get_contents(self):
         "return contents from editor"
-        # if not True:  # voorlopig even niet
+        print('in Editorpanel.get_contents')
         handler = wxrt.RichTextXMLHandler()
+        print('  defined handler')
         _buffer = self.GetBuffer()
+        print('  defined buffer')
+        _buffer.AddHandler(handler)
         with tempfile.NamedTemporaryFile(mode='w+') as out:
+        # with io.BytesIO() as stream:
             handler.SaveFile(_buffer, out.name)
+            # handler.SaveFile(_buffer, stream)
+            print('saved buffer into temp file')
             content = out.read()
+            # content = stream.getvalue()
+        print('content is', content)
         return content
         # return self.GetValue()
 
@@ -345,6 +361,12 @@ class PageGui(wx.Panel):
         self.Bind(wx.EVT_BUTTON, self.master.restorep, self.cancel_button)
         # self.Bind(wx.EVT_KEY_DOWN, self.on_key)
 
+        accel_data = (('savep', self.master.savep, 'Ctrl+S'),
+                      ('savepgo', self.master.savepgo, 'Ctrl+G'),
+                      ('restorep', self.master.restorep, 'Alt+Ctrl+Z'),
+                      ('nieuwp', self.master.nieuwp, 'Alt+N'))
+        setup_accels(self, accel_data)
+
     def create_toolbar(self, parent=None, textfield=None):
         """build toolbar wih buttons for changing text style
         """
@@ -471,6 +493,9 @@ class PageGui(wx.Panel):
         vsizer.SetSizeHints(self)
         return True
 
+    def reset_font(self):
+        """compatibility between versions"""
+
     def enable_buttons(self, state=True):
         "buttons wel of niet klikbaar maken"
         # if state:
@@ -486,10 +511,12 @@ class PageGui(wx.Panel):
 
     def set_textarea_contents(self, data):
         "set the page text"
+        print('in PageGui.set_textfield_contents')
         self.text1.set_contents(data)
 
     def get_textarea_contents(self):
         "get the page text"
+        print('in PageGui.get_textfield_contents')
         return self.text1.get_contents()
 
     def enable_toolbar(self, value):
@@ -512,9 +539,6 @@ class PageGui(wx.Panel):
         """read widget contents into the compare buffer
         """
         return self.get_textarea_contents()
-
-    def reset_font(self):
-        """compatibility between versions"""
 
 
 class Page0Gui(PageGui, listmix.ColumnSorterMixin):
@@ -553,7 +577,7 @@ class Page0Gui(PageGui, listmix.ColumnSorterMixin):
             self.p0list.SetColumnWidth(indx, wid)
         self.SortListItems(0)  # , True)
 
-        self.Bind(wx.EVT_LIST_ITEM_SELECTED, self.on_select_item, self.p0list)
+        self.Bind(wx.EVT_LIST_ITEM_SELECTED, self.on_change_selected, self.p0list)
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.on_activate_item, self.p0list)
         # self.Bind(wx.EVT_LIST_COL_CLICK, self.on_column_clicked, self.p0list)
         self.p0list.Bind(wx.EVT_LEFT_DCLICK, self.on_doubleclick)
@@ -591,9 +615,11 @@ class Page0Gui(PageGui, listmix.ColumnSorterMixin):
 
     def enable_sorting(self, value):
         "stel in of sorteren mogelijk is"
+        # heb ik die hier nodig?
 
     def enable_buttons(self):
         "buttons wel of niet bruikbaar maken"
+        print(self.parent.parent.user, self.parent.parent.is_user)
         self.filter_button.Enable(bool(self.parent.parent.user))
         self.go_button.Enable(self.p0list.has_selection)
         self.new_button.Enable(self.parent.parent.is_user and bool(self.parent.parent.filename))
@@ -612,7 +638,7 @@ class Page0Gui(PageGui, listmix.ColumnSorterMixin):
         "methode tbv correcte werking sorteer mixin"
         return (self.down_arrow, self.up_arrow)
 
-    def on_select_item(self, event):
+    def on_change_selected(self, event):
         "callback voor selectie van item"
         print('in on_select_item')
         # self.parent.current_item = event.Index
@@ -684,7 +710,7 @@ class Page0Gui(PageGui, listmix.ColumnSorterMixin):
 
     def set_selection(self):
         "set selected item if any"
-        print('in set selection; current_item is', self.parent.current_item)
+        print('in Page0Gui.set selection; current_item is', self.parent.current_item)
         if self.parent.current_item != -1:   # of komt hier kennelijk toch een item binnen?
             self.p0list.Select(self.parent.current_item)
 
@@ -697,11 +723,6 @@ class Page0Gui(PageGui, listmix.ColumnSorterMixin):
         if item:    # hier komt kennelijk toch een item binnen?
             self.p0list.EnsureVisible(item)
 
-    def build_newbuf(self):
-        """read widget contents into the compare buffer
-        """
-        return None
-
     def set_archive_button_text(self, txt):
         "set button text according to archive status"
         self.archive_button.SetLabel(txt)
@@ -710,6 +731,14 @@ class Page0Gui(PageGui, listmix.ColumnSorterMixin):
         "return the key of the selected action"
         data = str(self.p0list.GetItemData(self.p0list.GetFirstSelected()))
         return '-'.join((data[:4], data[4:]))
+
+    def get_list_row(self):
+        "return the event list's selected row index"
+        return self.p0list.GetFirstSelected()  # currentRow()
+
+    def set_list_row(self, num):
+        "set the event list's row selection"
+        self.p0list.Select(num)  # setCurrentRow(num)
 
 
 class Page1Gui(PageGui):
@@ -947,13 +976,10 @@ class Page6Gui(PageGui):
 
         self.save_button = wx.Button(self, label='Sla wijzigingen op (Ctrl-S)')
         self.Bind(wx.EVT_BUTTON, self.master.savep, self.save_button)
-        # self.saveandgo_button = wx.Button(self, label='Sla op en ga verder (Ctrl-G)')
-        # self.Bind(wx.EVT_BUTTON, self.master.savepgo, self.saveandgo_button)
         self.cancel_button = wx.Button(self, label='Maak wijzigingen ongedaan (Alt-Ctrl-Z)')
         self.Bind(wx.EVT_BUTTON, self.master.restorep, self.cancel_button)
 
         accel_data += [('savep', self.master.savep, 'Ctrl+S'),
-                       ('savepgo', self.master.savepgo, 'Ctrl+G'),
                        ('restorep', self.master.restorep, 'Alt+Ctrl+Z'),
                        ('goto-prev', self.master.goto_prev, 'Shift+Ctrl+Up'),
                        ('goto-next', self.master.goto_next, 'Shift+Ctrl+Down')]
@@ -1003,11 +1029,11 @@ class Page6Gui(PageGui):
         self.master.event_list.insert(0, datum)
         self.master.event_data.insert(0, oldtext)
         self.progress_list.Select(1)
-        self.progress_text.set_textfield_contents(oldtext)
+        self.progress_text.set_contents(oldtext)
         self.progress_text.Enable(True)
         self.progress_text.SetFocus()
         self.master.oldtext = oldtext
-        self.nieuw_item = True
+        # self.nieuw_item = True
         self.enable_buttons()
 
     def on_deselect_item(self, evt):
@@ -1021,6 +1047,8 @@ class Page6Gui(PageGui):
         """
         idx = evt.Index
         print('in Page6.on_deselect_item, index is', idx)
+        if idx == 0:
+            return
         # tekst = self.progress_text.GetValue()  # self.progress_list.GetItemText(idx)
         tekst = self.get_textfield_contents()
         print(tekst, self.master.oldtext)
@@ -1044,14 +1072,14 @@ class Page6Gui(PageGui):
         de knoppen onderaan doen de hele lijst bijwerken in self.parent.book.p
         """
         self.current_item = event.Index  # - 1
+        print('in Page6.on_select_item, current item is', self.current_item)
+        if self.current_item == 0:
+            return
         # tekst = self.progress_list.GetItemText(self.current_item)  # niet gebruikt (tbv debuggen)
         self.progress_text.SetEditable(False)
         if not self.parent.pagedata.arch:
             self.progress_text.SetEditable(True)
-        if self.current_item == 0:
-            self.master.oldtext = ""
-        else:
-            self.master.oldtext = self.master.event_data[self.current_item - 1]
+        self.master.oldtext = self.master.event_data[self.current_item - 1]
         self.master.initializing = True
         self.set_textfield_contents(self.master.oldtext)  # convert already?
         self.master.initializing = False
@@ -1121,20 +1149,6 @@ class Page6Gui(PageGui):
     def set_listitem_data(self, itemindex):
         "set the given listitem's data"
         self.progress_list.SetItemData(itemindex, itemindex - 1)
-
-    # def on_text(self, evt):
-    #     """callback voor EVT_TEXT
-
-    #     de initializing flag wordt uitgevraagd omdat deze event ook tijdens vulp()
-    #     plaatsvindt"""
-    #     if not self.initializing:
-    #         ## idx = self.current_item # self.progress_list.Selection # niet gebruikt
-    #         tekst = self.progress_text.GetValue()  # self.progress_list.GetItemText(ix)
-    #         if tekst != self.oldtext:
-    #             self.enable_buttons()
-    #             if self.current_item > 0:
-    #                 self.event_data[self.current_item - 1] = tekst
-    #         evt.Skip()
 
     def get_list_row(self):
         "return the event list's selected row index"
@@ -1266,26 +1280,22 @@ class SortOptionsDialog(wx.Dialog):
     def accept(self):
         """sorteerkolommen en -volgordes teruggeven aan hoofdscherm
         """
-        if self.parent.parent.parent.datatype == shared.DataType.XML.name:
-            show_message(self.parent, 'Sorry, werkt nog niet')
-            return False
         new_sortopts = {}
         for ix, line in enumerate(self._widgets):
-            _, combobox, rbgroup = line
-            fieldname = combobox.currentText()
-            checked_id = rbgroup.checkedId()
+            _, combobox, rba, rbd = line
+            fieldname = combobox.GetStringSelection()
             if fieldname and fieldname != '(geen)':
-                if checked_id == self._asc_id:
+                if rba.GetValue():
                     orient = 'asc'
-                elif checked_id == self._desc_id:
+                elif rbd.GetValue():
                     orient = 'desc'
                 new_sortopts[ix] = (fieldname, orient)
-        via_options = self.on_off.isChecked()
+        via_options = self.on_off.IsChecked()
         if via_options == self.parent.master.sort_via_options and new_sortopts == self.sortopts:
             show_message(self, 'U heeft niets gewijzigd')
             return False
         self.parent.master.sort_via_options = via_options
-        if via_options:
+        if via_options and self.parent.parent.parent.datatype == shared.DataType.SQL.name:
             if self.parent.saved_sortopts:      # alleen SQL versie
                 self.parent.saved_sortopts.save_options(new_sortopts)
         return True
@@ -1299,7 +1309,7 @@ class SelectOptionsDialog(wx.Dialog):
     'id': 'and', 'idgt': '2005-0019'}"""
     def __init__(self, parent, args):
         self.parent = parent
-        # self.datatype = self.parent.parent.parent.datatype
+        self.datatype = self.parent.parent.parent.datatype
         sel_args, self._data = args
         wx.Dialog.__init__(self, parent, -1, title="Selecteren",
                            ## size=(250,  250),  pos=wx.DefaultPosition,
@@ -1325,9 +1335,18 @@ class SelectOptionsDialog(wx.Dialog):
                                     for y in sorted(self.parent.parent.stats.keys())]])
         self.Bind(wx.EVT_CHECKLISTBOX, self.on_checked, self.clb_stat)
 
-        self.cb_text = wx.CheckBox(self, label=parent.parent.ctitels[4].join((" ", " -")))
-        self.t_text = wx.TextCtrl(self, value="", size=(153, -1))
-        self.Bind(wx.EVT_TEXT, self.on_text, self.t_text)
+        if self.datatype == shared.DataType.XML.name:
+            self.cb_text = wx.CheckBox(self, label=parent.parent.ctitels[4].join((" ", " -")))
+            self.t_text = wx.TextCtrl(self, value="", size=(153, -1))
+            self.Bind(wx.EVT_TEXT, self.on_text, self.t_text)
+        elif self.datatype == shared.DataType.SQL.name:
+            self.cb_text = wx.CheckBox(self, label='zoek in    -')
+            self.t_text = wx.TextCtrl(self, value="", size=(153, -1))
+            self.Bind(wx.EVT_TEXT, self.on_text, self.t_text)
+            self.rb_and_2 = wx.RadioButton(self, label="en", style=wx.RB_GROUP)
+            self.rb_or_2 = wx.RadioButton(self, label="of")
+            self.t_text_2 = wx.TextCtrl(self, value="", size=(153, -1))
+            self.Bind(wx.EVT_TEXT, self.on_text, self.t_text_2)
 
         self.cb_arch = wx.CheckBox(self, label="Archief")
         self.rb_aonly = wx.RadioButton(self, label="Alleen gearchiveerd", style=wx.RB_GROUP)
@@ -1362,17 +1381,36 @@ class SelectOptionsDialog(wx.Dialog):
         box_stat.Add(wx.StaticText(self, label="selecteer\neen of meer:", size=(70, -1)), 0,
                      wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 5)
         box_stat.Add(self.clb_stat, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 5)
+
+        boxv_text = wx.BoxSizer(wx.VERTICAL)
         box_text = wx.BoxSizer(wx.HORIZONTAL)
-        box_text.Add(wx.StaticText(self, label="zoek naar:", size=(70, -1)), 0,
-                     wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 10)
-        box_text.Add(self.t_text, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 5)
+        if self.datatype == shared.DataType.XML.name:
+            box_text.Add(wx.StaticText(self, label="zoek naar:", size=(70, -1)), 0,
+                         wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 10)
+            box_text.Add(self.t_text, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 5)
+        elif self.datatype == shared.DataType.SQL.name:
+            box_text.Add(wx.StaticText(self, label=self.parent.parent.ctitels[4] + ':',
+                                       size=(70, -1)), 0,
+                         wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 10)
+            box_text.Add(self.t_text, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 5)
+            boxv_text.Add(box_text, 0)
+            box_text = wx.BoxSizer(wx.HORIZONTAL)
+            box_text.Add(self.rb_and_2, 0, wx.ALIGN_CENTER_HORIZONTAL)
+            box_text.Add(self.rb_or_2, 0, wx.ALIGN_CENTER_HORIZONTAL)
+            boxv_text.Add(box_text, 0)
+            box_text.Add(wx.StaticText(self, label=self.parent.parent.ctitels[5] + ':',
+                                       size=(70, -1)), 0,
+                         wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 10)
+            box_text.Add(self.t_text_2, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 5)
+        boxv_text.Add(box_text, 0)
+
         box_arch = wx.BoxSizer(wx.HORIZONTAL)
         box_arch.Add(self.rb_aboth, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 10)
         box_arch.Add(self.rb_aonly, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 10)
         grid.AddMany([(self.cb_actie, 0, wx.TOP, 10), (box_actie, 0, wx.EXPAND | wx.TOP, 3),
                       (self.cb_soort, 0, wx.TOP, 5), (box_soort, 0, wx.EXPAND | wx.TOP, 3),
                       (self.cb_stat, 0, wx.TOP, 5), (box_stat, 0, wx.EXPAND | wx.TOP, 3),
-                      (self.cb_text, 0, wx.TOP, 10), (box_text, 0, wx.EXPAND | wx.TOP, 3),
+                      (self.cb_text, 0, wx.TOP, 10), (boxv_text, 0, wx.EXPAND | wx.TOP, 3),
                       (self.cb_arch, 0, wx.TOP, 10), (box_arch, 0, wx.EXPAND)])
         grid.AddGrowableCol(1)
         sizer.Add(grid, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
@@ -1443,7 +1481,7 @@ class SelectOptionsDialog(wx.Dialog):
         index = evt.GetSelection()
         obj = evt.GetEventObject()
         obj.SetSelection(index)    # so that (un)checking also selects (moves the highlight)
-        if obj == self.clb.soort:
+        if obj == self.clb_soort:
             target = self.cb_soort
         elif obj == self.clb_stat:
             target = self.cb_stat
@@ -1594,6 +1632,35 @@ class SettOptionsDialog(wx.Dialog):
 class LoginBox(wx.Dialog):
     """Sign in with userid & password
     """
+    def __init__(self, parent):
+        self.parent = parent
+        self.parent.dialog_data = ()
+        super().__init__(parent)
+        vbox = wx.BoxSizer(wx.VERTICAL)
+        grid = wx.GridBagSizer()
+        grid.Add(wx.StaticText(self, label='Userid'), (0, 0), flag=wx.ALIGN_CENTER_VERTICAL)
+        self.t_username = wx.TextCtrl(self, size=(120, -1))
+        grid.Add(self.t_username, (0, 1), flag=wx.LEFT, border=2)
+        grid.Add(wx.StaticText(self, label='Password'), (1, 0), flag=wx.ALIGN_CENTER_VERTICAL)
+        self.t_password = wx.TextCtrl(self, size=(120, -1), style=wx.TE_PASSWORD)
+        grid.Add(self.t_password, (1, 1), flag=wx.LEFT, border=2)
+        vbox.Add(grid, 0, wx.ALL, 4)
+        bbox = wx.BoxSizer(wx.HORIZONTAL)
+        b_ok = wx.Button(self, id=wx.ID_OK)
+        b_cancel = wx.Button(self, id=wx.ID_CANCEL)
+        bbox.AddMany((b_ok, b_cancel))
+        vbox.Add(bbox, 0, wx.ALIGN_CENTER_HORIZONTAL)
+        self.SetSizer(vbox)
+        self.SetAutoLayout(True)
+        vbox.Fit(self)
+        # vbox.SetSizeHints(self)
+
+    def accept(self):
+        """check login credentials
+        """
+        self.parent.dialog_data = (self.t_username.GetValue(), self.t_password.GetValue(),
+                                   self.parent.master.filename)
+        return True
 
 
 class MainGui(wx.Frame):
@@ -1705,12 +1772,19 @@ class MainGui(wx.Frame):
         # self.select_first_tab()
         self.app.MainLoop()
 
+    def refresh_page(self):
+        """reload page while staying on it
+        this method is called after a user has signed in
+        """
+        print('in MainGui.refresh_page')
+        self.on_page_changed(newtabnum=0)
+
     def on_page_changing(self, event):
         """deze methode is bedoeld om wanneer er van pagina gewisseld gaat worden
         te controleren of dat wel mogelijk is en zo niet, te melden waarom
         en de paginawissel tegen te houden.
         """
-        # print('in maingui.on_page_changing')
+        print('in maingui.on_page_changing')
         old = event.GetOldSelection()
         # new = event.GetSelection() # unused
         # sel = self.book.GetSelection() # unused
@@ -1747,20 +1821,39 @@ class MainGui(wx.Frame):
         else:
             event.Skip()
 
-    def on_page_changed(self, event):
+    def on_page_changed(self, event=None, newtabnum=None):
         """deze methode is bedoeld om na het wisselen van pagina het veld / de velden
         van de nieuwe pagina een waarde te geven met behulp van de vulp methode
+
+        newtabnum is om een paginawissel te forceren zonder dat er een event is gestuurd
+        (momenteel alleen voor een refresh van page 0)
         """
-        # print('in maingui.on_page_changed')
-        old = event.GetOldSelection()
-        new = self.master.book.current_tab = event.GetSelection()
+        print('in MainGui.on_page_changed, event is', event, 'newtabnum is', newtabnum)
+        if event:
+            old = event.GetOldSelection()
+            new = self.master.book.current_tab = event.GetSelection()
+        elif newtabnum is not None:
+            old = new = newtabnum
+        else:
+            return
+        print('  old = new =', new)
         # sel = self.master.book.GetSelection() # unused
         # print('  old selection is', old)
         if LIN and old == -1:  # bij initialisatie en bij afsluiten - op Windows is deze altijd -1?
             return
-        self.master.book.pages[new].vulp()
+        if 0 < new < 6:
+            print('in MainGui.on_page_changed before calling vulp')
+            self.master.book.pages[new].vulp()
+            print('in MainGui.on_page_changed after  calling vulp')
+        elif new == 0 or new == 6:
+            if old == new:
+                item = self.master.book.pages[new].gui.get_list_row()  # remember current item
+            self.master.book.pages[new].vulp()
+            if old == new:
+                self.master.book.pages[new].gui.set_list_row(item)     # reselect item
         self.set_tabfocus(self.master.book.current_tab)
-        event.Skip()
+        if event:
+            event.Skip()
 
     def enable_all_book_tabs(self, state):
         "make all tabs (in)accessible"
@@ -1794,9 +1887,16 @@ class MainGui(wx.Frame):
 
     def set_page(self, num):
         "set the selected page to this index"
+        print('in MainGui.set_page', num)
         # self.bookwidget.setCurrentIndex(num)
-        self.bookwidget.SetSelection(num)
+        print(self.bookwidget.pages)
+        if 0 <= num <= len(self.bookwidget.pages):
+            self.bookwidget.SetSelection(num)
         # print('end of set_page')
+
+    def set_page_title(self, num, text):
+        "change the tab title"
+        self.bookwidget.SetPageText(num, text)
 
     def get_page(self):
         "return index g=for the selected page"
@@ -1810,6 +1910,7 @@ class MainGui(wx.Frame):
     def go_to(self, page, event):
         """redirect to the method of the current page
         """
+        print('in mainGui.go_to naar page', page, 'event', event)
         self.master.goto_page(page)
 
     def preview(self):
@@ -1846,10 +1947,8 @@ class MainGui(wx.Frame):
 
     def set_tab_titles(self, tabs):
         "(re)build the titles on the tabs"
-        old, tabs = tabs, {}
         for x, y in tabs.items():
             self.bookwidget.SetPageText(x, y)
-        tabs = old
 
     def select_first_tab(self):
         "set selection to first page"

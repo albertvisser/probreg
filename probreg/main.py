@@ -65,7 +65,6 @@ class Page():
         """te tonen gegevens invullen in velden e.a. initialisaties
 
         methode aan te roepen voorafgaand aan het tonen van de pagina"""
-        # print('in self.page.vulp voor tab', self.parent.current_tab)
         self.initializing = True
         self.parent.parent.enable_settingsmenu()
         if self.parent.current_tab == 0:
@@ -91,15 +90,21 @@ class Page():
                     self.oldbuf = self.parent.pagedata.vervolg
                 # self.text1.setReadOnly(self.parent.pagedata.arch)
                 is_readonly = self.parent.pagedata.arch
+            print('in Page.vulp, setting text:', self.oldbuf)
             self.gui.set_textarea_contents(self.oldbuf)
+            print('in Page.vulp, set text')
             if not is_readonly:
                 is_readonly = not self.parent.parent.is_user
             self.gui.set_text_readonly(is_readonly)
             self.gui.enable_toolbar(self.parent.parent.is_user)
+            print('in Page.vulp, getting text')
             self.oldbuf = self.gui.get_textarea_contents()  # make sure it's rich text
+            print('in Page.vulp, got text:', self.oldbuf)
             self.gui.move_cursor_to_end()
+            print('  set cursor to end')
         self.initializing = False
         self.parent.checked_for_leaving = True
+        print('end of Page.vulp')
 
     def readp(self, pid):
         "lezen van een actie"
@@ -133,8 +138,8 @@ class Page():
 
     def leavep(self):
         "afsluitende acties uit te voeren alvorens de pagina te verlaten"
-        # print('in page.leavep voor tab', self.parent.current_tab)
-        newbuf = self.gui.build_newbuf()
+        if self.parent.current_tab > 0:
+            newbuf = self.gui.build_newbuf()
         if self.parent.current_tab == 1 and self.parent.newitem and newbuf[0] == "" \
                 and newbuf[1] == "" and not self.parent.parent.exiting:
             self.parent.newitem = False
@@ -142,7 +147,6 @@ class Page():
                                                                              self.parent.old_id,
                                                                              self.parent.parent.user)
         ok_to_leave = True
-        # print(self.parent.current_tab)
         self.parent.checked_for_leaving = True
         if self.parent.current_tab == 0:
             shared.log('%s %s', self.parent.parent.mag_weg, self.parent.newitem)
@@ -165,28 +169,24 @@ class Page():
         if not self.gui.can_save:
             return False
         self.gui.enable_buttons(False)
-        print('in savep for page', self.parent.current_tab)
         if self.parent.current_tab <= 1 or self.parent.current_tab == 6:
             return False
-        wijzig = False
         text = self.gui.get_textarea_contents()
+        event_text = ''
         if self.parent.current_tab == 2 and text != self.parent.pagedata.melding:
             self.oldbuf = self.parent.pagedata.melding = text
-            self.parent.pagedata.events.append((shared.get_dts(), "Meldingtekst aangepast"))
-            wijzig = True
+            event_text = "Meldingtekst aangepast"
         if self.parent.current_tab == 3 and text != self.parent.pagedata.oorzaak:
             self.oldbuf = self.parent.pagedata.oorzaak = text
-            self.parent.pagedata.events.append((shared.get_dts(), "Beschrijving oorzaak aangepast"))
-            wijzig = True
+            event_text = "Beschrijving oorzaak aangepast"
         if self.parent.current_tab == 4 and text != self.parent.pagedata.oplossing:
             self.oldbuf = self.parent.pagedata.oplossing = text
-            self.parent.pagedata.events.append((shared.get_dts(), "Beschrijving oplossing aangepast"))
-            wijzig = True
+            event_text = "Beschrijving oplossing aangepast"
         if self.parent.current_tab == 5 and text != self.parent.pagedata.vervolg:
             self.oldbuf = self.parent.pagedata.vervolg = text
-            self.parent.pagedata.events.append((shared.get_dts(), "Tekst vervolgactie aangepast"))
-            wijzig = True
-        if wijzig:
+            event_text = "Tekst vervolgactie aangepast"
+        if event_text:
+            self.parent.pagedata.events.append((shared.get_dts(), event_text))
             self.update_actie()
             self.parent.pages[0].gui.set_item_text(self.parent.pages[0].gui.get_selection(), 3,
                                                    self.parent.pagedata.updated)
@@ -263,7 +263,6 @@ class Page():
 
     def goto_actie(self, *args):
         "naar startpagina actie gaan"
-        # print('in page.goto_actie')
         self.goto_page(1)
 
     def goto_next(self, *args):
@@ -271,7 +270,7 @@ class Page():
         if not self.leavep():
             return
         next = self.parent.current_tab + 1
-        if next > len(self.parent.pages):
+        if next >= len(self.parent.pages):
             next = 0
         self.parent.parent.gui.set_page(next)
 
@@ -281,16 +280,17 @@ class Page():
             return
         next = self.parent.current_tab - 1
         if next < 0:
-            next = len(self.parent.pages)
+            next = len(self.parent.pages) - 1
         self.parent.parent.gui.set_page(next)
 
     def goto_page(self, page_num, check=True):
         "naar de aangegeven pagina gaan"
+        print('in Page,goto_page')
         if check and not self.leavep():
             return
+        print('page_num is', page_num)
         if 0 <= page_num <= len(self.parent.pages):
             self.parent.parent.gui.set_page(page_num)
-        # print('end of goto page')
 
     def get_textarea_contents(self):
         "get the page text"
@@ -322,7 +322,7 @@ class Page0(Page):
 
         methode aan te roepen voorafgaand aan het tonen van de pagina
         """
-        # print('in page0.vulp')
+        print('in Page0.vulp')
         self.saved_sortopts = None
         if (self.parent.parent.datatype == shared.DataType.SQL.name
                 and self.parent.parent.filename):
@@ -375,7 +375,6 @@ class Page0(Page):
         self.gui.enable_buttons()
         if self.gui.has_selection():
             self.parent.parent.gui.enable_all_book_tabs(True)
-            print('in page0.vulp - set_selection')
             self.gui.set_selection()
             self.gui.ensure_visible(self.parent.current_item)
         self.parent.parent.set_statusmessage(msg)
@@ -467,6 +466,7 @@ class Page0(Page):
         sortlist.insert(0, "(geen)")
         args = sortopts, sortlist
         test = gui.show_dialog(self.gui, gui.SortOptionsDialog, args)
+        print('after sortoptions dialog, test is', test, 'sort_via_options is', self.sort_via_options)
         if not test:
             return
         if self.sort_via_options:
@@ -474,6 +474,7 @@ class Page0(Page):
             self.parent.rereadlist = True
             try:
                 self.vulp()
+            # moet hier soms nog het daadwerkelijke sorteren tussen (bij XML)?
             except (dmlx.DataError, dmls.DataError) as msg:
                 self.parent.rereadlist = False
                 gui.show_message(self, str(msg))
@@ -504,9 +505,12 @@ class Page0(Page):
             hlp = "&Herleef" if self.parent.pagedata.arch else "&Archiveer"
             self.gui.set_archive_button_text(hlp)
 
-    def enable_buttons(self):
+    def enable_buttons(self, value=None):
         "buttons wel of niet bruikbaar maken"
-        self.gui.enable_buttons()
+        if value is not None:
+            self.gui.enable_buttons(value)
+        else:
+            self.gui.enable_buttons()
 
     def get_items(self):
         "retrieve all listitems"
@@ -532,7 +536,6 @@ class Page1(Page):
         """te tonen gegevens invullen in velden e.a. initialisaties
 
         methode aan te roepen voorafgaand aan het tonen van de pagina"""
-        # print('in page1.vulp')
         super().vulp()
         self.initializing = True
         self.gui.init_fields()
@@ -583,7 +586,6 @@ class Page1(Page):
         self.gui.enable_fields(aanuit)
 
         self.initializing = False
-        # print('end of page1.vulp')
 
     def savep(self, *args):
         "opslaan van de paginagegevens"
@@ -651,7 +653,6 @@ class Page1(Page):
 
     def vul_combos(self):
         "vullen comboboxen"
-        print('in vul_combos')
         self.initializing = True
         self.gui.clear_stats()
         self.gui.clear_cats()
@@ -681,7 +682,6 @@ class Page6(Page):
         """te tonen gegevens invullen in velden e.a. initialisaties
 
         methode aan te roepen voorafgaand aan het tonen van de pagina"""
-        print('start of Page6.vulp')
         super().vulp()
         self.initializing = True
         self.gui.init_textfield()
@@ -689,7 +689,6 @@ class Page6(Page):
         # self.progress_text.setReadOnly(True)
 
         if self.parent.pagedata:
-            print('reading page data')
             self.event_list = [x[0] for x in self.parent.pagedata.events]
             self.event_list.reverse()
             self.old_list = self.event_list[:]
@@ -700,10 +699,8 @@ class Page6(Page):
                 text = '-- doubleclick or press Shift-Ctrl-N to add new item --'
             else:
                 text = '-- adding new items is disabled --'
-            print('initializing list')
             self.gui.init_list(text)
             for idx, datum in enumerate(self.event_list):
-                print('adding item to list', idx, datum)
                 self.gui.add_item_to_list(idx, datum)
         if self.parent.parent.datatype == shared.DataType.SQL.name:
             self.gui.set_list_callback()
@@ -754,21 +751,19 @@ class Page6(Page):
             self.old_list = self.event_list[:]
             self.old_data = self.event_data[:]
             self.oldbuf = (self.old_list, self.old_data)
-        else:
-            print("Leuk hoor, er was niks gewijzigd ! @#%&*Grrr")
         return True
 
-    def goto_prev(self):  # , *args):
+    def goto_prev(self, *args):
         "set the selection to the previous row, if possible"
-        test = self.gui.get_list.row() - 1
+        test = self.gui.get_list_row() - 1
         if test > 0:
-            self.gui.set_list.row(test)
+            self.gui.set_list_row(test)
 
-    def goto_next(self):  # , *args):
+    def goto_next(self, *args):
         "set the selection to the next row, if possible"
-        test = self.gui.get_list.row() + 1
+        test = self.gui.get_list_row() + 1
         if test < self.gui.get_list_rowcount():
-            self.gui.set_list.row(test)
+            self.gui.set_list_row(test)
 
     def on_text(self, *args):
         """callback voor wanneer de tekst gewijzigd is
@@ -944,10 +939,8 @@ class MainWindow():
 
         if self.datatype == shared.DataType.XML.name:
             if self.filename == "":
-                print('ask for open filename')
                 self.open_xml()
             else:
-                print('starting with file', self.filename)
                 self.startfile()
         elif self.datatype == shared.DataType.SQL.name:
             if self.filename:
@@ -1002,6 +995,7 @@ class MainWindow():
         self.book.data = {}
         self.book.rereadlist = True
         self.lees_settings()
+        print('in create book na lees_settings: book.tabs is', self.book.tabs)
         self.book.ctitels = ["actie", " ", "status", "L.wijz."]
         if self.datatype == shared.DataType.XML.name:
             self.book.ctitels.append("titel")
@@ -1023,6 +1017,7 @@ class MainWindow():
         self.book.pages.append(Page6(self.book))
         self.book.checked_for_leaving = True
 
+        print('in create_book_pages: book.tabs is', self.book.tabs)
         for i, page in enumerate(self.book.pages):
             self.gui.add_book_tab(page, "&" + self.book.tabs[i])
         self.gui.enable_all_book_tabs(False)
@@ -1204,20 +1199,29 @@ class MainWindow():
         ok_to_leave = True  # while we don't have pages yet
         if self.book.current_tab > -1:
             ok_to_leave = self.book.pages[self.book.current_tab].leavep()
-        # elif self.book.current_tab == 1:
-        #     ok_to_leave = self.book.page1.leavep()
-        # elif self.book.current_tab == 2:
-        #     ok_to_leave = self.book.page2.leavep()
-        # elif self.book.current_tab == 3:
-        #     ok_to_leave = self.book.page3.leavep()
-        # elif self.book.current_tab == 4:
-        #     ok_to_leave = self.book.page4.leavep()
-        # elif self.book.current_tab == 5:
-        #     ok_to_leave = self.book.page5.leavep()
-        # elif self.book.current_tab == 6:
-        #     ok_to_leave = self.book.page6.leavep()
         if ok_to_leave:
             self.gui.exit()
+
+    def sign_in(self, *args):
+        """aanloggen in SQL/Django mode
+        """
+        logged_in = False
+        while not logged_in:
+            ok = gui.show_dialog(self.gui, gui.LoginBox)
+            if not ok:
+                break
+            test = dmls.validate_user(*self.gui.dialog_data)
+            if test:
+                text = 'Login accepted'
+                logged_in = True
+            else:
+                text = 'Login failed'
+            gui.show_message(self.gui, text)
+        if logged_in:
+            self.user, self.is_user, self.is_admin = test
+            print('in signin:', self.user, self.is_user)
+            self.book.rereadlist = True
+            self.gui.refresh_page()
 
     def tab_settings(self, event=None):
         "Menukeuze: settings - data - tab titels"
@@ -1345,6 +1349,7 @@ class MainWindow():
             elif self.datatype == shared.DataType.SQL.name:
                 tab_text = tab_text[0]  # , tab_adr = tab_text
                 self.book.tabs[int(tab_num)] = " ".join((tab_num, tab_text.title()))
+        print('in lees_settings voor', self.book.fnaam, 'book.tabs is', self.book.tabs)
 
     def save_settings(self, srt, data):
         """instellingen (tabnamen, actiesoorten of actiestatussen) terugschrijven
@@ -1360,7 +1365,7 @@ class MainWindow():
             for item_value, item_text in data.items():
                 item = " ".join((item_value, item_text))
                 self.book.tabs[int(item_value)] = item
-                self.book.setTabText(int(item_value), item)  # TODO: GUI specific
+                self.gui.set_page_title(int(item_value), item)
         elif srt == "stat":
             settings.stat = data
             settings.write()
@@ -1385,12 +1390,12 @@ class MainWindow():
                     self.book.cats[sortkey] = (item_text, item_value, row_id)
         self.book.pages[1].vul_combos()
 
-    def goto_next(self, event):
+    def goto_next(self, *args):
         """redirect to the method of the current page
         """
         Page.goto_next(self.book.pages[self.book.current_tab])
 
-    def goto_prev(self, event):
+    def goto_prev(self, *args):
         """redirect to the method of the current page
         """
         Page.goto_prev(self.book.pages[self.book.current_tab])
@@ -1398,26 +1403,8 @@ class MainWindow():
     def goto_page(self, page):
         """redirect to the method of the current page
         """
+        print('in MainWindow.goto_page naar page', page, 'van page', self.book.current_tab)
         Page.goto_page(self.book.pages[self.book.current_tab], page)
-
-    def sign_in(self):
-        """aanloggen in SQL/Django mode
-        """
-        logged_in = False
-        while not logged_in:
-            ok = gui.show_dialog(self.gui, gui.LoginBox)
-            if not ok:
-                break
-            test = dmls.validate_user(*self.gui.dialog_data)
-            if test:
-                text = 'Login accepted'
-                logged_in = True
-            else:
-                text = 'Login failed'
-            gui.show_message(self.gui, text)
-        if logged_in:
-            self.user, self.is_user, self.is_admin = test
-            self.book.rereadlist = True
 
     def enable_settingsmenu(self):
         "instellen of gebruik van settingsmenu mogelijk is"

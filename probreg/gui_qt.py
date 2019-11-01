@@ -23,24 +23,23 @@ def show_message(win, message):
     qtw.QMessageBox.information(win, shared.app_title, message)
 
 
-def get_open_filename(parent, start=pathlib.Path.cwd()):
+def get_open_filename(win, start=pathlib.Path.cwd()):
     "get the name of a file to open"
-    fname = qtw.QFileDialog.getOpenFileName(parent,
-                                            shared.app_title + " - kies een gegevensbestand",
+    fname = qtw.QFileDialog.getOpenFileName(win, shared.app_title + " - kies een gegevensbestand",
                                             str(start), xmlfilter)[0]
     return fname
 
 
-def get_save_filename(parent, start=pathlib.Path.cwd()):
+def get_save_filename(win, start=pathlib.Path.cwd()):
     "get the name of a file to save"
-    fname = qtw.QFileDialog.getSaveFileName(parent, shared.app_title + " - nieuw gegevensbestand",
+    fname = qtw.QFileDialog.getSaveFileName(win, shared.app_title + " - nieuw gegevensbestand",
                                             str(start), xmlfilter)[0]
     return fname
 
 
-def get_choice_item(parent, caption, choices, current=0):
+def get_choice_item(win, caption, choices, current=0):
     "allow the user to choose one of a set of options and return it"
-    choice, ok = qtw.QInputDialog.getItem(parent, shared.app_title, caption, choices,
+    choice, ok = qtw.QInputDialog.getItem(win, shared.app_title, caption, choices,
                                           current=current, editable=False)
     if ok:
         return choice
@@ -55,19 +54,18 @@ def ask_cancel_question(win, message):
     return retval == qtw.QMessageBox.Yes, retval == qtw.QMessageBox.Cancel
 
 
-def show_dialog(win, dlg, args=None):
+def show_dialog(win, cls, args=None):
     "show a dialog and return if the dialog was confirmed / accepted"
     ok = False
     if args is not None:
-        ok = dlg(win, args).exec_()
+        ok = cls(win, args).exec_()
     else:
-        ok = dlg(win).exec_()
+        ok = cls(win).exec_()
     return ok == qtw.QDialog.Accepted
 
 
 class EditorPanel(qtw.QTextEdit):
     "Rich text editor displaying the selected comment"
-
     def __init__(self, parent):
         self.tbparent = parent
         self.parent = parent.parent.parent
@@ -166,17 +164,14 @@ class EditorPanel(qtw.QTextEdit):
 
     def indent_more(self):
         "alinea verder laten inspringen"
-        if not self.hasFocus():
-            return
-        loc = self.textCursor()
-        where = loc.block()
-        fmt = where.blockFormat()
-        wid = fmt.indent()
-        fmt.setIndent(wid + 1)
-        loc.mergeBlockFormat(fmt)
+        self.change_indent(1)
 
     def indent_less(self):
         "alinea minder ver laten inspringen"
+        self.change_indent(-1)
+
+    def change_indent(self, amount):
+        "alinea verder/minder ver laten inspringen"
         if not self.hasFocus():
             return
         loc = self.textCursor()
@@ -184,7 +179,7 @@ class EditorPanel(qtw.QTextEdit):
         fmt = where.blockFormat()
         wid = fmt.indent()
         if wid >= 1:
-            fmt.setIndent(wid - 1)
+            fmt.setIndent(wid + amount)
         loc.mergeBlockFormat(fmt)
 
     def text_font(self):
@@ -221,53 +216,52 @@ class EditorPanel(qtw.QTextEdit):
 
     def linespacing_1(self):
         "change text style"
-        if not self.hasFocus():
-            return
-        loc = self.textCursor()
-        fmt = loc.block().blockFormat()
-        fmt.setLineHeight(0, gui.QTextBlockFormat.SingleHeight)
-        loc.mergeBlockFormat(fmt)
+        self.set_linespacing(0)
 
     def linespacing_15(self):
         "change text style"
-        if not self.hasFocus():
-            return
-        loc = self.textCursor()
-        fmt = loc.block().blockFormat()
-        fmt.setLineHeight(150, gui.QTextBlockFormat.ProportionalHeight)
-        loc.mergeBlockFormat(fmt)
+        self.set_linespacing(150)
 
     def linespacing_2(self):
         "change text style"
+        self.set_linespacing(200)
+
+    def set_linespacing(amount):
+        "change text style"
         if not self.hasFocus():
             return
         loc = self.textCursor()
         fmt = loc.block().blockFormat()
-        fmt.setLineHeight(200, gui.QTextBlockFormat.ProportionalHeight)
+        if amount:
+            format_type = gui.QTextBlockFormat.ProportionalHeight
+        else:
+            format_type = gui.QTextBlockFormat.SingleHeight
+        fmt.setLineHeight(amount, format_type)
         loc.mergeBlockFormat(fmt)
 
     def increase_paragraph_spacing(self):
-        "change text style"
-        if not self.hasFocus():
-            return
-        loc = self.textCursor()
-        fmt = loc.block().blockFormat()
-        top, bottom = fmt.topMargin(), fmt.bottomMargin()
-        fmt.setTopMargin(top + 0.5 * self.currentFont().pointSize())
-        fmt.setBottomMargin(bottom + 0.5 * self.currentFont().pointSize())
-        loc.mergeBlockFormat(fmt)
+        "ruimte tussen alinea's vergroten"
+        self.set_paragraph_spacing(more=True)
 
     def decrease_paragraph_spacing(self):
-        "change text style"
+        "ruimte tussen alinea's verkleinen"
+        self.set_paragraph_spacing(less=True)
+
+    def set_paragraph_spacing(self, more=False, less=False):
+        "ruimte tussen alinea's instellen"
         if not self.hasFocus():
             return
         loc = self.textCursor()
         fmt = loc.block().blockFormat()
         top, bottom = fmt.topMargin(), fmt.bottomMargin()
-        if top > 0.5:
-            fmt.setTopMargin(top - 0.5 * self.currentFont().pointSize())
-        if bottom > 0.5:
-            fmt.setBottomMargin(bottom - 0.5 * self.currentFont().pointSize())
+        if more:
+            factor = 0.5
+        if less:
+            factor = - 0.5
+        if more or (less and top > 0.5):
+            fmt.setTopMargin(top + factor * self.currentFont().pointSize())
+        if more or (less and bottom > 0.5):
+            fmt.setBottomMargin(bottom + factor * self.currentFont().pointSize())
         loc.mergeBlockFormat(fmt)
 
     def text_size(self, size):
@@ -311,6 +305,15 @@ class EditorPanel(qtw.QTextEdit):
         cursor.mergeCharFormat(format)
         qtw.QTextEdit.mergeCurrentCharFormat(self, format)
 
+    def update_bold(self):
+        "compatibility"
+
+    def update_italic(self):
+        "compatibility"
+
+    def update_underline(self):
+        "compatibility"
+
     def _check_dirty(self):
         "check for modifications"
         return self.document().isModified()
@@ -322,15 +325,6 @@ class EditorPanel(qtw.QTextEdit):
     def _openup(self, value):
         "make text accessible (or not)"
         self.setReadOnly(not value)
-
-    def update_bold(self):
-        "compatibility"
-
-    def update_italic(self):
-        "compatibility"
-
-    def update_underline(self):
-        "compatibility"
 
 
 class PageGui(qtw.QFrame):
@@ -628,11 +622,6 @@ class Page0Gui(PageGui):
         "make sure listitem is visible"
         self.p0list.scrollToItem(item)
 
-    def build_newbuf(self):
-        """read widget contents into the compare buffer
-        """
-        return None
-
     def set_archive_button_text(self, txt):
         "set button text according to archive status"
         self.archive_button.setText(txt)
@@ -640,6 +629,14 @@ class Page0Gui(PageGui):
     def get_selected_action(self):
         "return the key of the selected action"
         return shared.data2str(self.p0list.currentItem().data(0, core.Qt.UserRole))
+
+    def get_list_row(self):
+        "return the event list's selected row index"
+        return self.p0list.currentRow()
+
+    def set_list_row(self, num):
+        "set the event list's row selection"
+        self.p0list.setCurrentRow(num)
 
 
 class Page1Gui(PageGui):
@@ -667,7 +664,7 @@ class Page1Gui(PageGui):
         self.cat_choice.currentIndexChanged.connect(self.master.on_text)
         self.stat_choice = qtw.QComboBox(self)
         self.stat_choice.setEditable(False)
-        self.id_text.setMaximumWidth(140)
+        self.stat_choice.setMaximumWidth(140)
         self.stat_choice.currentIndexChanged.connect(self.master.on_text)
 
         self.archive_text = qtw.QLabel(self)
@@ -888,6 +885,7 @@ class Page6Gui(PageGui):
         self.new_action = qtw.QShortcut('Shift+Ctrl+N', self)
         if self.parent.parent.datatype == shared.DataType.XML.name:
             self.progress_list.itemActivated.connect(self.on_activate_item)
+            # self.progress_list.itemDoubleClicked.connect(self.on_activate_item)
             # action = qtw.QShortcut('Shift+Ctrl+N', self, functools.partial(
             #     self.on_activate_item, self.progress_list.item(0)))
             self.new_action.activated.connect(self.on_activate_item)
@@ -935,9 +933,10 @@ class Page6Gui(PageGui):
 
         wanneer dit gebeurt op het eerste item kan een nieuwe worden aangemaakt
         """
+        print('in on_activate_item, item is', item)
         if self.master.initializing:
             return
-        if item is None:  # or self.gui.is_first_line(item): -- blijkt niet nodig te zijn
+        if item is None or self.is_first_line(item):
             if self.master.parent.parent.is_user:
                 datum, oldtext = shared.get_dts(), ''
                 newitem = qtw.QListWidgetItem('{} - {}'.format(datum, oldtext))
@@ -950,6 +949,10 @@ class Page6Gui(PageGui):
                 self.progress_text.setReadOnly(False)
                 self.progress_text.setFocus()
                 self.master.oldtext = oldtext
+                # waarom hier ook niet self.enable_buttons() zoals in wx versie?
+
+    def is_first_line(self, item):
+        return item == self.progress_list.item(0)
 
     def on_select_item(self, item_n, item_o):
         """callback voor het selecteren van een item
@@ -1681,7 +1684,8 @@ class SettOptionsDialog(qtw.QDialog):
             self.cls.leesuit(self, self.parent,
                              [self.elb.item(x).text() for x in range(self.elb.count())])
             super().accept()
-        raise NotImplementedError
+        else:
+            raise NotImplementedError
 
 
 class LoginBox(qtw.QDialog):
@@ -1808,6 +1812,12 @@ class MainGui(qtw.QMainWindow):
         # self.set_tabfocus(0)
         sys.exit(self.app.exec_())
 
+    def refresh_page(self):
+        """reload page while staying on it
+        this method is called after a user has signed in
+        """
+        self.on_page_changing(0)
+
     def on_page_changing(self, newtabnum):
         """deze methode is bedoeld om wanneer er van pagina gewisseld gaat worden
         te controleren of dat wel mogelijk is en zo niet, te melden waarom en de
@@ -1817,21 +1827,21 @@ class MainGui(qtw.QMainWindow):
         tevens bedoeld om ervoor te zorgen dat na het wisselen van pagina
         het veld / de velden van de nieuwe pagina een waarde krijgen met behulp van de vulp methode
 
-        newtabnum wordt door de event meegegeven
+        newtabnum wordt door de event meegegeven, maar kan ook geforceerd worden
         """
         old = self.master.book.current_tab
         new = self.master.book.current_tab = self.get_page()
         if LIN and old == -1:  # bij initialisatie en bij afsluiten - op Windows is deze altijd -1?
             return
         self.enable_all_other_tabs()
-        if 0 <= new <= 5:
+        if 0 < new < 6:
             self.master.book.pages[new].vulp()
-        elif new == 6:
+        elif new == 0 or new == 6:
             if old == new:
-                item = self.book.pages[6].get_list_row()  # remember current item
-            self.master.book.pages[6].vulp()
+                item = self.master.book.pages[new].gui.get_list_row()  # remember current item
+            self.master.book.pages[new].vulp()
             if old == new:
-                self.master.book.pages[6].set_list_row(item)  # reselect item
+                self.master.book.pages[new].gui.set_list_row(item)     # reselect item
         self.set_tabfocus(self.master.book.current_tab)
 
     def enable_all_book_tabs(self, state):
@@ -1864,6 +1874,10 @@ class MainGui(qtw.QMainWindow):
     def set_page(self, num):
         "set the selected page to this index"
         self.bookwidget.setCurrentIndex(num)
+
+    def set_page_title(self, num, text):
+        "change the tab title"
+        self.bookwidget.setTabText(num, text)
 
     def get_page(self):
         "return index g=for the selected page"
