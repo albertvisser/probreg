@@ -6,7 +6,6 @@ import pathlib
 import collections
 import tempfile
 import functools
-import io
 import wx
 import wx.html as html
 import wx.lib.mixins.listctrl as listmix
@@ -88,7 +87,34 @@ def setup_accels(win, accel_data, accel_list=None):
     win.SetAcceleratorTable(accel_table)
 
 
-class EditorPanel(wxrt.RichTextCtrl):
+class EditorPanel(wx.TextCtrl):
+    "Temporary (?) replacement for RichTextCtrl"
+    def __init__(self, parent=None, size=(400, 200)):
+        super().__init__(parent, size=size, style=wx.TE_MULTILINE | wx.TE_PROCESS_TAB |
+                                                  wx.TE_RICH2 | wx.TE_WORDWRAP)
+
+    def set_contents(self, data):
+        "load contents into editor"
+        self.SetValue(data)
+
+    def get_contents(self):
+        "return contents from editor"
+        return self.GetValue()
+
+    def _check_dirty(self):
+        "check for modifications"
+        return self.IsModified()
+
+    def _mark_dirty(self, value):
+        "manually turn modified flag on/off (mainly intended for off)"
+        self.SetModified(not value)
+
+    def _openup(self, value):
+        "make text accessible (or not)"
+        self.Enable(value)
+
+
+class EditorPanelRt(wxrt.RichTextCtrl):
     "Rich text editor displaying the selected comment"
     def __init__(self, parent=None, size=(400, 200)):  # , _id):
         super().__init__(parent, size=size, style=wx.VSCROLL | wx.HSCROLL | wx.NO_BORDER)
@@ -368,8 +394,9 @@ class PageGui(wx.Panel):
         setup_accels(self, accel_data)
 
     def create_toolbar(self, parent=None, textfield=None):
-        """build toolbar wih buttons for changing text style
+        """build toolbar with buttons for changing text style
         """
+        return  # plain text control for now - no toolbar
         if not parent:
             parent = self
         if textfield is not None:
@@ -461,10 +488,6 @@ class PageGui(wx.Panel):
         if not parent:
             parent = self
         high = 330 if LIN else 430
-        # textfield = wx.TextCtrl(self, -1, size=(490, high), style=wx.TE_MULTILINE |
-        #                                                            wx.TE_PROCESS_TAB |
-        #                                                            wx.TE_RICH2 |
-        #                                                            wx.TE_WORDWRAP)
         if size == wx.DefaultSize:
             textfield = EditorPanel(parent)  # , size=(490, high))
         else:
@@ -478,7 +501,10 @@ class PageGui(wx.Panel):
         "layout page"
         vsizer = wx.BoxSizer(wx.VERTICAL)
         # self.toolbar = wx.StaticText(self, label="Hello this is a placeholder for a toolbar")
-        vsizer.Add(self.toolbar, 0, wx.EXPAND)
+        try:
+            vsizer.Add(self.toolbar, 0, wx.EXPAND)
+        except AttributeError:
+            pass    # skip if no toolbar defined
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
         hsizer.Add(self.text1, 1, wx.ALL | wx.EXPAND, 4)
         vsizer.Add(hsizer, 1, wx.EXPAND)
@@ -507,7 +533,10 @@ class PageGui(wx.Panel):
 
     def move_cursor_to_end(self):
         "position the cursor at the end of the text"
-        self.text1.MoveEnd()
+        try:
+            self.text1.MoveEnd()
+        except AttributeError:
+            self.text1.SetInsertionPointend()
 
     def set_textarea_contents(self, data):
         "set the page text"
@@ -521,7 +550,10 @@ class PageGui(wx.Panel):
 
     def enable_toolbar(self, value):
         "make the toolbar accessible (or not)"
-        self.toolbar.Enable(value)
+        try:
+            self.toolbar.Enable(value)
+        except AttributeError:
+            pass    # do nothing in case we don't have a toolbar
 
     def set_text_readonly(self, value):
         "protect page text from updating (or not)"
@@ -988,8 +1020,11 @@ class Page6Gui(PageGui):
     def doelayout(self):
         "layout page"
         vbox = wx.BoxSizer(wx.VERTICAL)
-        vbox.Add(self.toolbar, 0, wx.EXPAND)
-        vbox.Add(self.progress_text, 1, wx.EXPAND)
+        try:
+            vbox.Add(self.toolbar, 0, wx.EXPAND)
+            vbox.Add(self.progress_text, 1, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+        except AttributeError:
+            vbox.Add(self.progress_text, 1, wx.EXPAND | wx.ALL, 8)
         self.textpanel.SetAutoLayout(True)
         self.textpanel.SetSizer(vbox)
         vbox.Fit(self.textpanel)
