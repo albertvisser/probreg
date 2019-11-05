@@ -1171,9 +1171,6 @@ class SortOptionsDialog(qtw.QDialog):
     def accept(self):
         """sorteerkolommen en -volgordes teruggeven aan hoofdscherm
         """
-        if self.parent.parent.parent.datatype == shared.DataType.XML.name:
-            qtw.QMessageBox.information(self, 'Probreg', 'Sorry, werkt nog niet')
-            return
         new_sortopts = {}
         for ix, line in enumerate(self._widgets):
             _, combobox, rbgroup = line

@@ -454,6 +454,9 @@ class Page0(Page):
         2x4 comboboxjes waarin je de volgorde van de rubrieken en de sorteervolgorde
         per rubriek kunt aangeven"""
         sortopts, sortlist = {}, []
+        if self.parent.parent.datatype == shared.DataType.XML.name:
+            gui.show_message(self.gui, 'Sorry, multi-column sorteren werkt nog niet')
+            return
         if self.parent.parent.datatype == shared.DataType.SQL.name:
             sortopts = self.saved_sortopts.load_options()
             try:
