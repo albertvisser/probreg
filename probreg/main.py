@@ -355,7 +355,8 @@ class Page0(Page):
                                              ".".join((item[3][1], item[3][0])),
                                              ".".join((item[2][1], item[2][0])),
                                              item[5],
-                                             item[4])
+                                             item[4],
+                                             True if item[6] == 'arch' else False)
                 elif self.parent.parent.datatype == shared.DataType.SQL.name:
                     self.parent.data[idx] = (item[0],
                                              item[1],
@@ -363,7 +364,8 @@ class Page0(Page):
                                              ".".join((str(item[3]), item[2])),
                                              item[8],
                                              item[6],
-                                             item[7])
+                                             item[7],
+                                             item[9])
             msg = self.populate_list()
             # nodig voor sorteren?  Geen idee maar als het ergens goed voor is dan moet dit
             # naar de gui module want sortItems is een qt methode

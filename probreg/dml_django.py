@@ -103,7 +103,7 @@ def get_acties(naam, select=None, arch="", user=None):
             linedata = (actie.nummer, actie.start,
                         actie.status.title, actie.status.value,
                         actie.soort.title, actie.soort.value,
-                        actie.about, actie.title, gewijzigd)  # .isoformat())
+                        actie.about, actie.title, gewijzigd, actie.arch)
             actiedata.append(linedata)
         return actiedata
     elif len(data) == 0:

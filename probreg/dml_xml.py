@@ -222,7 +222,7 @@ def get_acties(fnaam, select=None, arch="", user=None):
             tl = ""
         if "titel" in select and select["titel"].upper() not in tl.upper():
             continue
-        lijst.append((nr, dd, st, ct, tl, lu))
+        lijst.append((nr, dd, st, ct, tl, lu, a))
     return lijst
 
 

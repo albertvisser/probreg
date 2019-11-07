@@ -580,13 +580,16 @@ class Page0Gui(PageGui):
     def set_listitem_values(self, item, data):
         "set column values for list entry"
         for col, value in enumerate(data):
-            if col == 1:
+            if col == 0 and data[-1]:
+                value = value + ' (A)'
+            elif col == 1:
                 pos = value.index(".") + 1
                 value = value[pos:pos + 1].upper()
             elif col == 2:
                 pos = value.index(".") + 1
                 value = value[pos:]
-            item.setText(col, value)
+            if col < len(data) - 1:
+                item.setText(col, value)
         self.p0list.has_selection = True
 
     def get_items(self):
