@@ -19,11 +19,12 @@ This difference is deliberately kept intact now that I've also made a wxPhoenix 
 
 
 In the mean time I made a web version using the Django framework (see
-`ActieReg </avisser/actiereg/>`_ , switching to Sqlite for the data handling
+`ActieReg </avisser/actiereg/>`_), switching to Sqlite for the data handling
 and adding some user management.
 
-It felt appropriate to adapted this program to work with the same data as the Django version, 
-and have the same functionality. So there are also slight differences between the XML and the SQL version.
+It felt appropriate to adapt this program to work with the same data as the Django version, 
+and have the same functionality. 
+So there are also slight differences between the XML and the SQL version.
 
 
 Usage
@@ -31,7 +32,7 @@ Usage
 
 Call ``start.py`` from the top directory.
 Use a filename or an empty string as first argument to indicate you want the xml version.
-Use a known project name or literal `sql`` to use the Django/SQL version. 
+Use a known project name or literal `sql` to use the Django/SQL version. 
 
 Requirements
 ------------
