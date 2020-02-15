@@ -5,6 +5,7 @@
 import os
 # import sys
 import pathlib
+import functools
 import probreg.gui as gui
 import probreg.shared as shared   # import DataError, et_projnames
 import probreg.dml_django as dmls
@@ -161,7 +162,7 @@ class Page():
             elif cancel:
                 self.parent.checked_for_leaving = ok_to_leave = False
             if not cancel:
-                self.parent.parent.gui.enable_all_other_tabs()
+                self.parent.parent.gui.enable_all_other_tabs(True)
         return ok_to_leave
 
     def savep(self, *args):
@@ -259,7 +260,7 @@ class Page():
             self.parent.checked_for_leaving = False
         self.gui.enable_buttons(state)
         if self.parent.current_tab > 0:
-            self.parent.parent.gui.enable_all_other_tabs()
+            self.parent.parent.gui.enable_all_other_tabs(not state)
 
     def goto_actie(self, *args):
         "naar startpagina actie gaan"
@@ -940,6 +941,9 @@ class MainWindow():
             self.user = 1  # pretend user
             self.is_user = self.is_admin = True  # force editability for XML mode
         self.gui = gui.MainGui(self)
+        self.create_book()
+        self.gui.create_menu()
+        self.gui.create_actions()
         self.create_book_pages()
 
         if self.datatype == shared.DataType.XML.name:
@@ -979,8 +983,13 @@ class MainWindow():
                                            " Add/change status categories"))),
                                ("&Het leven", self.silly_menu, '',
                                 " Change the way you look at life"))),
+                ("&View", []),
                 ("&Help", (("&About", self.about_help, 'F1', " Information about this program"),
                            ("&Keys", self.hotkey_help, 'Ctrl+H', " List of shortcut keys")))]
+        for tabnum, tabtitle in self.book.tabs.items():
+            data[3][1].append(('&{}'.format(tabtitle),
+                               functools.partial(self.gui.go_to, int(tabnum)),
+                               'Alt+{}'.format(tabnum), "switch to tab"))
         if self.datatype == shared.DataType.XML.name:
             data.pop(1)
         elif self.datatype == shared.DataType.SQL.name:
@@ -988,10 +997,10 @@ class MainWindow():
             data[0][1][1] = ("&New", self.new_file, 'Ctrl+N', " Create a new project")
         return data
 
-    def create_book(self, book):
+    def create_book(self):
         """define the tabbed interface and its subclasses
         """
-        self.book = book
+        self.book = self.gui.get_bookwidget()
         self.book.parent = self
         self.book.fnaam = ""
         if self.filename and self.datatype == shared.DataType.SQL.name:

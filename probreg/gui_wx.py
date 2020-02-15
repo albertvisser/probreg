@@ -5,7 +5,7 @@ import sys
 import pathlib
 import collections
 import tempfile
-import functools
+# import functools
 import wx
 import wx.html as html
 import wx.lib.mixins.listctrl as listmix
@@ -536,7 +536,7 @@ class PageGui(wx.Panel):
         try:
             self.text1.MoveEnd()
         except AttributeError:
-            self.text1.SetInsertionPointend()
+            self.text1.SetInsertionPointEnd()
 
     def set_textarea_contents(self, data):
         "set the page text"
@@ -1363,14 +1363,14 @@ class SelectOptionsDialog(wx.Dialog):
 
         self.cb_soort = wx.CheckBox(self, label=" soort -")
         self.clb_soort = wx.CheckListBox(self, size=(-1, 120),
-            choices=[x[0] for x in [self.parent.parent.cats[y]
-                                    for y in sorted(self.parent.parent.cats.keys())]])
+                                         choices=[x[0] for x in [self.parent.parent.cats[y]
+                                                  for y in sorted(self.parent.parent.cats.keys())]])
         self.Bind(wx.EVT_CHECKLISTBOX, self.on_checked, self.clb_soort)
 
         self.cb_stat = wx.CheckBox(self, label=parent.parent.ctitels[2].join((" ", " -")))
         self.clb_stat = wx.CheckListBox(self, size=(-1, 120),
-            choices=[x[0] for x in [self.parent.parent.stats[y]
-                                    for y in sorted(self.parent.parent.stats.keys())]])
+                                        choices=[x[0] for x in [self.parent.parent.stats[y]
+                                                 for y in sorted(self.parent.parent.stats.keys())]])
         self.Bind(wx.EVT_CHECKLISTBOX, self.on_checked, self.clb_stat)
 
         if self.datatype == shared.DataType.XML.name:
@@ -1719,13 +1719,10 @@ class MainGui(wx.Frame):
         sbar = self.CreateStatusBar()
         sbar.SetFieldsCount(2)
         self.SetStatusBar(sbar)
-        self.create_menu()
-        self.create_actions()
         # self.helptext = self.get_helptext()
         # self.SetTitle(self.title)
         self.SetIcon(wx.Icon(os.path.join(HERE, "task.ico"), wx.BITMAP_TYPE_ICO))
         self.toolbar = None
-        self.create_book()
 
     def create_menu(self):
         """menu opbouwen
@@ -1767,16 +1764,16 @@ class MainGui(wx.Frame):
                       ('prev', self.master.goto_prev, 'Alt+Left'),
                       ('next', self.master.goto_next, 'Alt+Right'))
         accel_list = []
-        for char in '0123456':
-            menuitem = wx.MenuItem(None, -1, 'goto-{}'.format(char))
-            self.Bind(wx.EVT_MENU, functools.partial(self.go_to, int(char)), menuitem)
-            accel = wx.AcceleratorEntry(cmd=menuitem.GetId())
-            ok = accel.FromString('Alt+{}'.format(char))
-            if ok:
-                accel_list.append(accel)
+        # for char in '0123456':
+        #     menuitem = wx.MenuItem(None, -1, 'goto-{}'.format(char))
+        #     self.Bind(wx.EVT_MENU, functools.partial(self.go_to, int(char)), menuitem)
+        #     accel = wx.AcceleratorEntry(cmd=menuitem.GetId())
+        #     ok = accel.FromString('Alt+{}'.format(char))
+        #     if ok:
+        #         accel_list.append(accel)
         setup_accels(self, accel_data, accel_list)
 
-    def create_book(self):
+    def get_bookwidget(self):
         "build the tabbed widget"
         self.pnl = wx.Panel(self, -1)
         self.bookwidget = wx.Notebook(self.pnl, size=(580, 570))
@@ -1787,7 +1784,8 @@ class MainGui(wx.Frame):
         self.bookwidget.Bind(wx.EVT_LEFT_UP, self.on_left_release)
         self.bookwidget.Bind(wx.EVT_NOTEBOOK_PAGE_CHANGED, self.on_page_changed)
         self.bookwidget.Bind(wx.EVT_NOTEBOOK_PAGE_CHANGING, self.on_page_changing)
-        self.master.create_book(self.bookwidget)
+        return self.bookwidget
+        # self.master.create_book(self.bookwidget)
 
     def go(self):
         "show screen and start application"
@@ -1907,12 +1905,12 @@ class MainGui(wx.Frame):
         # for i in range(tabfrom, tabto):
         #     self.bookwidget.setTabEnabled(i, state)
 
-    def enable_all_other_tabs(self):
+    def enable_all_other_tabs(self, state):
         "make all tabs accessible except the current one"
         # don't know if we need this
         # for i in range(self.master.book.count()):
         #     if i != self.master.book.current_tab:
-        #         self.bookwidget.setTabEnabled(i, True)
+        #         self.bookwidget.setTabEnabled(i, state)
 
     def add_book_tab(self, tab, title):
         "add a new tab to the widget"

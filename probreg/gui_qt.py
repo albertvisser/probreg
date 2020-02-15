@@ -226,7 +226,7 @@ class EditorPanel(qtw.QTextEdit):
         "change text style"
         self.set_linespacing(200)
 
-    def set_linespacing(amount):
+    def set_linespacing(self, amount):
         "change text style"
         if not self.hasFocus():
             return
@@ -955,6 +955,8 @@ class Page6Gui(PageGui):
                 # waarom hier ook niet self.enable_buttons() zoals in wx versie?
 
     def is_first_line(self, item):
+        """check if we're on the first line of the list, as it isn't a real event
+        """
         return item == self.progress_list.item(0)
 
     def on_select_item(self, item_n, item_o):
@@ -1740,12 +1742,9 @@ class MainGui(qtw.QMainWindow):
         self.sbar.addWidget(self.statusmessage, stretch=2)
         self.showuser = qtw.QLabel(self)
         self.sbar.addPermanentWidget(self.showuser, stretch=1)
-        self.create_menu()
-        self.create_actions()
         self.pnl = qtw.QFrame(self)
         self.setCentralWidget(self.pnl)
         self.toolbar = None
-        self.create_book()
 
     def create_menu(self):
         """Create application menu
@@ -1782,18 +1781,18 @@ class MainGui(qtw.QMainWindow):
         qtw.QShortcut('Ctrl+P', self, self.master.print_something)
         qtw.QShortcut('Alt+Left', self, self.master.goto_prev)
         qtw.QShortcut('Alt+Right', self, self.master.goto_next)
-        for char in '0123456':
-            qtw.QShortcut('Alt+{}'.format(char), self, functools.partial(self.go_to, int(char)))
+        # for char in '0123456':
+        #     qtw.QShortcut('Alt+{}'.format(char), self, functools.partial(self.go_to, int(char)))
 
-    def create_book(self):
+    def get_bookwidget(self):
         "build the tabbed widget"
         self.bookwidget = qtw.QTabWidget(self.pnl)
         self.bookwidget.resize(300, 300)
         self.bookwidget.sorter = None
         self.bookwidget.textcallbacks = {}
         self.bookwidget.currentChanged.connect(self.on_page_changing)
-        # return self.bookwidget
-        self.master.create_book(self.bookwidget)
+        return self.bookwidget
+        # self.master.create_book(self.bookwidget)
 
     def go(self):
         """realize the screen layout and start application
@@ -1833,7 +1832,7 @@ class MainGui(qtw.QMainWindow):
         new = self.master.book.current_tab = self.get_page()
         if LIN and old == -1:  # bij initialisatie en bij afsluiten - op Windows is deze altijd -1?
             return
-        self.enable_all_other_tabs()
+        self.enable_all_other_tabs(True)
         if 0 < new < 6:
             self.master.book.pages[new].vulp()
         elif new == 0 or new == 6:
@@ -1856,11 +1855,11 @@ class MainGui(qtw.QMainWindow):
         for i in range(tabfrom, tabto):
             self.bookwidget.setTabEnabled(i, state)
 
-    def enable_all_other_tabs(self):
+    def enable_all_other_tabs(self, state):
         "make all tabs accessible except the current one"
         for i in range(self.master.book.count()):
             if i != self.master.book.current_tab:
-                self.bookwidget.setTabEnabled(i, True)
+                self.bookwidget.setTabEnabled(i, state)
 
     def add_book_tab(self, tab, title):
         "add a new tab to the widget"
