@@ -19,7 +19,7 @@ This difference is deliberately kept intact now that I've also made a wxPhoenix 
 
 
 In the mean time I made a web version using the Django framework (see
-`ActieReg </avisser/actiereg/>`_), switching to Sqlite for the data handling
+`ActieReg </albertvisser/actiereg/>`_), switching to Sqlite for the data handling
 and adding some user management.
 
 It felt appropriate to adapt this program to work with the same data as the Django version, 
