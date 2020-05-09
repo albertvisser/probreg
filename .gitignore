@@ -11,3 +11,6 @@ mee_bezig.pck*
 
 # data
 *.xml*
+
+# on-demand
+toolkit.py
