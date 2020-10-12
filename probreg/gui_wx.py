@@ -524,8 +524,6 @@ class PageGui(wx.Panel):
 
     def enable_buttons(self, state=True):
         "buttons wel of niet klikbaar maken"
-        # if state:
-        #     self.parent.checked_for_leaving = False
         self.save_button.Enable(state)
         if self.parent.current_tab < 6:
             self.saveandgo_button.Enable(state)
@@ -663,11 +661,11 @@ class Page0Gui(PageGui, listmix.ColumnSorterMixin):
             self.archive_button.Enable(False)
 
     def GetListCtrl(self):
-        "methode tbv correcte werking sorteer mixin"
+        "reimplemented methode tbv correcte werking sorteer mixin"
         return self.p0list
 
     def GetSortImages(self):
-        "methode tbv correcte werking sorteer mixin"
+        "reimplimented methode tbv correcte werking sorteer mixin"
         return (self.down_arrow, self.up_arrow)
 
     def on_change_selected(self, event):
@@ -940,7 +938,8 @@ class Page1Gui(PageGui):
         self.desc_entry.Enable(state)
         self.cat_choice.Enable(state)
         self.stat_choice.Enable(state)
-        if self.parent.newitem or not self.master.parent.parent.is_user:
+        if self.master.parent.newitem or not self.master.parent.parent.is_user:
+            # archiveren niet mogelijk bij nieuw item of als de user niet is ingelogd (?)
             self.archive_button.Enable(False)
         else:
             self.archive_button.Enable(True)
@@ -1704,6 +1703,7 @@ class LoginBox(wx.Dialog):
 class MainGui(wx.Frame):
     """Hoofdscherm met menu, statusbalk, notebook en een "quit" button"""
     def __init__(self, master):
+        self.initializing = True
         self.master = master
         self.app = wx.App()  # redirect=True, filename="probreg.log")
         # self.title = 'Actieregistratie'
@@ -1806,6 +1806,7 @@ class MainGui(wx.Frame):
         self.Show(True)
         # self.set_tabfocus(0)  # book.page0.SetFocus()
         # self.select_first_tab()
+        self.initializing = False
         self.app.MainLoop()
 
     def refresh_page(self):
@@ -1820,11 +1821,13 @@ class MainGui(wx.Frame):
         te controleren of dat wel mogelijk is en zo niet, te melden waarom
         en de paginawissel tegen te houden.
         """
+        if self.initializing:
+            return
         print('in maingui.on_page_changing')
         old = event.GetOldSelection()
         # new = event.GetSelection() # unused
         # sel = self.book.GetSelection() # unused
-        self.mag_weg = True
+        mag_weg = True
         msg = ""
         # print('  old selection is', old)
         # print('  book data is', self.master.book.data)
@@ -1833,23 +1836,23 @@ class MainGui(wx.Frame):
         if old == -1:
             pass
         elif self.master.book.fnaam == "":
+            # nog geen bestand gekozen
             if self.master.datatype == shared.DataType.XML.name:
                 wat = 'bestand'
             elif self.master.datatype == shared.DataType.SQL.name:
                 wat = 'project'
             msg = "Kies eerst een {} om mee te werken".format(wat)
-            self.mag_weg = False
+            mag_weg = False
         elif not self.master.book.data and not self.master.book.newitem:
+            # bestand bevat nog geen gegevens en we zijn nog niet bezig met de eerste opvoeren
             msg = "Voer eerst één of meer acties op"
-            self.mag_weg = False
+            mag_weg = False
         elif self.master.book.current_item == -1 and not self.master.book.newitem:
+            # geen actie geselecteerd en we zijn niet bezig met een nieuwe
             msg = "Selecteer eerst een actie"
-            self.mag_weg = False
-        # print('  checked for leaving is', self.master.book.checked_for_leaving)
-        if self.mag_weg and not self.master.book.checked_for_leaving:
-            self.mag_weg = self.master.book.pages[self.master.book.current_tab].leavep()
-        # print('  mag weg:', self.mag_weg)
-        if not self.mag_weg:
+            mag_weg = False
+        mag_weg = self.master.book.pages[self.master.book.current_tab].leavep()
+        if not mag_weg:
             if msg != "":
                 wx.MessageBox(msg, "Navigatie niet toegestaan", wx.ICON_ERROR)
             self.master.book.SetSelection(self.master.book.current_tab)
@@ -1890,12 +1893,6 @@ class MainGui(wx.Frame):
         self.set_tabfocus(self.master.book.current_tab)
         if event:
             event.Skip()
-
-    def enable_all_book_tabs(self, state):
-        "make all tabs (in)accessible"
-        # don't know if we need this
-        # for i in range(1, self.master.book.count()):
-        #     self.bookwidget.setTabEnabled(i, state)
 
     def enable_book_tabs(self, state, tabfrom=0, tabto=-1):
         "make specified tabs (in)accessible"

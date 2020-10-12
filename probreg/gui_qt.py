@@ -841,6 +841,7 @@ class Page1Gui(PageGui):
         self.cat_choice.setEnabled(state)
         self.stat_choice.setEnabled(state)
         if self.master.parent.newitem or not self.master.parent.parent.is_user:
+            # archiveren niet mogelijk bij nieuw item of als de user niet is ingelogd (?)
             self.archive_button.setEnabled(False)
         else:
             self.archive_button.setEnabled(True)
@@ -1842,11 +1843,6 @@ class MainGui(qtw.QMainWindow):
             if old == new:
                 self.master.book.pages[new].gui.set_list_row(item)     # reselect item
         self.set_tabfocus(self.master.book.current_tab)
-
-    def enable_all_book_tabs(self, state):
-        "make all tabs (in)accessible"
-        for i in range(1, self.master.book.count()):
-            self.bookwidget.setTabEnabled(i, state)
 
     def enable_book_tabs(self, state, tabfrom=0, tabto=-1):
         "make specified tabs (in)accessible"
