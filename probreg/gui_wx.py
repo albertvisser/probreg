@@ -488,10 +488,14 @@ class PageGui(wx.Panel):
         if not parent:
             parent = self
         high = 330 if LIN else 430
+        if self.parent.parent.datatype == shared.DataType.XML.name:
+            cls = EditorPanelRt
+        elif self.parent.parent.datatype == shared.DataType.SQL.name:
+            cls = EditorPanel
         if size == wx.DefaultSize:
-            textfield = EditorPanel(parent)  # , size=(490, high))
+            textfield = cls(parent)  # , size=(490, high))
         else:
-            textfield = EditorPanel(parent, size=size)
+            textfield = cls(parent, size=size)
         self.Bind(wx.EVT_TEXT, self.master.on_text, textfield)
         # textfield.Bind(wx.EVT_KEY_DOWN, self.on_key)
         # textfield.font_changed(textfield.font())
