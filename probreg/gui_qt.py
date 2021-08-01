@@ -109,10 +109,10 @@ class EditorPanel(qtw.QTextEdit):
         "load contents into editor"
         if data.startswith('<'):  # only load as html if it looks like html
             self.setHtml(data)
+            fmt = gui.QTextCharFormat()
+            self.charformat_changed(fmt)
         else:
             self.setText(data)
-        fmt = gui.QTextCharFormat()
-        self.charformat_changed(fmt)
         # self.oldtext = data
 
     def get_contents(self):
@@ -337,7 +337,8 @@ class PageGui(qtw.QFrame):
             return
         self.actiondict = collections.OrderedDict()
         self.text1 = self.create_text_field()
-        self.create_toolbar(textfield=self.text1)
+        if self.parent.parent.datatype == shared.DataType.XML.name:
+            self.create_toolbar(textfield=self.text1)
         self.save_button = qtw.QPushButton('Sla wijzigingen op (Ctrl-S)', self)
         self.save_button.clicked.connect(self.master.savep)
         qtw.QShortcut('Ctrl+S', self, self.master.savep)
@@ -348,6 +349,15 @@ class PageGui(qtw.QFrame):
         self.cancel_button.clicked.connect(self.master.restorep)
         qtw.QShortcut('Alt+Ctrl+Z', self, self.master.restorep)
         qtw.QShortcut('Alt+N', self, self.master.nieuwp)
+
+    def create_text_field(self):
+        """build rich text area with style changing properties
+        """
+        high = 330 if LIN else 430
+        textfield = EditorPanel(self)
+        textfield.resize(490, high)
+        textfield.textChanged.connect(self.master.on_text)
+        return textfield
 
     def create_toolbar(self, textfield=None):
         """build toolbar wih buttons for changing text style
@@ -402,21 +412,13 @@ class PageGui(qtw.QFrame):
             textfield.font_changed(textfield.font())
         self.toolbar = toolbar
 
-    def create_text_field(self):
-        """build rich text area with style changing properties
-        """
-        high = 330 if LIN else 430
-        textfield = EditorPanel(self)
-        textfield.resize(490, high)
-        textfield.textChanged.connect(self.master.on_text)
-        return textfield
-
     def doelayout(self):
         "layout page"
         sizer0 = qtw.QVBoxLayout()
-        sizer1 = qtw.QVBoxLayout()
-        sizer1.addWidget(self.toolbar)
-        sizer0.addLayout(sizer1)
+        if self.parent.parent.datatype == shared.DataType.XML.name:
+            sizer1 = qtw.QVBoxLayout()
+            sizer1.addWidget(self.toolbar)
+            sizer0.addLayout(sizer1)
         sizer1 = qtw.QVBoxLayout()
         sizer1.addWidget(self.text1)
         sizer0.addLayout(sizer1)
@@ -463,7 +465,11 @@ class PageGui(qtw.QFrame):
 
     def enable_toolbar(self, value):
         "make the toolbar accessible (or not)"
-        self.toolbar.setEnabled(value)
+        # try:
+        if self.parent.parent.datatype == shared.DataType.XML.name:
+            self.toolbar.setEnabled(value)
+        # except AttributeError:
+        #     pass
 
     def set_text_readonly(self, value):
         "protect page text from updating (or not)"
@@ -898,10 +904,11 @@ class Page6Gui(PageGui):
         textpanel = qtw.QFrame(self)
         self.actiondict = collections.OrderedDict()
         self.progress_text = super().create_text_field()
-        super().create_toolbar(textfield=self.progress_text)
         sizer0 = qtw.QHBoxLayout()
         sizer1 = qtw.QVBoxLayout()
-        sizer1.addWidget(self.toolbar)
+        if self.parent.parent.datatype == shared.DataType.XML.name:
+            super().create_toolbar(textfield=self.progress_text)
+            sizer1.addWidget(self.toolbar)
         sizer1.addWidget(self.progress_text)
         sizer0.addLayout(sizer1)
         textpanel.setLayout(sizer0)

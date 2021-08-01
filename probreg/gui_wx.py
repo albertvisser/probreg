@@ -368,11 +368,13 @@ class PageGui(wx.Panel):
         self.parent = parent
         self.master = master
         super().__init__(parent)
+        self.use_rt = None
         if not self.master.is_text_page:
             return
         self.actiondict = collections.OrderedDict()
         self.text1 = self.create_text_field()
-        self.create_toolbar(textfield=self.text1)
+        if self.use_rt:
+            self.create_toolbar(textfield=self.text1)
         # if wants_chars:
         #     wx.Panel.__init__(self, parent, id_, style=wx.WANTS_CHARS)
         # else:
@@ -393,10 +395,30 @@ class PageGui(wx.Panel):
                       ('nieuwp', self.master.nieuwp, 'Alt+N'))
         setup_accels(self, accel_data)
 
+    def create_text_field(self, parent=None, size=wx.DefaultSize):
+        """build rich text area with style changing properties
+        """
+        if not parent:
+            parent = self
+        high = 330 if LIN else 430
+        if self.parent.parent.datatype == shared.DataType.XML.name:
+            self.use_rt = True
+            cls = EditorPanelRt
+        elif self.parent.parent.datatype == shared.DataType.SQL.name:
+            self.use_rt = False
+            cls = EditorPanel
+        if size == wx.DefaultSize:
+            textfield = cls(parent)  # , size=(490, high))
+        else:
+            textfield = cls(parent, size=size)
+        self.Bind(wx.EVT_TEXT, self.master.on_text, textfield)
+        # textfield.Bind(wx.EVT_KEY_DOWN, self.on_key)
+        # textfield.font_changed(textfield.font())
+        return textfield
+
     def create_toolbar(self, parent=None, textfield=None):
         """build toolbar with buttons for changing text style
         """
-        return  # plain text control for now - no toolbar
         if not parent:
             parent = self
         if textfield is not None:
@@ -482,25 +504,6 @@ class PageGui(wx.Panel):
                 # self.curFont = font
                 # self.curClr = colour
 
-    def create_text_field(self, parent=None, size=wx.DefaultSize):
-        """build rich text area with style changing properties
-        """
-        if not parent:
-            parent = self
-        high = 330 if LIN else 430
-        if self.parent.parent.datatype == shared.DataType.XML.name:
-            cls = EditorPanelRt
-        elif self.parent.parent.datatype == shared.DataType.SQL.name:
-            cls = EditorPanel
-        if size == wx.DefaultSize:
-            textfield = cls(parent)  # , size=(490, high))
-        else:
-            textfield = cls(parent, size=size)
-        self.Bind(wx.EVT_TEXT, self.master.on_text, textfield)
-        # textfield.Bind(wx.EVT_KEY_DOWN, self.on_key)
-        # textfield.font_changed(textfield.font())
-        return textfield
-
     def doelayout(self):
         "layout page"
         vsizer = wx.BoxSizer(wx.VERTICAL)
@@ -552,10 +555,11 @@ class PageGui(wx.Panel):
 
     def enable_toolbar(self, value):
         "make the toolbar accessible (or not)"
-        try:
+        # try:
+        if self.use_rt:
             self.toolbar.Enable(value)
-        except AttributeError:
-            pass    # do nothing in case we don't have a toolbar
+        # except AttributeError:
+        #     pass    # do nothing in case we don't have a toolbar
 
     def set_text_readonly(self, value):
         "protect page text from updating (or not)"
@@ -1007,7 +1011,8 @@ class Page6Gui(PageGui):
         #                                  style=wx.TE_MULTILINE |        # wx.TE_PROCESS_TAB |
         #                                        wx.TE_RICH2 | wx.TE_WORDWRAP)
         # self.progress_text.Bind(wx.EVT_TEXT, self.master.on_text)
-        super().create_toolbar(parent=self.textpanel, textfield=self.progress_text)
+        if self.use_rt:
+            super().create_toolbar(parent=self.textpanel, textfield=self.progress_text)
 
         self.pnl.SplitHorizontally(self.progress_list, self.textpanel)  # self.progress_text)
         self.pnl.SetSashPosition(250)
