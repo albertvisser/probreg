@@ -1,6 +1,5 @@
 #! usr/bin/env python
-# -*- coding: UTF-8 -*-
-"""Actie (was: problemen) Registratie, PyQT5 versie
+"""Actie (was: problemen) Registratie, GUI toolkit onafhankelijke code
 """
 import os
 # import sys

@@ -3,8 +3,6 @@ gebruikt
 
 vervallen omdat we nu de versie gebruiken die met het Django ORM werkt
 """
-from __future__ import print_function
-
 ## import sys
 import os
 import datetime as dt
