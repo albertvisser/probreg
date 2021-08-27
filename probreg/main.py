@@ -899,35 +899,43 @@ class MainWindow():
         self.oldsort = -1
         self.idlist = self.actlist = self.alist = []
         shared.log('fnaam is %s', fnaam)
-        if fnaam and not os.path.exists(fnaam):
-            shared.log('switched to SQL')
-            self.datatype = shared.DataType.SQL.name
-            if fnaam == 'sql':
+        self.projnames = dmls.get_projnames()
+        if fnaam:
+            if fnaam == 'xml' or os.path.exists(fnaam):
+                self.datatype = shared.DataType.XML.name
+                if fnaam == 'xml':
+                    self.dirname, self.filename = '', ''
+                else:
+                    test = pathlib.Path(fnaam)
+                    self.dirname, self.filename = test.parent, test.name
+                shared.log('XML: %s %s', self.dirname, self.filename)
+            elif fnaam == 'sql' or fnaam.lower() in [x[0] for x in self.projnames]:
+                self.datatype = shared.DataType.SQL.name
+                if fnaam == 'sql':
+                    self.filename = ''
+                elif fnaam == 'basic':
+                    self.filename = '_basic'
+                else:
+                    self.filename = fnaam.lower()
+                shared.log('SQL: %s', self.filename)
+            else:
                 fnaam = ''
-        if self.datatype == shared.DataType.XML.name:
-            test = pathlib.Path(fnaam)
-            self.dirname, self.filename = test.parent, test.name
-            shared.log('XML: %s %s', self.dirname, self.filename)
-        elif self.datatype == shared.DataType.SQL.name:
-            self.filename = ""
-            self.projnames = dmls.get_projnames()
-            if fnaam:
-                test = fnaam.lower()
-                for x in self.projnames:
-                    if x[0].lower() == test:
-                        if test == 'basic':
-                            self.filename = '_basic'
-                        else:
-                            self.filename = x[0]
-                        break
-            shared.log('SQL: %s', self.filename)
-
         self.user = None    # start without user
         self.is_user = self.is_admin = False
         if self.datatype == shared.DataType.XML.name:
             self.user = 1  # pretend user
             self.is_user = self.is_admin = True  # force editability for XML mode
         self.gui = gui.MainGui(self)
+        if not fnaam:
+            self.filename = ''
+            choice = gui.get_choice_item(None, 'Select Mode', ['XML', 'SQL'])
+            print(choice)
+            if choice == 'XML':
+                self.datatype = shared.DataType.XML.name
+            elif choice == 'SQL':
+                self.datatype = shared.DataType.SQL.name
+            else:
+                raise SystemExit('No datatype selected')
         self.create_book()
         self.gui.create_menu()
         self.gui.create_actions()
