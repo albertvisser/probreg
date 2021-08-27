@@ -1045,6 +1045,9 @@ class MainWindow():
         fname = gui.get_save_filename(self.gui, start=self.dirname)
         if fname:
             test = pathlib.Path(fname)
+            if test.suffix != '.xml':
+                gui.show_message(self.gui, 'Naam voor nieuw file moet wel extensie .xml hebben')
+                return
             self.dirname, self.filename = test.parent, test.name
             self.is_newfile = True
             self.startfile()
