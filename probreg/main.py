@@ -885,10 +885,11 @@ class CatOptions:
 class MainWindow():
     """Hoofdscherm met menu, statusbalk, notebook en een "quit" button"""
     def __init__(self, parent, fnaam="", version=None):
-        if not version:
-            raise ValueError('No data method specified')
+        # if not version:
+        #     raise ValueError('No data method specified')
         self.parent = parent
         self.datatype = version
+        self.dirname, self.filename = '', ''
         self.title = 'Actieregistratie'
         self.initializing = True
         self.exiting = False
@@ -903,39 +904,34 @@ class MainWindow():
         if fnaam:
             if fnaam == 'xml' or os.path.exists(fnaam):
                 self.datatype = shared.DataType.XML.name
-                if fnaam == 'xml':
-                    self.dirname, self.filename = '', ''
-                else:
+                if fnaam != 'xml':
                     test = pathlib.Path(fnaam)
                     self.dirname, self.filename = test.parent, test.name
                 shared.log('XML: %s %s', self.dirname, self.filename)
             elif fnaam == 'sql' or fnaam.lower() in [x[0] for x in self.projnames]:
                 self.datatype = shared.DataType.SQL.name
-                if fnaam == 'sql':
-                    self.filename = ''
-                elif fnaam == 'basic':
+                if fnaam == 'basic':
                     self.filename = '_basic'
-                else:
+                elif fnaam != 'sql':
                     self.filename = fnaam.lower()
                 shared.log('SQL: %s', self.filename)
             else:
                 fnaam = ''
-        self.user = None    # start without user
-        self.is_user = self.is_admin = False
-        if self.datatype == shared.DataType.XML.name:
-            self.user = 1  # pretend user
-            self.is_user = self.is_admin = True  # force editability for XML mode
         self.gui = gui.MainGui(self)
-        if not fnaam:
+        if not self.datatype:
             self.filename = ''
             choice = gui.get_choice_item(None, 'Select Mode', ['XML', 'SQL'])
-            print(choice)
             if choice == 'XML':
                 self.datatype = shared.DataType.XML.name
             elif choice == 'SQL':
                 self.datatype = shared.DataType.SQL.name
             else:
                 raise SystemExit('No datatype selected')
+        self.user = None    # start without user
+        self.is_user = self.is_admin = False
+        if self.datatype == shared.DataType.XML.name:
+            self.user = 1  # pretend user
+            self.is_user = self.is_admin = True  # force editability for XML mode
         self.create_book()
         self.gui.create_menu()
         self.gui.create_actions()
@@ -1458,12 +1454,12 @@ class MainWindow():
 
 def main(arg=None):
     "opstart routine"
-    if arg is None:
-        version = shared.DataType.SQL.name
-    else:
-        version = shared.DataType.XML.name
-    try:
-        frame = MainWindow(None, arg, version)
-        frame.gui.go()
-    except ValueError as err:
-        print(err)
+    # if arg is None:
+    #     version = shared.DataType.SQL.name
+    # else:
+    #     version = shared.DataType.XML.name
+    # try:
+    frame = MainWindow(None, arg)  # , version)
+    frame.gui.go()
+    # except ValueError as err:
+    #     print(err)
