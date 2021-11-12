@@ -1738,7 +1738,7 @@ class MainGui(qtw.QMainWindow):
         self.app = qtw.QApplication(sys.argv)
         super().__init__()
         self.setWindowTitle(self.master.title)
-        self.setWindowIcon(gui.QIcon("task.ico"))
+        self.setWindowIcon(gui.QIcon(os.path.join(HERE, 'icons', 'task.png')))
         if LIN:
             wide, high, left, top = 864, 720, 2, 2
         else:
