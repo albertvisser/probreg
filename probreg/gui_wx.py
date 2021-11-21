@@ -1730,7 +1730,7 @@ class MainGui(wx.Frame):
         self.SetStatusBar(sbar)
         # self.helptext = self.get_helptext()
         # self.SetTitle(self.title)
-        self.SetIcon(wx.Icon(os.path.join(HERE, "task.ico"), wx.BITMAP_TYPE_ICO))
+        self.SetIcon(wx.Icon(os.path.join(HERE, 'icons', "task.png"), wx.BITMAP_TYPE_PNG))
         self.toolbar = None
 
     def create_menu(self):
