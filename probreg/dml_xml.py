@@ -239,6 +239,7 @@ class Settings:
         self.stat = {x: (y[0], y[1]) for x, y in statdict.items()}
         self.cat = {x: (y[0], y[1]) for x, y in catdict.items()}
         self.imagecount = 0
+        self.startitem = ''
         self.meld = ''
         if fnaam == "":
             self.meld = "Standaard waarden opgehaald"
@@ -258,6 +259,7 @@ class Settings:
         if x is not None:
             self.imagecount = x.get('imagecount') or '0'
             self.imagecount = int(self.imagecount)
+            self.startitem = x.get('startitem') or ''
             h = x.find("stats")
             if h is not None:
                 self.stat = {}
@@ -287,6 +289,7 @@ class Settings:
         if el is None:
             el = SubElement(rt, "settings")
         el.set('imagecount', str(self.imagecount))
+        el.set('startitem', str(self.startitem))
         for x in list(el):
             if x.tag == "stats":
                 el.remove(x)
@@ -389,7 +392,7 @@ class Actie:
         if self.meld:
             raise DataError(self.meld)
         self.settings = Settings(fnaam)
-        self.imagecount = int(self.settings.imagecount)  # NB: attribuut van settings
+        self.imagecount = int(self.settings.imagecount)
         self.imagelist = []
         self.id, self.exists = _id, False
         self.datum = self.soort = self.titel = ''
@@ -557,7 +560,9 @@ class Actie:
             rt = Element("acties")
             sett = SubElement(rt, 'settings')
         # terugschrijven imagecount
-        sett.set('imagecount', str(self.imagecount))
+        sett.set('imagecount', str(self.imagecount))  # moet dit niet parent.parent.imagecount zijn?
+        if self.startitem:
+            sett.set('startitem', str(self.startitem))
 
         if not self.exists:
             x = SubElement(rt, "actie")

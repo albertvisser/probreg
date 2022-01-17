@@ -184,7 +184,8 @@ class Settings:
         self.kop = kopdict
         self.stat = statdict
         self.cat = catdict
-        self.imagecount = 0   # compatability with dml_xml.py
+        self.imagecount = 0   # compatibility with dml_xml.py
+        self.startitem = ''   # compatibility with dml_xml.py
         self.meld = ''
         if fnaam == "":
             self.meld = "Standaard waarden opgehaald"

@@ -222,6 +222,11 @@ class Page():
         """
         self.parent.pagedata.imagecount = self.parent.parent.imagecount
         self.parent.pagedata.imagelist = self.parent.parent.imagelist
+        # self.parent.pagedata.id onthouden voor de nieuwe startpositie
+        if self.parent.pagedata:
+            self.parent.pagedata.startitem = self.parent.pagedata.id
+        else:
+            self.parent.pagedata.startitem = ''
         if self.parent.parent.datatype == shared.DataType.SQL.name:
             self.parent.pagedata.write(self.parent.parent.user)
         else:
@@ -362,7 +367,10 @@ class Page0(Page):
             # if self.parent.parent.datatype == shared.DataType.XML.name:
             #     self.gui.p0list.sortItems(self.sorted[0], sortorder[self.sorted[1]])  # , True)
             #
-            self.parent.current_item = self.gui.get_first_item()
+            if self.parent.parent.startitem:
+                self.parent.current_item = self.gui.get_item_by_id(self.parent.parent.startitem)
+            else:
+                self.parent.current_item = self.gui.get_first_item()
         self.parent.parent.enable_all_book_tabs(False)
         self.gui.enable_buttons()
         if self.gui.has_selection():
@@ -1327,6 +1335,7 @@ class MainWindow():
         data = shared.Settings[self.datatype](self.book.fnaam)
         ## print(data.meld)     # "Standaard waarden opgehaald"
         self.imagecount = data.imagecount
+        self.startitem = data.startitem
         self.book.stats = {}
         self.book.cats = {}
         self.book.tabs = {}

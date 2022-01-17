@@ -745,6 +745,17 @@ class Page0Gui(PageGui, listmix.ColumnSorterMixin):
         "select the first item in the list"
         return 0  # self.p0list.GetItem(0)
 
+    def get_item_by_index(self, item_n):
+        "select the indicated item in the list"
+        return item_n
+
+    def get_item_by_id(self, item_id):
+        "select the item with the id requested"
+        for i in range(self.p0list.GetItemCount()):
+            if self.p0list.GetItemText(i, 0) == itemid:
+                return self.p0list.GetItem(i)
+        return None
+
     def has_selection(self):
         "return if list contains selection of data"
         return self.p0list.has_selection

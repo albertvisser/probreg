@@ -614,6 +614,17 @@ class Page0Gui(PageGui):
         "select the first item in the list"
         return self.p0list.topLevelItem(0)
 
+    def get_item_by_index(self, item_n):
+        "select the indicated item in the list"
+        return self.p0list.topLevelItem(item_n)
+
+    def get_item_by_id(self, item_id):
+        "select the item with the id requested"
+        items = self.p0list.findItems(item_id, core.Qt.MatchExactly, 0)
+        if items:
+            return items[0]
+        return None
+
     def has_selection(self):
         "return if list contains selection of data"
         return self.p0list.has_selection

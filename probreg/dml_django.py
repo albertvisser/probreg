@@ -297,6 +297,7 @@ class Settings:
     """
     def __init__(self, fnaam=""):
         self.imagecount = 0   # compatibility with dml_xml.py
+        self.startitem = ''   # compatibility with dml_xml.py
         self.exists = self.meld = ''
         self.kop, self.stat, self.cat = {}, {}, {}
         if fnaam == "":
