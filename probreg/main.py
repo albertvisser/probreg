@@ -375,6 +375,7 @@ class Page0(Page):
         self.gui.enable_buttons()
         if self.gui.has_selection():
             self.parent.parent.enable_all_book_tabs(True)
+            print(self.parent.current_item)
             self.gui.set_selection()
             self.gui.ensure_visible(self.parent.current_item)
         self.parent.parent.set_statusmessage(msg)
@@ -1406,6 +1407,13 @@ class MainWindow():
                     item_text, sortkey, row_id = item
                     self.book.cats[sortkey] = (item_text, item_value, row_id)
         self.book.pages[1].vul_combos()
+
+    def save_startitem_on_exit(self):
+        "bijwerken geselecteerde actie om te onthouden voor de volgende keer"
+        data = shared.Settings[self.datatype](self.book.fnaam)
+        if self.datatype == shared.DataType.XML.name:
+            data.startitem = self.book.pagedata.id
+            data.write()
 
     def goto_next(self, *args):
         """redirect to the method of the current page

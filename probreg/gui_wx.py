@@ -752,8 +752,8 @@ class Page0Gui(PageGui, listmix.ColumnSorterMixin):
     def get_item_by_id(self, item_id):
         "select the item with the id requested"
         for i in range(self.p0list.GetItemCount()):
-            if self.p0list.GetItemText(i, 0) == itemid:
-                return self.p0list.GetItem(i)
+            if self.p0list.GetItemText(i, 0) == item_id:
+                return i  # self.p0list.GetItem(i)
         return None
 
     def has_selection(self):
@@ -1937,6 +1937,11 @@ class MainGui(wx.Frame):
     def exit(self):
         "Menukeuze: exit applicatie"
         self.Close(True)
+
+    def Close(self, *args):
+        "redefined"
+        self.master.save_startitem_on_exit()
+        super().Close(*args)
 
     def set_page(self, num):
         "set the selected page to this index"

@@ -1884,6 +1884,11 @@ class MainGui(qtw.QMainWindow):
         "Menukeuze: exit applicatie"
         self.close()    # enough for now
 
+    def close(self):
+        "redefined"
+        self.master.save_startitem_on_exit()
+        super().close()
+
     def set_page(self, num):
         "set the selected page to this index"
         self.bookwidget.setCurrentIndex(num)
