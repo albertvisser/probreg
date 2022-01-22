@@ -222,6 +222,13 @@ class Page():
         """
         self.parent.pagedata.imagecount = self.parent.parent.imagecount
         self.parent.pagedata.imagelist = self.parent.parent.imagelist
+        # aangenomen dat "gemeld" altijd "0" zal blijven en de eerstvolgende status "1"
+        if self.parent.current_tab >= 3 and self.parent.pagedata.status == '0':
+            self.parent.pagedata.status = '1'
+            sel = [y for x, y in self.parent.stats.items() if y[1] == '1'][0]
+            self.parent.pagedata.events.append(
+                (shared.get_dts(), 'Status gewijzigd in "{0}"'.format(sel)))
+
         # self.parent.pagedata.id onthouden voor de nieuwe startpositie
         if self.parent.pagedata:
             self.parent.pagedata.startitem = self.parent.pagedata.id
