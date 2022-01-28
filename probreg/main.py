@@ -183,8 +183,9 @@ class Page():
         if event_text:
             self.parent.pagedata.events.append((shared.get_dts(), event_text))
             self.update_actie()
-            self.parent.pages[0].gui.set_item_text(self.parent.pages[0].gui.get_selection(), 3,
-                                                   self.parent.pagedata.updated)
+            # onderstaande verplaatst naar update_actie
+            # self.parent.pages[0].gui.set_item_text(self.parent.pages[0].gui.get_selection(), 3,
+            #                                        self.parent.pagedata.updated)
         return True
 
     def savepgo(self, *args):
@@ -227,7 +228,7 @@ class Page():
             self.parent.pagedata.status = '1'
             sel = [y for x, y in self.parent.stats.items() if y[1] == '1'][0]
             self.parent.pagedata.events.append(
-                (shared.get_dts(), 'Status gewijzigd in "{0}"'.format(sel)))
+                    (shared.get_dts(), 'Status gewijzigd in "{0}"'.format(sel)[0]))
 
         # self.parent.pagedata.id onthouden voor de nieuwe startpositie
         if self.parent.pagedata:
@@ -239,7 +240,7 @@ class Page():
         else:
             self.parent.pagedata.write()
 
-        self.parent.pagedata.read()    # om "updated" attribuut op te halen
+        self.parent.pagedata.read()
         if self.parent.newitem:
             # nieuwe entry maken in de tabel voor panel 0
             newindex = len(self.parent.data)  # + 1
@@ -250,13 +251,25 @@ class Page():
                         pagegui.get_choice_data('stat')[0],
                         pagegui.get_choice_data('cat')[0],
                         pagegui.get_text('id'))
-            self.parent.data[newindex] = itemdata  # waarom niet append?
+            self.parent.data[newindex] = itemdata
             # ook nieuwe entry maken in de visuele tree
             page = self.parent.pages[0]
             self.parent.current_item = page.gui.add_listitem(itemdata[0].split(' ')[0])
             page.gui.set_selection()
             self.parent.newitem = False
             self.parent.rereadlist = True
+        else:
+            # actiegegevens bijwerken op panel 0
+            pagegui = self.parent.pages[0].gui
+            item = pagegui.get_selection()
+            pagegui.set_item_text(item, 1, self.parent.pagedata.get_soorttext()[0].upper())
+            pagegui.set_item_text(item, 2, self.parent.pagedata.get_statustext())
+            pagegui.set_item_text(item, 3, self.parent.pagedata.updated)
+            if self.parent.parent.datatype == shared.DataType.XML.name:
+                pagegui.set_item_text(item, 4, self.parent.pagedata.titel)
+            elif self.parent.parent.datatype == shared.DataType.SQL.name:
+                pagegui.set_item_text(item, 4, self.parent.pagedata.over)
+                pagegui.set_item_text(item, 5, self.parent.pagedata.titel)
 
     def enable_buttons(self, state=True):
         "buttons wel of niet bruikbaar maken"
@@ -640,17 +653,17 @@ class Page1(Page):
             wijzig = True
         if wijzig:
             self.update_actie()
-            # teksten op panel 0 bijwerken
-            pagegui = self.parent.pages[0].gui
-            item = pagegui.get_selection()
-            pagegui.set_item_text(item, 1, self.parent.pagedata.get_soorttext()[0].upper())
-            pagegui.set_item_text(item, 2, self.parent.pagedata.get_statustext())
-            pagegui.set_item_text(item, 3, self.parent.pagedata.updated)
-            if self.parent.parent.datatype == shared.DataType.XML.name:
-                pagegui.set_item_text(item, 4, self.parent.pagedata.titel)
-            elif self.parent.parent.datatype == shared.DataType.SQL.name:
-                pagegui.set_item_text(item, 4, self.parent.pagedata.over)
-                pagegui.set_item_text(item, 5, self.parent.pagedata.titel)
+            # teksten op panel 0 bijwerken - verplaatst naar update_actie
+            # pagegui = self.parent.pages[0].gui
+            # item = pagegui.get_selection()
+            # pagegui.set_item_text(item, 1, self.parent.pagedata.get_soorttext()[0].upper())
+            # pagegui.set_item_text(item, 2, self.parent.pagedata.get_statustext())
+            # pagegui.set_item_text(item, 3, self.parent.pagedata.updated)
+            # if self.parent.parent.datatype == shared.DataType.XML.name:
+            #     pagegui.set_item_text(item, 4, self.parent.pagedata.titel)
+            # elif self.parent.parent.datatype == shared.DataType.SQL.name:
+            #     pagegui.set_item_text(item, 4, self.parent.pagedata.over)
+            #     pagegui.set_item_text(item, 5, self.parent.pagedata.titel)
             self.oldbuf = self.gui.set_oldbuf()
         return True
 
