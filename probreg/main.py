@@ -228,7 +228,7 @@ class Page():
             self.parent.pagedata.status = '1'
             sel = [y for x, y in self.parent.stats.items() if y[1] == '1'][0]
             self.parent.pagedata.events.append(
-                    (shared.get_dts(), 'Status gewijzigd in "{0}"'.format(sel)[0]))
+                    (shared.get_dts(), 'Status gewijzigd in "{0}"'.format(sel[0])))
 
         # self.parent.pagedata.id onthouden voor de nieuwe startpositie
         if self.parent.pagedata:
