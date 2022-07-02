@@ -1,5 +1,8 @@
 #! usr/bin/env python
 """Actie (was: problemen) Registratie, GUI toolkit onafhankelijke code
+
+Ik ga een nieuwe variant toevoegen die drie tabs gebruikt (lijst, samenvatting en voortgang) en
+die om vergissingen te voorkomen ook een ander database backend gebruikt namelijk mongodb
 """
 import os
 # import sys
@@ -66,7 +69,8 @@ class Page():
 
         methode aan te roepen voorafgaand aan het tonen van de pagina"""
         self.initializing = True
-        self.parent.parent.enable_settingsmenu()
+        if self.parent.parent.datatype != shared.DataType.MNG:
+            self.parent.parent.enable_settingsmenu()
         if self.parent.current_tab == 0:
             text = self.seltitel
         else:
@@ -235,7 +239,7 @@ class Page():
             self.parent.pagedata.startitem = self.parent.pagedata.id
         else:
             self.parent.pagedata.startitem = ''
-        if self.parent.parent.datatype == shared.DataType.SQL.name:
+        if self.parent.parent.datatype == shared.DataType.SQL:
             self.parent.pagedata.write(self.parent.parent.user)
         else:
             self.parent.pagedata.write()
@@ -265,9 +269,9 @@ class Page():
             pagegui.set_item_text(item, 1, self.parent.pagedata.get_soorttext()[0].upper())
             pagegui.set_item_text(item, 2, self.parent.pagedata.get_statustext())
             pagegui.set_item_text(item, 3, self.parent.pagedata.updated)
-            if self.parent.parent.datatype == shared.DataType.XML.name:
+            if self.parent.parent.datatype == shared.DataType.XML:
                 pagegui.set_item_text(item, 4, self.parent.pagedata.titel)
-            elif self.parent.parent.datatype == shared.DataType.SQL.name:
+            elif self.parent.parent.datatype == shared.DataType.SQL:
                 pagegui.set_item_text(item, 4, self.parent.pagedata.over)
                 pagegui.set_item_text(item, 5, self.parent.pagedata.titel)
 
@@ -322,7 +326,7 @@ class Page0(Page):
         self.sorted = (0, "A")
 
         widths = [94, 24, 146, 90, 400] if LIN else [64, 24, 114, 72, 292]
-        if self.parent.parent.datatype == shared.DataType.SQL.name:
+        if self.parent.parent.datatype == shared.DataType.SQL:
             widths[4] = 90 if LIN else 72
             extra = 310 if LIN else 220
             widths.append(extra)
@@ -339,7 +343,7 @@ class Page0(Page):
         """
         # print('in Page0.vulp')
         self.saved_sortopts = None
-        if (self.parent.parent.datatype == shared.DataType.SQL.name
+        if (self.parent.parent.datatype == shared.DataType.SQL
                 and self.parent.parent.filename):
             if self.parent.parent.is_user:
                 self.saved_sortopts = dmls.SortOptions(self.parent.parent.filename)
@@ -364,7 +368,7 @@ class Page0(Page):
             data = shared.get_acties[self.parent.parent.datatype](self.parent.fnaam, select,
                                                                   arch, self.parent.parent.user)
             for idx, item in enumerate(data):
-                if self.parent.parent.datatype == shared.DataType.XML.name:
+                if self.parent.parent.datatype == shared.DataType.XML:
                     self.parent.data[idx] = (item[0],
                                              item[1],
                                              ".".join((item[3][1], item[3][0])),
@@ -372,7 +376,7 @@ class Page0(Page):
                                              item[5],
                                              item[4],
                                              True if item[6] == 'arch' else False)
-                elif self.parent.parent.datatype == shared.DataType.SQL.name:
+                elif self.parent.parent.datatype == shared.DataType.SQL:
                     self.parent.data[idx] = (item[0],
                                              item[1],
                                              ".".join((item[5], item[4])),
@@ -384,7 +388,7 @@ class Page0(Page):
             msg = self.populate_list()
             # nodig voor sorteren?  Geen idee maar als het ergens goed voor is dan moet dit
             # naar de gui module want sortItems is een qt methode
-            # if self.parent.parent.datatype == shared.DataType.XML.name:
+            # if self.parent.parent.datatype == shared.DataType.XML:
             #     self.gui.p0list.sortItems(self.sorted[0], sortorder[self.sorted[1]])  # , True)
             #
             if self.parent.parent.startitem:
@@ -438,7 +442,7 @@ class Page0(Page):
         niet alleen selecteren op tekst(deel) maar ook op status, soort etc
         """
         args = self.sel_args, None
-        if self.parent.parent.datatype == shared.DataType.SQL.name:
+        if self.parent.parent.datatype == shared.DataType.SQL:
             data = dmls.SelectOptions(self.parent.fnaam, self.parent.parent.user)
             args, sel_args = data.load_options(), {}
             for key, value in args.items():
@@ -475,10 +479,10 @@ class Page0(Page):
         2x4 comboboxjes waarin je de volgorde van de rubrieken en de sorteervolgorde
         per rubriek kunt aangeven"""
         sortopts, sortlist = {}, []
-        if self.parent.parent.datatype == shared.DataType.XML.name:
+        if self.parent.parent.datatype == shared.DataType.XML:
             gui.show_message(self.gui, 'Sorry, multi-column sorteren werkt nog niet')
             return
-        if self.parent.parent.datatype == shared.DataType.SQL.name:
+        if self.parent.parent.datatype == shared.DataType.SQL:
             sortopts = self.saved_sortopts.load_options()
             try:
                 sortlist = [x[0] for x in dmls.SORTFIELDS]
@@ -507,16 +511,16 @@ class Page0(Page):
     def archiveer(self, *args):
         "archiveren of herleven van het geselecteerde item"
         selindx = self.gui.get_selected_action()
-        if self.parent.parent.datatype == shared.DataType.XML.name:
+        if self.parent.parent.datatype == shared.DataType.XML:
             selindx = shared.data2str(selindx)
         else:
             selindx = shared.data2int(selindx)
         self.readp(selindx)
-        if self.parent.parent.datatype == shared.DataType.XML.name:
+        if self.parent.parent.datatype == shared.DataType.XML:
             self.parent.pagedata.arch = not self.parent.pagedata.arch
             hlp = "gearchiveerd" if self.parent.pagedata.arch else "herleefd"
             self.parent.pagedata.events.append((shared.get_dts(), "Actie {0}".format(hlp)))
-        elif self.parent.parent.datatype == shared.DataType.SQL.name:
+        elif self.parent.parent.datatype == shared.DataType.SQL:
             self.parent.pagedata.set_arch(not self.parent.pagedata.arch)
         self.update_actie()  # self.parent.pagedata.write()
         self.parent.rereadlist = True
@@ -567,7 +571,7 @@ class Page1(Page):
             self.gui.set_text('id', str(self.parent.pagedata.id))
             self.gui.set_text('date', self.parent.pagedata.datum)
             self.parch = self.parent.pagedata.arch
-            if self.parent.parent.datatype == shared.DataType.XML.name:
+            if self.parent.parent.datatype == shared.DataType.XML:
                 if self.parent.pagedata.titel is not None:
                     if " - " in self.parent.pagedata.titel:
                         hlp = self.parent.pagedata.titel.split(" - ", 1)
@@ -576,7 +580,7 @@ class Page1(Page):
                     self.gui.set_text('proc', hlp[0])
                     if len(hlp) > 1:
                         self.gui.set_text('desc', hlp[1])
-            elif self.parent.parent.datatype == shared.DataType.SQL.name:
+            elif self.parent.parent.datatype == shared.DataType.SQL:
                 self.gui.set_text('proc', self.parent.pagedata.over)
                 self.gui.set_text('desc', self.parent.pagedata.titel)
             self.gui.set_choice('stat', self.parent.pagedata.status)
@@ -585,7 +589,7 @@ class Page1(Page):
         self.oldbuf = self.gui.set_oldbuf()
         if self.parch:
             aanuit = False
-            if self.parent.parent.datatype == shared.DataType.XML.name:
+            if self.parent.parent.datatype == shared.DataType.XML:
                 if self.parent.pagedata.titel is not None:
                     if " - " in self.parent.pagedata.titel:
                         hlp = self.parent.pagedata.titel.split(" - ", 1)
@@ -594,7 +598,7 @@ class Page1(Page):
                     self.gui.set_text('proc', hlp[0])
                     if len(hlp) > 1:
                         self.gui.set_text('desc', hlp[1])
-            elif self.parent.parent.datatype == shared.DataType.SQL.name:
+            elif self.parent.parent.datatype == shared.DataType.SQL:
                 self.gui.set_text('proc', self.parent.pagedata.over)
                 self.gui.set_text('desc', self.parent.pagedata.titel)
             self.gui.set_text('arch', "Deze actie is gearchiveerd")
@@ -623,9 +627,9 @@ class Page1(Page):
         wijzig = False
         procdesc = " - ".join((proc, desc))
         if procdesc != self.parent.pagedata.titel:
-            if self.parent.parent.datatype == shared.DataType.XML.name:
+            if self.parent.parent.datatype == shared.DataType.XML:
                 self.parent.pagedata.titel = procdesc
-            elif self.parent.parent.datatype == shared.DataType.SQL.name:
+            elif self.parent.parent.datatype == shared.DataType.SQL:
                 self.parent.pagedata.over = proc
                 self.parent.pagedata.events.append(
                     (shared.get_dts(), 'Onderwerp gewijzigd in "{0}"'.format(proc)))
@@ -659,9 +663,9 @@ class Page1(Page):
             # pagegui.set_item_text(item, 1, self.parent.pagedata.get_soorttext()[0].upper())
             # pagegui.set_item_text(item, 2, self.parent.pagedata.get_statustext())
             # pagegui.set_item_text(item, 3, self.parent.pagedata.updated)
-            # if self.parent.parent.datatype == shared.DataType.XML.name:
+            # if self.parent.parent.datatype == shared.DataType.XML:
             #     pagegui.set_item_text(item, 4, self.parent.pagedata.titel)
-            # elif self.parent.parent.datatype == shared.DataType.SQL.name:
+            # elif self.parent.parent.datatype == shared.DataType.SQL:
             #     pagegui.set_item_text(item, 4, self.parent.pagedata.over)
             #     pagegui.set_item_text(item, 5, self.parent.pagedata.titel)
             self.oldbuf = self.gui.set_oldbuf()
@@ -725,7 +729,7 @@ class Page6(Page):
             self.gui.init_list(text)
             for idx, datum in enumerate(self.event_list):
                 self.gui.add_item_to_list(idx, datum)
-        if self.parent.parent.datatype == shared.DataType.SQL.name:
+        if self.parent.parent.datatype == shared.DataType.SQL:
             self.gui.set_list_callback()
         # self.gui.clear_textfield() - zit al in init_textfield
         self.oldbuf = (self.old_list, self.old_data)
@@ -747,7 +751,7 @@ class Page6(Page):
             short_text = hlp.split("\n")[0]
             if len(short_text) < 80:
                 short_text = short_text[:80] + "..."
-            if self.parent.parent.datatype == shared.DataType.XML.name:
+            if self.parent.parent.datatype == shared.DataType.XML:
                 short_text = short_text.encode('latin-1')
             self.gui.set_listitem_text(idx + 1, "{} - {}".format(self.event_list[idx], short_text))
             self.gui.set_listitem_data(idx + 1)
@@ -850,10 +854,10 @@ class StatOptions:
         self.titel = "Status codes en waarden"
         self.data = []
         for key in sorted(parent.master.book.stats.keys()):
-            if parent.master.datatype == shared.DataType.XML.name:
+            if parent.master.datatype == shared.DataType.XML:
                 item_text, item_value = parent.master.book.stats[key]
                 self.data.append(": ".join((item_value, item_text)))
-            elif parent.master.datatype == shared.DataType.SQL.name:
+            elif parent.master.datatype == shared.DataType.SQL:
                 item_text, item_value, row_id = parent.master.book.stats[key]
                 self.data.append(": ".join((item_value, item_text, row_id)))
         self.tekst = ["De waarden voor de status worden getoond in dezelfde volgorde",
@@ -884,10 +888,10 @@ class CatOptions:
         self.titel = "Soort codes en waarden"
         self.data = []
         for key in sorted(parent.master.book.cats.keys()):
-            if parent.master.datatype == shared.DataType.XML.name:
+            if parent.master.datatype == shared.DataType.XML:
                 item_value, item_text = parent.master.book.cats[key]
                 self.data.append(": ".join((item_text, item_value)))
-            elif parent.master.datatype == shared.DataType.SQL.name:
+            elif parent.master.datatype == shared.DataType.SQL:
                 item_value, item_text, row_id = parent.master.book.cats[key]
                 self.data.append(": ".join((item_text, item_value, str(row_id))))
         self.tekst = ["De waarden voor de soorten worden getoond in dezelfde volgorde",
@@ -932,18 +936,20 @@ class MainWindow():
         self.projnames = dmls.get_projnames()
         if fnaam:
             if fnaam == 'xml' or os.path.exists(fnaam):
-                self.datatype = shared.DataType.XML.name
+                self.datatype = shared.DataType.XML
                 if fnaam != 'xml':
                     test = pathlib.Path(fnaam)
                     self.dirname, self.filename = test.parent, test.name
                 shared.log('XML: %s %s', self.dirname, self.filename)
             elif fnaam == 'sql' or fnaam.lower() in [x[0] for x in self.projnames]:
-                self.datatype = shared.DataType.SQL.name
+                self.datatype = shared.DataType.SQL
                 if fnaam == 'basic':
                     self.filename = '_basic'
                 elif fnaam != 'sql':
                     self.filename = fnaam.lower()
                 shared.log('SQL: %s', self.filename)
+            elif fnaam in ('mongo', 'mongodb'):
+                self.datatype = shared.DataType.MNG
             else:
                 fnaam = ''
         self.gui = gui.MainGui(self)
@@ -951,14 +957,14 @@ class MainWindow():
             self.filename = ''
             choice = gui.get_choice_item(None, 'Select Mode', ['XML', 'SQL'])
             if choice == 'XML':
-                self.datatype = shared.DataType.XML.name
+                self.datatype = shared.DataType.XML
             elif choice == 'SQL':
-                self.datatype = shared.DataType.SQL.name
+                self.datatype = shared.DataType.SQL
             else:
                 raise SystemExit('No datatype selected')
         self.user = None    # start without user
         self.is_user = self.is_admin = False
-        if self.datatype == shared.DataType.XML.name:
+        if self.datatype == shared.DataType.XML:
             self.user = 1  # pretend user
             self.is_user = self.is_admin = True  # force editability for XML mode
         self.create_book()
@@ -966,16 +972,18 @@ class MainWindow():
         self.gui.create_actions()
         self.create_book_pages()
 
-        if self.datatype == shared.DataType.XML.name:
+        if self.datatype == shared.DataType.XML:
             if self.filename == "":
                 self.open_xml()
             else:
                 self.startfile()
-        elif self.datatype == shared.DataType.SQL.name:
+        elif self.datatype == shared.DataType.SQL:
             if self.filename:
                 self.open_sql(do_sel=False)
             else:
                 self.open_sql()
+        elif self.datatype == shared.DataType.MNG:
+            self.open_mongo()
         self.initializing = False
 
     def get_menu_data(self):
@@ -1010,11 +1018,17 @@ class MainWindow():
             data[3][1].append(('&{}'.format(tabtitle),
                                functools.partial(self.gui.go_to, int(tabnum)),
                                'Alt+{}'.format(tabnum), "switch to tab"))
-        if self.datatype == shared.DataType.XML.name:
+        if self.datatype == shared.DataType.XML:
             data.pop(1)
-        elif self.datatype == shared.DataType.SQL.name:
+        elif self.datatype == shared.DataType.SQL:
             data[0][1][0] = ("&Other project", self.open_sql, 'Ctrl+O', " Select a project")
             data[0][1][1] = ("&New", self.new_file, 'Ctrl+N', " Create a new project")
+        elif self.datatype == shared.DataType.MNG:
+            data.pop(2)     # remove settings menu
+            data.pop(1)     # remove login menu
+            data[0][1].pop(2)  # remove separator
+            data[0][1].pop(1)  # remove file - new
+            data[0][1].pop(0)  # remove file - open
         return data
 
     def create_book(self):
@@ -1023,7 +1037,7 @@ class MainWindow():
         self.book = self.gui.get_bookwidget()
         self.book.parent = self
         self.book.fnaam = ""
-        if self.filename and self.datatype == shared.DataType.SQL.name:
+        if self.filename and self.datatype == shared.DataType.SQL:
             self.book.fnaam = self.filename
         self.book.current_item = None
         self.book.data = {}
@@ -1031,9 +1045,9 @@ class MainWindow():
         self.lees_settings()
         # print('in create book na lees_settings: book.tabs is', self.book.tabs)
         self.book.ctitels = ["actie", " ", "status", "L.wijz."]
-        if self.datatype == shared.DataType.XML.name:
+        if self.datatype == shared.DataType.XML:
             self.book.ctitels.append("titel")
-        elif self.datatype == shared.DataType.SQL.name:
+        elif self.datatype in (shared.DataType.SQL, shared.DataType.MNG):
             self.book.ctitels.extend(("betreft", "omschrijving"))
         self.book.current_tab = -1
         self.book.pages = []
@@ -1045,10 +1059,11 @@ class MainWindow():
         "add the pages to the tabbed widget"
         self.book.pages.append(Page0(self.book))
         self.book.pages.append(Page1(self.book))
-        self.book.pages.append(Page(self.book, 2))
-        self.book.pages.append(Page(self.book, 3))
-        self.book.pages.append(Page(self.book, 4))
-        self.book.pages.append(Page(self.book, 5))
+        if self.datatype != shared.DataType.MNG:
+            self.book.pages.append(Page(self.book, 2))
+            self.book.pages.append(Page(self.book, 3))
+            self.book.pages.append(Page(self.book, 4))
+            self.book.pages.append(Page(self.book, 5))
         self.book.pages.append(Page6(self.book))
 
         # print('in create_book_pages: book.tabs is', self.book.tabs)
@@ -1062,7 +1077,7 @@ class MainWindow():
 
     def new_file(self, event=None):
         "Menukeuze: nieuw file"
-        if self.datatype == shared.DataType.SQL.name:
+        if self.datatype == shared.DataType.SQL:
             self.not_implemented_message()
             return
         self.is_newfile = False
@@ -1111,6 +1126,9 @@ class MainWindow():
                 self.filename = "_basic"
             self.startfile()
 
+    def open_mongo(self, ebvent=None):
+        "to be implemented"
+
     def print_something(self, event=None):
         """callback voor ctrl-P(rint)
 
@@ -1144,7 +1162,7 @@ class MainWindow():
                 status = page.get_item_text(item, 2)
                 l_wijz = page.get_item_text(item, 3)
                 titel = page.get_item_text(item, 4)
-                if self.datatype == shared.DataType.SQL.name:
+                if self.datatype == shared.DataType.SQL:
                     over = titel
                     titel = page.get_item_text(item, 5)
                     l_wijz = l_wijz[:19]
@@ -1180,7 +1198,7 @@ class MainWindow():
         elif self.book.current_tab == 6:
             events = []
             for idx, data in enumerate(self.book.pages[6].event_list):
-                if self.datatype == shared.DataType.SQL.name:
+                if self.datatype == shared.DataType.SQL:
                     data = data[:19]
                 events.append((data, self.book.pages[6].event_data[idx]))
             self.printdict['events'] = events
@@ -1311,10 +1329,10 @@ class MainWindow():
                      "    Alt-Ctrl-Z overal:             wijzigingen ongedaan maken",
                      "    Shift-Ctrl-N op tab 6:         nieuwe regel opvoeren",
                      "    Ctrl-up/down op tab 6:         move in list"]
-            if self.datatype == shared.DataType.XML.name:
+            if self.datatype == shared.DataType.XML:
                 lines.insert(8, "    Ctrl-O:                       _o_pen een (ander) actiebestand")
                 lines.insert(8, "    Ctrl-N:                       maak een _n_ieuw actiebestand")
-            elif self.datatype == shared.DataType.SQL.name:
+            elif self.datatype == shared.DataType.SQL:
                 lines.insert(8, "    Ctrl-O:                       selecteer een (ander) pr_o_ject")
             self.helptext = "\n".join(lines)
         gui.show_message(self.gui, self.helptext)
@@ -1325,7 +1343,7 @@ class MainWindow():
 
     def startfile(self):
         "initialisatie t.b.v. nieuw bestand"
-        if self.datatype == shared.DataType.XML.name:
+        if self.datatype == shared.DataType.XML:
             fullname = self.dirname / self.filename
             retval = dmlx.checkfile(fullname, self.is_newfile)
             if retval != '':
@@ -1333,7 +1351,7 @@ class MainWindow():
                 return retval
             self.book.fnaam = fullname
             self.title = self.filename
-        elif self.datatype == shared.DataType.SQL.name:
+        elif self.datatype == shared.DataType.SQL:
             self.book.fnaam = self.title = self.filename
         self.book.rereadlist = True
         self.book.sorter = None
@@ -1368,23 +1386,23 @@ class MainWindow():
                               "Eventuele vervolgactie(s)",
                               "Overzicht stand van zaken"]
         for item_value, item in data.stat.items():
-            if self.datatype == shared.DataType.XML.name:
+            if self.datatype in (shared.DataType.XML, shared.DataType.MNG):
                 item_text, sortkey = item
                 self.book.stats[int(sortkey)] = (item_text, item_value)
-            elif self.datatype == shared.DataType.SQL.name:
+            elif self.datatype == shared.DataType.SQL:
                 item_text, sortkey, row_id = item
                 self.book.stats[int(sortkey)] = (item_text, item_value, row_id)
         for item_value, item in data.cat.items():
-            if self.datatype == shared.DataType.XML.name:
+            if self.datatype in (shared.DataType.XML, shared.DataType.MNG):
                 item_text, sortkey = item
                 self.book.cats[int(sortkey)] = (item_text, item_value)
-            elif self.datatype == shared.DataType.SQL.name:
+            elif self.datatype == shared.DataType.SQL:
                 item_text, sortkey, row_id = item
                 self.book.cats[int(sortkey)] = (item_text, item_value, row_id)
         for tab_num, tab_text in data.kop.items():
-            if self.datatype == shared.DataType.XML.name:
+            if self.datatype in (shared.DataType.XML, shared.DataType.MNG):
                 self.book.tabs[int(tab_num)] = " ".join((tab_num, tab_text))
-            elif self.datatype == shared.DataType.SQL.name:
+            elif self.datatype == shared.DataType.SQL:
                 tab_text = tab_text[0]  # , tab_adr = tab_text
                 self.book.tabs[int(tab_num)] = " ".join((tab_num, tab_text.title()))
         # print('in lees_settings voor', self.book.fnaam, 'book.tabs is', self.book.tabs)
@@ -1409,10 +1427,10 @@ class MainWindow():
             settings.write()
             self.book.stats = {}
             for item_value, item in data.items():
-                if self.datatype == shared.DataType.XML.name:
+                if self.datatype == shared.DataType.XML:
                     item_text, sortkey = item
                     self.book.stats[sortkey] = (item_text, item_value)
-                elif self.datatype == shared.DataType.SQL.name:
+                elif self.datatype == shared.DataType.SQL:
                     item_text, sortkey, row_id = item
                     self.book.stats[sortkey] = (item_text, item_value, row_id)
         elif srt == "cat":
@@ -1420,10 +1438,10 @@ class MainWindow():
             settings.write()
             self.book.cats = {}
             for item_value, item in data.items():
-                if self.datatype == shared.DataType.XML.name:
+                if self.datatype == shared.DataType.XML:
                     item_text, sortkey = item
                     self.book.cats[sortkey] = (item_text, item_value)
-                elif self.datatype == shared.DataType.SQL.name:
+                elif self.datatype == shared.DataType.SQL:
                     item_text, sortkey, row_id = item
                     self.book.cats[sortkey] = (item_text, item_value, row_id)
         self.book.pages[1].vul_combos()
@@ -1431,7 +1449,7 @@ class MainWindow():
     def save_startitem_on_exit(self):
         "bijwerken geselecteerde actie om te onthouden voor de volgende keer"
         data = shared.Settings[self.datatype](self.book.fnaam)
-        if self.datatype == shared.DataType.XML.name:
+        if self.datatype == shared.DataType.XML:
             data.startitem = self.book.pagedata.id
             data.write()
 
@@ -1467,7 +1485,7 @@ class MainWindow():
             if self.book.current_tab == 0:
                 msg += ' - {} items'.format(len(self.book.data))
         self.gui.set_statusmessage(msg)
-        if self.datatype == shared.DataType.SQL.name:
+        if self.datatype == shared.DataType.SQL:
             if self.user:
                 msg = 'Aangemeld als {}'.format(self.user.username)
             else:
@@ -1492,9 +1510,9 @@ class MainWindow():
 def main(arg=None):
     "opstart routine"
     # if arg is None:
-    #     version = shared.DataType.SQL.name
+    #     version = shared.DataType.SQL
     # else:
-    #     version = shared.DataType.XML.name
+    #     version = shared.DataType.XML
     # try:
     frame = MainWindow(None, arg)  # , version)
     frame.gui.go()

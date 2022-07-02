@@ -337,7 +337,7 @@ class PageGui(qtw.QFrame):
             return
         self.actiondict = collections.OrderedDict()
         self.text1 = self.create_text_field()
-        if self.parent.parent.datatype == shared.DataType.XML.name:
+        if self.parent.parent.datatype == shared.DataType.XML:
             self.create_toolbar(textfield=self.text1)
         self.save_button = qtw.QPushButton('Sla wijzigingen op (Ctrl-S)', self)
         self.save_button.clicked.connect(self.master.savep)
@@ -415,7 +415,7 @@ class PageGui(qtw.QFrame):
     def doelayout(self):
         "layout page"
         sizer0 = qtw.QVBoxLayout()
-        if self.parent.parent.datatype == shared.DataType.XML.name:
+        if self.parent.parent.datatype == shared.DataType.XML:
             sizer1 = qtw.QVBoxLayout()
             sizer1.addWidget(self.toolbar)
             sizer0.addLayout(sizer1)
@@ -466,7 +466,7 @@ class PageGui(qtw.QFrame):
     def enable_toolbar(self, value):
         "make the toolbar accessible (or not)"
         # try:
-        if self.parent.parent.datatype == shared.DataType.XML.name:
+        if self.parent.parent.datatype == shared.DataType.XML:
             self.toolbar.setEnabled(value)
         # except AttributeError:
         #     pass
@@ -691,6 +691,11 @@ class Page1Gui(PageGui):
         self.archive_button = qtw.QPushButton("Archiveren", self)
         self.archive_button.clicked.connect(self.master.archiveer)
 
+        # if self.parent.parent.datatype == shared.DataType.MNG:
+        # niet onder conditie zodat dit altijd aanwezig is
+        self.summary_entry = qtw.QTextEdit(self)
+        self.summary_entry.textChanged.connect(self.master.on_text)
+
         self.save_button = qtw.QPushButton('Sla wijzigingen op (Ctrl-S)', self)
         self.save_button.clicked.connect(self.master.savep)
         qtw.QShortcut('Ctrl+S', self, self.master.savep)
@@ -754,6 +759,13 @@ class Page1Gui(PageGui):
         sizery.addWidget(self.archive_button)
         sizery.addStretch()
         sizer1.addLayout(sizery, row, 1)
+        if self.parent.parent.datatype == shared.DataType.MNG:
+            row += 1
+            sizer1.addWidget(qtw.QLabel("Samenvatting van het issue:", self), row, 0)
+            sizery = qtw.QHBoxLayout()
+            sizery.addWidget(self.summary_entry)
+            sizery.addStretch()
+            sizer1.addLayout(sizery, row, 0)
 
         sizerx.addLayout(sizer1)
 
@@ -778,6 +790,8 @@ class Page1Gui(PageGui):
         self.proc_entry.clear()
         self.desc_entry.clear()
         self.archive_text.setText("")
+        if self.parent.parent.datatype == shared.DataType.MNG:
+            self.summary_entry.clear()
         self.cat_choice.setCurrentIndex(0)
         self.stat_choice.setCurrentIndex(0)
 
@@ -793,6 +807,8 @@ class Page1Gui(PageGui):
             self.desc_entry.setText(value)
         elif fieldtype == 'arch':
             self.archive_text.setText(value)
+        elif fieldtype == 'summary':
+            self.archive_text.setText(value)
 
     def get_text(self, fieldtype):
         "get textfield value"
@@ -803,6 +819,8 @@ class Page1Gui(PageGui):
         elif fieldtype == 'proc':
             value = str(self.proc_entry.text())
         elif fieldtype == 'desc':
+            value = str(self.desc_entry.text())
+        elif fieldtype == 'summary':
             value = str(self.desc_entry.text())
         return value
 
@@ -834,14 +852,14 @@ class Page1Gui(PageGui):
 
     def set_oldbuf(self):
         "get fieldvalues for comparison of entry was changed"
-        return (str(self.proc_entry.text()), str(self.desc_entry.text()),
+        return (str(self.proc_entry.text()), str(self.desc_entry.text()), self.summary_entry.text(),
                 int(self.stat_choice.currentIndex()), int(self.cat_choice.currentIndex()))
 
     def get_field_text(self, entry_type):
         "return a screen field's value"
-        test = ('actie', 'datum', 'oms', 'tekst', 'status', 'soort').index(entry_type)
-        dest = ('id', 'date', 'proc', 'desc', 'stat', 'cat')[test]
-        if test > 3:
+        test = ('actie', 'datum', 'oms', 'tekst', 'summary', 'status', 'soort').index(entry_type)
+        dest = ('id', 'date', 'proc', 'desc', 'smry', 'stat', 'cat')[test]
+        if test > 4:
             return self.get_choice_data(dest)[1]
         return self.get_text(dest)
 
@@ -857,6 +875,8 @@ class Page1Gui(PageGui):
         self.desc_entry.setEnabled(state)
         self.cat_choice.setEnabled(state)
         self.stat_choice.setEnabled(state)
+        if self.parent.parent.datatype == shared.DataType.MNG:
+            self.summary_entry_setEnabled(state)
         if self.master.parent.newitem or not self.master.parent.parent.is_user:
             # archiveren niet mogelijk bij nieuw item of als de user niet is ingelogd (?)
             self.archive_button.setEnabled(False)
@@ -886,7 +906,7 @@ class Page1Gui(PageGui):
     def build_newbuf(self):
         """read widget contents into the compare buffer
         """
-        return (str(self.proc_entry.text()), str(self.desc_entry.text()),
+        return (str(self.proc_entry.text()), str(self.desc_entry.text()), self.summary_entry.text(),
                 int(self.stat_choice.currentIndex()), int(self.cat_choice.currentIndex()))
 
 
@@ -904,7 +924,7 @@ class Page6Gui(PageGui):
         self.progress_list = qtw.QListWidget(self)
         self.progress_list.currentItemChanged.connect(self.on_select_item)
         self.new_action = qtw.QShortcut('Shift+Ctrl+N', self)
-        if self.parent.parent.datatype == shared.DataType.XML.name:
+        if self.parent.parent.datatype == shared.DataType.XML:
             self.progress_list.itemActivated.connect(self.on_activate_item)
             # self.progress_list.itemDoubleClicked.connect(self.on_activate_item)
             # action = qtw.QShortcut('Shift+Ctrl+N', self, functools.partial(
@@ -917,7 +937,7 @@ class Page6Gui(PageGui):
         self.progress_text = super().create_text_field()
         sizer0 = qtw.QHBoxLayout()
         sizer1 = qtw.QVBoxLayout()
-        if self.parent.parent.datatype == shared.DataType.XML.name:
+        if self.parent.parent.datatype == shared.DataType.XML:
             super().create_toolbar(textfield=self.progress_text)
             sizer1.addWidget(self.toolbar)
         sizer1.addWidget(self.progress_text)
@@ -1265,12 +1285,12 @@ class SelectOptionsDialog(qtw.QDialog):
             check.toggled.connect(functools.partial(self.on_checked, 'stat'))
             self.check_stats.addButton(check)
 
-        if self.datatype == shared.DataType.XML.name:
+        if self.datatype == shared.DataType.XML:
             self.check_options.addButton(qtw.QCheckBox(parent.parent.ctitels[4] +
                                                        '   -', self))
             self.text_zoek = qtw.QLineEdit(self)
             self.text_zoek.textChanged.connect(functools.partial(self.on_text, 'zoek'))
-        elif self.datatype == shared.DataType.SQL.name:
+        elif self.datatype == shared.DataType.SQL:
             self.check_options.addButton(qtw.QCheckBox('zoek in   -', self))
             self.text_zoek = qtw.QLineEdit(self)
             self.text_zoek.textChanged.connect(functools.partial(self.on_text, 'zoek'))
@@ -1360,10 +1380,10 @@ class SelectOptionsDialog(qtw.QDialog):
         grid.addLayout(vbox, 3, 0)
 
         hbox = qtw.QHBoxLayout()
-        if self.datatype == shared.DataType.XML.name:
+        if self.datatype == shared.DataType.XML:
             hbox.addWidget(qtw.QLabel('zoek naar:', self))
             hbox.addWidget(self.text_zoek)
-        elif self.datatype == shared.DataType.SQL.name:
+        elif self.datatype == shared.DataType.SQL:
             grid2 = qtw.QGridLayout()
             grid2.addWidget(qtw.QLabel(self.parent.parent.ctitels[4] + ":", self),
                             0, 0)
@@ -1406,9 +1426,9 @@ class SelectOptionsDialog(qtw.QDialog):
         if "idlt" in sel_args:
             self.text_lt.setText(sel_args["idlt"])
 
-        if self.datatype == shared.DataType.XML.name:
+        if self.datatype == shared.DataType.XML:
             itemindex = 1
-        elif self.datatype == shared.DataType.SQL.name:
+        elif self.datatype == shared.DataType.SQL:
             itemindex = 2
         if "soort" in sel_args:
             for x in self.parent.parent.cats.keys():
@@ -1491,17 +1511,17 @@ class SelectOptionsDialog(qtw.QDialog):
                 sel_args["id"] = "and"
             elif self.radio_id.buttons()[1].isChecked():
                 sel_args["id"] = "or"
-        if self.datatype == shared.DataType.XML.name:
+        if self.datatype == shared.DataType.XML:
             itemindex = 1
-        elif self.datatype == shared.DataType.SQL.name:
+        elif self.datatype == shared.DataType.SQL:
             itemindex = 2
         if self.check_options.buttons()[1].isChecked():
             selection = '(gefilterd)'
-            if self.datatype == shared.DataType.XML.name:
+            if self.datatype == shared.DataType.XML:
                 lst = [self.parent.parent.cats[x][itemindex]
                        for x in range(len(self.parent.parent.cats.keys()))
                        if self.check_cats.buttons()[x].isChecked()]
-            elif self.datatype == shared.DataType.SQL.name:
+            elif self.datatype == shared.DataType.SQL:
                 lst = [self.parent.parent.cats[x][itemindex]
                        for x in range(len(self.parent.parent.cats.keys()))
                        if self.check_cats.buttons()[x].isChecked()]
@@ -1509,11 +1529,11 @@ class SelectOptionsDialog(qtw.QDialog):
                 sel_args["soort"] = lst
         if self.check_options.buttons()[2].isChecked():
             selection = '(gefilterd)'
-            if self.datatype == shared.DataType.XML.name:
+            if self.datatype == shared.DataType.XML:
                 lst = [self.parent.parent.stats[x][itemindex]
                        for x in range(len(self.parent.parent.stats.keys()))
                        if self.check_stats.buttons()[x].isChecked()]
-            elif self.datatype == shared.DataType.SQL.name:
+            elif self.datatype == shared.DataType.SQL:
                 lst = [self.parent.parent.stats[x][itemindex]
                        for x in range(len(self.parent.parent.stats.keys()))
                        if self.check_stats.buttons()[x].isChecked()]
@@ -1521,9 +1541,9 @@ class SelectOptionsDialog(qtw.QDialog):
                 sel_args["status"] = lst
         if self.check_options.buttons()[3].isChecked():
             selection = '(gefilterd)'
-            if self.datatype == shared.DataType.XML.name:
+            if self.datatype == shared.DataType.XML:
                 sel_args["titel"] = str(self.text_zoek.text())
-            elif self.datatype == shared.DataType.SQL.name:
+            elif self.datatype == shared.DataType.SQL:
                 sel_args["titel"] = [('about', str(self.text_zoek.text()))]
                 if self.radio_id2.buttons()[0].isChecked():
                     sel_args["titel"].append(("and",))

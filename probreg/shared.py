@@ -16,11 +16,13 @@ import pathlib
 from datetime import datetime
 import probreg.dml_django as dmls
 import probreg.dml_xml as dmlx
+import probreg.dml_mongo as dmlm
 ROOT = pathlib.Path("/home/albert/projects/actiereg/actiereg")
-DataType = enum.Enum('DataType', 'XML SQL')
-get_acties = {DataType.XML.name: dmlx.get_acties, DataType.SQL.name: dmls.get_acties}
-Actie = {DataType.XML.name: dmlx.Actie, DataType.SQL.name: dmls.Actie}
-Settings = {DataType.XML.name: dmlx.Settings, DataType.SQL.name: dmls.Settings}
+DataType = enum.Enum('DataType', 'XML SQL MNG')
+get_acties = {DataType.XML: dmlx.get_acties, DataType.SQL: dmls.get_acties,
+              DataType.MNG: dmlm.get_acties}
+Actie = {DataType.XML: dmlx.Actie, DataType.SQL: dmls.Actie, DataType.MNG: dmlm.Actie}
+Settings = {DataType.XML: dmlx.Settings, DataType.SQL: dmls.Settings, DataType.MNG: dmlm.Settings}
 Order = enum.Enum('Order', 'A D')
 logfile = pathlib.Path('/tmp') / 'logs' / 'probreg.log'
 logfile.parent.mkdir(exist_ok=True)
