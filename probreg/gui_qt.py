@@ -447,7 +447,8 @@ class PageGui(qtw.QFrame):
     def enable_buttons(self, state=True):
         "buttons wel of niet bruikbaar maken"
         self.save_button.setEnabled(state)
-        if self.parent.current_tab < 6:
+        print(self.parent.count())
+        if self.parent.current_tab < self.parent.count() - 1:
             self.saveandgo_button.setEnabled(state)
         self.cancel_button.setEnabled(state)
 
@@ -764,8 +765,9 @@ class Page1Gui(PageGui):
             sizer1.addWidget(qtw.QLabel("Samenvatting van het issue:", self), row, 0)
             sizery = qtw.QHBoxLayout()
             sizery.addWidget(self.summary_entry)
-            sizery.addStretch()
-            sizer1.addLayout(sizery, row, 0)
+            # sizery.addStretch()
+            row += 1
+            sizer1.addLayout(sizery, row, 0, 1, -1)
 
         sizerx.addLayout(sizer1)
 
@@ -852,7 +854,7 @@ class Page1Gui(PageGui):
 
     def set_oldbuf(self):
         "get fieldvalues for comparison of entry was changed"
-        return (str(self.proc_entry.text()), str(self.desc_entry.text()), self.summary_entry.text(),
+        return (self.proc_entry.text(), self.desc_entry.text(), self.summary_entry.toPlainText(),
                 int(self.stat_choice.currentIndex()), int(self.cat_choice.currentIndex()))
 
     def get_field_text(self, entry_type):
@@ -876,7 +878,7 @@ class Page1Gui(PageGui):
         self.cat_choice.setEnabled(state)
         self.stat_choice.setEnabled(state)
         if self.parent.parent.datatype == shared.DataType.MNG:
-            self.summary_entry_setEnabled(state)
+            self.summary_entry.setEnabled(state)
         if self.master.parent.newitem or not self.master.parent.parent.is_user:
             # archiveren niet mogelijk bij nieuw item of als de user niet is ingelogd (?)
             self.archive_button.setEnabled(False)
@@ -906,7 +908,7 @@ class Page1Gui(PageGui):
     def build_newbuf(self):
         """read widget contents into the compare buffer
         """
-        return (str(self.proc_entry.text()), str(self.desc_entry.text()), self.summary_entry.text(),
+        return (self.proc_entry.text(), self.desc_entry.text(), self.summary_entry.toPlainText(),
                 int(self.stat_choice.currentIndex()), int(self.cat_choice.currentIndex()))
 
 
@@ -916,8 +918,9 @@ class Page6Gui(PageGui):
         self.parent = parent
         self.master = master
         super().__init__(parent, master)
-        ## sizes = 200, 100 if LIN else 280, 110
-        sizes = 350, 100 if LIN else 280, 110
+        # sizes = 200, 100 if LIN else 280, 110
+        # sizes = 350, 100 if LIN else 280, 110
+        sizes = 200, 250 if LIN else 280, 110
         self.pnl = qtw.QSplitter(self)
         self.pnl.setOrientation(core.Qt.Vertical)
 
@@ -1924,12 +1927,16 @@ class MainGui(qtw.QMainWindow):
     def set_tabfocus(self, tabno):
         "focus geven aan de gekozen tab"
         widgets = [self.master.book.pages[0].gui.p0list,
-                   self.master.book.pages[1].gui.proc_entry,
-                   self.master.book.pages[2].gui.text1,
-                   self.master.book.pages[3].gui.text1,
-                   self.master.book.pages[4].gui.text1,
-                   self.master.book.pages[5].gui.text1,
-                   self.master.book.pages[6].gui.progress_list]
+                   self.master.book.pages[1].gui.proc_entry]
+        if self.master.datatype == shared.DataType.MNG:
+            lasttab = 2
+        else:
+            widgetsi.extend([self.master.book.pages[2].gui.text1,
+                             self.master.book.pages[3].gui.text1,
+                             self.master.book.pages[4].gui.text1,
+                             self.master.book.pages[5].gui.text1])
+            lasttab = 6
+        widgets.append(self.master.book.pages[lasttab].gui.progress_list)
         widgets[tabno].setFocus()
 
     def go_next(self):

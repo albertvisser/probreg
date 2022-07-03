@@ -5,7 +5,7 @@ import pathlib
 import base64  # gzip
 import datetime as dt
 from shutil import copyfile
-from xml.etree.ElementTree import ElementTree, Element, SubElement
+# from xml.etree.ElementTree import ElementTree, Element, SubElement
 import logging
 # from probreg.shared import DataError, kopdict, statdict, catdict -- even ingekopieerd
 
@@ -49,7 +49,11 @@ def log(msg, *args, **kwargs):
 
 
 def check_filename(fnaam):
-    raise NotImplementedError
+    """check for correct filename and return short and long version
+
+    fnaam is a pathlib.Path object
+    """
+    return fnaam, fnaam, True, ''
 
 
 def checkfile(fn, new=False):
@@ -57,7 +61,13 @@ def checkfile(fn, new=False):
 
 
 def get_nieuwetitel(fnaam, jaar=None):
-    raise NotImplementedError
+    "bepaal nieuw uit te geven actienummer"
+    if jaar is None:
+        jaar = str(dt.date.today().year)
+    # zoek laatst uitgegeven actienummer voor het huidige jaar (voor nu even simuleren)
+    last_action = 0
+    action = last_action + 1
+    return f'{jaar}-{action:4}'
 
 
 def get_acties(fnaam, select=None, arch="", user=None):
@@ -99,70 +109,9 @@ def get_acties(fnaam, select=None, arch="", user=None):
         raise DataError("Foutieve waarde voor archief opgegeven "
                         "(moet niks, 'arch'  of 'alles' zijn)")
     sett = Settings(fnaam)
-    if fnaam.exists():
-        dnaam = str(fnaam)
-    elif os.path.exists(os.path.join(datapad, fnaam)):
-        dnaam = os.path.join(datapad, fnaam)
-    else:
-        raise DataError("datafile bestaat niet")
-    tree = ElementTree(file=dnaam)
-    rt = tree.getroot()
-    for x in rt.findall("actie"):
-        a = x.get("arch")
-        if a is None:
-            if arch == "arch":
-                continue
-        else:
-            if (a == "arch" and arch == "") or (a != "arch" and arch == "arch"):
-                continue
-        nr = x.get("id")
-        if "id" in select and select["id"] == "or":
-            if nr <= select["idgt"] and nr >= select["idlt"]:
-                continue
-        else:
-            if ("idgt" in select and nr <= select["idgt"]) \
-                    or ("idlt" in select and nr >= select["idlt"]):
-                continue
-        ## alternatief en meer overeenkomend met de sql versie
-        ## if 'id' in select:
-            ## select_gt = select_lt = True
-            ## if 'idgt' in select and nr <= select['idgt']:
-                ## select_gt = False
-            ## if 'idlt' in select and nr >= select['idlt']:
-                ## select_lt = False
-            ## if select['id'] == 'and' and (select_gt == False or select_lt == False):
-                ## continue
-            ## if select['id'] == 'or' and select_gt == False and select_lt == False:
-                ## continue
-        dd = x.get("datum")
-        if dd is None:
-            dd = ''
-        lu = x.get("updated")
-        if lu is None:
-            lu = ""
-        h = x.get("status")
-        if "status" in select and h not in select["status"]:
-            continue
-        st = ''
-        if h in list(sett.stat.keys()):
-            st = sett.stat[h]
-        h = x.get("soort")
-        if h is None:
-            h = ""
-        if "soort" in select and h not in select["soort"]:
-            continue
-        ct = ''
-        if h in list(sett.cat.keys()):
-            ct = sett.cat[h]
-        tl = x.find("titel").text
-        if tl is None:
-            tl = ""
-        if "titel" in select and select["titel"].upper() not in tl.upper():
-            continue
-        lijst.append((nr, dd, st, ct, tl, lu, a))
-    if not lijst:
-        lijst = [('1', 'vandaag', 'nieuw', 'idee', 'iets', 'vandaag', '')]
-    return lijst
+    # zoeken gaat t.z.t. met mongodb, nu maar even net doen alsof
+    return [('2022-0001', 'vandaag', 'nieuw', 'idee', 'iets', 'vandaag', ''),
+            ('2022-0002', 'vandaag', 'nieuw', 'idee', 'iets', 'vandaag', '')]
 
 
 class Settings:
@@ -180,9 +129,6 @@ class Settings:
         self.imagecount = 0
         self.startitem = ''
         self.meld = ''
-        if fnaam == "":
-            self.meld = "Standaard waarden opgehaald"
-            return
         self.fn, self.fnaam, self.exists, self.meld = check_filename(fnaam)
         if self.meld:
             raise DataError(self.meld)
@@ -191,71 +137,13 @@ class Settings:
 
     def read(self):
         "settings lezen"
-        tree = ElementTree(file=str(self.fn))
-        rt = tree.getroot()
-        ## found = False  # wordt niet gebruikt
-        x = rt.find("settings")
-        if x is not None:
-            self.imagecount = x.get('imagecount') or '0'
-            self.imagecount = int(self.imagecount)
-            self.startitem = x.get('startitem') or ''
-            h = x.find("stats")
-            if h is not None:
-                self.stat = {}
-                for y in h.findall("stat"):
-                    self.stat[y.get("value")] = (y.text, y.get("order"))
-            h = x.find("cats")
-            if h is not None:
-                self.cat = {}
-                for y in h.findall("cat"):
-                    self.cat[y.get("value")] = (y.text, y.get("order"))
-            h = x.find("koppen")
-            if h is not None:
-                self.kop = {}
-                for y in h.findall("kop"):
-                    self.kop[y.get("value")] = y.text
+        # t.z.t. via mongodb ophalen
+        self.meld = "Standaard waarden opgehaald"
 
     def write(self, srt=None):  # extra argument ivm compat sql-versie
         "settings terugschrijven"
+        # t.z.t. via mongodb doen
         fnaam = str(self.fn)
-        if not self.exists:
-            rt = Element('acties')
-            tree = ElementTree(rt)
-        else:
-            tree = ElementTree(file=fnaam)
-            rt = tree.getroot()
-        el = rt.find("settings")
-        if el is None:
-            el = SubElement(rt, "settings")
-        el.set('imagecount', str(self.imagecount))
-        el.set('startitem', str(self.startitem))
-        for x in list(el):
-            if x.tag == "stats":
-                el.remove(x)
-            elif x.tag == "cats":
-                el.remove(x)
-            elif x.tag == "koppen":
-                el.remove(x)
-        h = SubElement(el, "stats")
-        for x in list(self.stat.keys()):
-            if x is int:
-                x = str(x)
-            j = SubElement(h, "stat", value=x)
-            j.set("order", str(self.stat[x][1]))
-            j.text = self.stat[x][0]
-        h = SubElement(el, "cats")
-        for x in list(self.cat.keys()):
-            j = SubElement(h, "cat", value=x)
-            j.set("order", str(self.cat[x][1]))
-            j.text = self.cat[x][0]
-        h = SubElement(el, "koppen")
-        for x in list(self.kop.keys()):
-            if x is int:
-                x = str(x)
-            j = SubElement(h, "kop", value=x)
-            j.text = self.kop[x]
-        copyfile(fnaam, fnaam + ".old")
-        tree.write(fnaam, encoding='utf-8', xml_declaration=True)
         self.exists = True
 
     def set(self, naam, key=None, waarde=None):
@@ -340,23 +228,15 @@ class Actie:
         self.events = []
         ## self.fno = str(self.fn) + ".old"     # naam van de backup van het xml bestand
         new_item = _id == 0 or _id == "0"
-        if self.file_exists:
-            if new_item:
-                self.nieuw()
-            else:
-                self.read()
-        else:
-            if new_item:
-                self.nieuwfile()
-                self.nieuw()
-            else:
-                raise DataError("Can't pass non-empty id for nonexistant file")
+        if new_item:
+            self.nieuw()
+        elif self.file_exists:
+            self.read()
 
     def nieuwfile(self):
         "nieuw projectbestand aanmaken"
-        f = self.fn.open("w")
-        with f:
-            f.write('<?xml version="1.0" encoding="utf-8"?>\n<acties>\n</acties>\n')
+        # nieuwe momgo database aanmaken of gaan we ervan uit dat die al bestaat?
+        # bij een eerste actie moeten we in elk geval ook de settings wegschrijvem
 
     def nieuw(self):
         "nieuwe actie initialiseren"
@@ -365,63 +245,18 @@ class Actie:
 
     def read(self):
         "gegevens lezen van een bepaalde actie"
-        tree = ElementTree(file=str(self.fn))
-        rt = tree.getroot()
-        found = False
-        log('%s %s', self.id, type(self.id))
-        for x in rt.findall("actie"):
-            if x.get("id") == self.id:
-                found = True
-                break
-        if found:
-            h = x.get("datum")
-            if h is not None:
-                self.datum = h
-            self.status = x.get("status")
-            self.soort = x.get("soort")
-            h = x.get("arch")
-            if h is not None:
-                if h == "arch":
-                    self.arch = True
-            h = x.get("updated")
-            if h is not None:
-                self.updated = h
-            else:
-                self.updated = dt.datetime.today().isoformat(' ')[:19]
-            for y in list(x):
-                if y.tag == "titel":
-                    if y.text is not None:
-                        self.titel = y.text
-                elif y.tag == "melding":
-                    if y.text is not None:
-                        self.melding = y.text
-                elif y.tag == "oorzaak":
-                    if y.text is not None:
-                        self.oorzaak = y.text
-                elif y.tag == "oplossing":
-                    if y.text is not None:
-                        self.oplossing = y.text
-                elif y.tag == "vervolg":
-                    if y.text is not None:
-                        self.vervolg = y.text
-                elif y.tag == "stand":
-                    if y.text is not None:
-                        self.stand = y.text
-                elif y.tag == "events":
-                    self.events = []
-                    for z in list(y):
-                        self.events.append((z.get("id"), z.text))
-                elif y.tag == 'images':
-                    self.imagelist = []
-                    for z in list(y):
-                        fname = z.get("filename")
-                        self.imagelist.append(fname)
-                        with open(fname, 'wb') as _out:
-                            log('length of text:', len(z.text))
-                            data = base64.b64decode(eval(z.text))  # eval is nodig omdat anders
-                            # de quotes eromheen meegecodeerd worden
-                            _out.write(data)
-            self.exists = True
+        # tzt via mongodb doen; nu geven we een setje standaard waarden terug
+        # self.id is meegegeven in de instantiëring
+        self.datum = 'vandaag'
+        self.status = '0'
+        self.soort = 'I'
+        self.updated = 'vandaag'
+        self.titel = 'iets'
+        self.melding = 'er is iets gebeurd'
+        self.stand = ''
+        self.events = [('vandaag', 'actie opgevoerd'), ('vandaag', 'soort gewijzigd')]
+        self.imagelist = []
+        self.exists = True
 
     def get_statustext(self):
         "geef tekst bij statuscode"
@@ -491,92 +326,15 @@ class Actie:
 
     def write(self):
         "actiegegevens terugschrijven"
-        if self.file_exists:     # os.path.exists(self.fn):
-            tree = ElementTree(file=str(self.fn))
-            rt = tree.getroot()
-            sett = rt.find('settings')
-        else:
-            rt = Element("acties")
-            sett = SubElement(rt, 'settings')
+        # dit moet tztz allemaal met mongodb
+        # kijk of settings aanwezig; zo nee dan schrijf ze naar de database
         # terugschrijven imagecount
         sett.set('imagecount', str(self.imagecount))  # moet dit niet parent.parent.imagecount zijn?
         if self.startitem:
             sett.set('startitem', str(self.startitem))
-
-        if not self.exists:
-            x = SubElement(rt, "actie")
-            x.set("id", self.id)
-            x.set("datum", self.datum)
-            found = True
-        else:
-            for x in rt.findall("actie"):
-                if x.get("id") == self.id:
-                    found = True
-                    break
-        if found:
-            x.set("updated", dt.datetime.today().isoformat(' ')[:10])
-            print(self.soort)
-            h = self.soort
-            if h is None or h == '':
-                self.soort = " "
-            x.set("soort", self.soort)
-            x.set("status", self.status)
-            if self.arch:
-                x.set("arch", "arch")
-            else:
-                h = x.get("arch")
-                if h is not None:
-                    x.set("arch", "herl")
-            h = x.find("titel")
-            if h is None:
-                h = SubElement(x, "titel")
-            h.text = self.titel
-            h = x.find("melding")
-            if h is None:
-                h = SubElement(x, "melding")
-            h.text = self.melding
-            h = x.find("oorzaak")
-            if h is None:
-                h = SubElement(x, "oorzaak")
-            h.text = self.oorzaak
-            h = x.find("oplossing")
-            if h is None:
-                h = SubElement(x, "oplossing")
-            h.text = self.oplossing
-            h = x.find("vervolg")
-            if h is None:
-                h = SubElement(x, "vervolg")
-            h.text = self.vervolg
-            h = x.find("stand")
-            if h is None:
-                h = SubElement(x, "stand")
-            h.text = self.stand
-            h = x.find("events")
-            if h is not None:
-                x.remove(h)
-            h = SubElement(x, "events")
-            for y, z in self.events:
-                q = SubElement(h, "event", id=y)
-                q.text = z
-            h = x.find("images")
-            if h is not None:
-                x.remove(h)
-            h = SubElement(x, "images")
-            for fname in self.imagelist:
-                q = SubElement(h, 'image', filename=fname)
-                with open(fname, 'rb') as _in:
-                    data = _in.read()
-                log('length of data:', len(data))
-                q.text = str(base64.b64encode(data))
-                log('length of text:', len(q.text))
-                ## q.text = str(base64.encodebytes(data))
-                ## q.text = str(gzip.compress(data)) # let op: bdata, geen cdata !
-            tree = ElementTree(rt)
-            copyfile(str(self.fn), str(self.fn) + ".old")
-            tree.write(str(self.fn), encoding='utf-8', xml_declaration=True)
-            self.exists = True
-        ## else:
-            ## return False
+        # zoek de huidige actie op in de database
+        # indien niet gevonden: voeg toe aan database
+        # (anders) wijzig in database
         return found
 
     def clear(self):

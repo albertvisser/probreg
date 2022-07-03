@@ -81,7 +81,7 @@ class Page():
                 text = str(self.parent.pagedata.id) + ' ' + self.parent.pagedata.titel
         self.parent.parent.set_windowtitle("{} | {}".format(self.parent.parent.title, text))
         self.parent.parent.set_statusmessage()
-        if 1 < self.parent.current_tab < 6:
+        if 1 < self.parent.current_tab < self.parent.count() - 1:
             self.oldbuf = ''
             is_readonly = False
             if self.parent.pagedata is not None:
