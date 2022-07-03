@@ -1,13 +1,17 @@
-"data managenent voor ProbReg XML versie"
+"data managenent voor ProbReg mongodb versie"
 ## import sys
 import os
 import pathlib
 import base64  # gzip
 import datetime as dt
 from shutil import copyfile
-# from xml.etree.ElementTree import ElementTree, Element, SubElement
 import logging
+from pymongo import MongoClient
+from pymongo.collection import Collection
 # from probreg.shared import DataError, kopdict, statdict, catdict -- even ingekopieerd
+cl = MongoClient()
+db = cl.probreg_database
+coll = db.default  # for now we only do one collection per database
 
 datapad = os.getcwd()
 
@@ -65,9 +69,10 @@ def get_nieuwetitel(fnaam, jaar=None):
     if jaar is None:
         jaar = str(dt.date.today().year)
     # zoek laatst uitgegeven actienummer voor het huidige jaar (voor nu even simuleren)
-    last_action = 0
+    acties_van_jaar = coll.find({'jaar': jaar})
+    last_action = max([x['nummer'] for x in acties_van_jaar])
     action = last_action + 1
-    return f'{jaar}-{action:4}'
+    return f'{jaar}-{action:04}'
 
 
 def get_acties(fnaam, select=None, arch="", user=None):
@@ -123,6 +128,8 @@ class Settings:
         de id's bepalen de volgorde in de listboxen en de codes worden in de xml opgeslagen
     """
     def __init__(self, fnaam=""):
+        if not fnaam:
+            fnaam = 'default'
         self.kop = {x: y[0] for x, y in kopdict.items()}
         self.stat = {x: (y[0], y[1]) for x, y in statdict.items()}
         self.cat = {x: (y[0], y[1]) for x, y in catdict.items()}
@@ -137,13 +144,24 @@ class Settings:
 
     def read(self):
         "settings lezen"
-        # t.z.t. via mongodb ophalen
-        self.meld = "Standaard waarden opgehaald"
+        settings = coll.find_one({'name': 'settings'})
+        self.settings_id = settings['_id']
+        for item, value in settings['headings'].items():
+            self.kop[item] = value[0]
+        for item, value in settings['statuses'].items():
+            self.stat[item] = value
+        for item in settings['categories'].items():
+            self.cat[item] = value
+        self.imagecount = settings['imagecount']
+        self.startitem = settings['startitem']
 
     def write(self, srt=None):  # extra argument ivm compat sql-versie
         "settings terugschrijven"
-        # t.z.t. via mongodb doen
-        fnaam = str(self.fn)
+        coll.update_one({'_id': self.settings_id}, {'$set': {'headings': self.headings}})
+        coll.update_one({'_id': self.settings_id}, {'$set': {'statuses': self.statuses}})
+        coll.update_one({'_id': self.settings_id}, {'$set': {'categories': self.categories}})
+        coll.update_one({'_id': self.settings_id}, {'$set': {'imagecount': self.imagecount}})
+        coll.update_one({'_id': self.settings_id}, {'$set': {'startitem': self.startitem}})
         self.exists = True
 
     def set(self, naam, key=None, waarde=None):
@@ -214,20 +232,19 @@ class Actie:
     fnaam is a pathlib.Path object
     user is only for compatibilty with the Django version
     """
-    def __init__(self, fnaam, _id, user=None):
+    def __init__(self, fnaam, actiekey, user=None):
         self.fn, self.fnaam, self.file_exists, self.meld = check_filename(fnaam)
         if self.meld:
             raise DataError(self.meld)
         self.settings = Settings(fnaam)
         self.imagecount = int(self.settings.imagecount)
         self.imagelist = []
-        self.id, self.exists = _id, False
+        self.actie_id, self.exists = actiekey, False
         self.datum = self.soort = self.titel = ''
         self.status, self.arch = '0', False
         self.melding = self.oorzaak = self.oplossing = self.vervolg = self.stand = ''
         self.events = []
-        ## self.fno = str(self.fn) + ".old"     # naam van de backup van het xml bestand
-        new_item = _id == 0 or _id == "0"
+        new_item = actiekey == 0 or actiekey == "0"
         if new_item:
             self.nieuw()
         elif self.file_exists:
@@ -240,21 +257,23 @@ class Actie:
 
     def nieuw(self):
         "nieuwe actie initialiseren"
-        self.id = get_nieuwetitel(self.fn)
+        self.nummer = get_nieuwetitel(self.fn)
         self.datum = dt.datetime.today().isoformat(' ')[:19]
 
     def read(self):
         "gegevens lezen van een bepaalde actie"
         # tzt via mongodb doen; nu geven we een setje standaard waarden terug
         # self.id is meegegeven in de instantiëring
-        self.datum = 'vandaag'
-        self.status = '0'
-        self.soort = 'I'
-        self.updated = 'vandaag'
-        self.titel = 'iets'
-        self.melding = 'er is iets gebeurd'
+        actie = coll.find_one({'_id': self.actie_id})
+        self.nummer = '-'.join((actie['jaar'], actie['nummer']))
+        self.datum = actie['gemeld']
+        self.status = actie['status']
+        self.soort = actie['soort']
+        self.updated = actie['bijgewerkt']
+        self.titel = actie['titel']
+        self.melding = actie['melding']
         self.stand = ''
-        self.events = [('vandaag', 'actie opgevoerd'), ('vandaag', 'soort gewijzigd')]
+        self.events = actie['events']
         self.imagelist = []
         self.exists = True
 
@@ -326,16 +345,21 @@ class Actie:
 
     def write(self):
         "actiegegevens terugschrijven"
-        # dit moet tztz allemaal met mongodb
-        # kijk of settings aanwezig; zo nee dan schrijf ze naar de database
-        # terugschrijven imagecount
-        sett.set('imagecount', str(self.imagecount))  # moet dit niet parent.parent.imagecount zijn?
+        self.settings['imagecount'] = str(self.imagecount)  # moet dit niet parent.parent.imagecount zijn?
         if self.startitem:
-            sett.set('startitem', str(self.startitem))
-        # zoek de huidige actie op in de database
-        # indien niet gevonden: voeg toe aan database
-        # (anders) wijzig in database
+            self.settings['startitem'] = str(self.startitem)
+        self.settings.write()
+        jaar, nummer = self.nummer.split('-')
+        actie = coll.update_one({'_id': self.actie_id}, {'$set': {'jaar': jaar, 'nummer': nummer,
+                                                                  'gemeld': self.datum,
+                                                                  'status': self.status,
+                                                                  'soort': self.soort,
+                                                                  'bijgewerkt': self.updated,
+                                                                  'titel': self.titel,
+                                                                  'melding': self.melding,
+                                                                  'events': self.events}})
         return found
+
 
     def clear(self):
         "images opruimen"
