@@ -896,8 +896,9 @@ class Page6Gui(PageGui):
         self.parent = parent
         self.master = master
         super().__init__(parent, master)
-        ## sizes = 200, 100 if LIN else 280, 110
-        sizes = 350, 100 if LIN else 280, 110
+        # sizes = 200, 100 if LIN else 280, 110
+        #sizes = 350, 100 if LIN else 280, 110
+        sizes = 200, 250 if LIN else 280, 110
         self.pnl = qtw.QSplitter(self)
         self.pnl.setOrientation(core.Qt.Vertical)
 
