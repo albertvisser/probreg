@@ -81,7 +81,7 @@ def get_acties(fnaam, select=None, arch="", user=None):
     fnaam is a pathlib.Path object
 
     zoeken mogelijk op id (groter dan / kleiner dan), soort, status, (deel van) titel
-    een selecteer-key mag een van de volgejde waarden zijn:
+    een selecteer-key mag een van de volgende waarden zijn:
     "idlt" - in dat geval moet de waarde een string zijn waarmee vergeleken wordt,
     "idgt" - in dat geval moet de waarde een string zijn waarmee vergeleken wordt,
     "soort" - in dat geval moet de waarde een list zijn van mogelijke soorten,
@@ -108,15 +108,16 @@ def get_acties(fnaam, select=None, arch="", user=None):
         if keyfout:
             raise DataError("Foutief selectie-argument opgegeven")
         if "id" in select:
-            if "idlt" not in select and "idgt" not in select:
+            if "idlt" not in select or "idgt" not in select:
                 raise DataError("Foutieve combinatie van selectie-argumenten opgegeven")
     if arch not in ("", "arch", "alles"):
         raise DataError("Foutieve waarde voor archief opgegeven "
                         "(moet niks, 'arch'  of 'alles' zijn)")
-    sett = Settings(fnaam)
+    # sett = Settings(fnaam) - heb ik dit nodig?
     # zoeken gaat t.z.t. met mongodb, nu maar even net doen alsof
-    return [('2022-0001', 'vandaag', 'nieuw', 'idee', 'iets', 'vandaag', ''),
-            ('2022-0002', 'vandaag', 'nieuw', 'idee', 'iets', 'vandaag', '')]
+    lijst = [('2022-0001', 'vandaag', 'nieuw', 'idee', 'iets', 'vandaag', ''),
+             ('2022-0002', 'vandaag', 'nieuw', 'idee', 'iets', 'vandaag', '')]
+    return lijst
 
 
 class Settings:
