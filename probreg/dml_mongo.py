@@ -96,23 +96,44 @@ def get_acties(fnaam, select=None, arch="", user=None):
     """
     if select is None:
         select = {}
-        if not arch:
-            return []
-    lijst = []
-    if select:
-        keyfout = False
-        for x in list(select.keys()):
-            if x not in ("idlt", "id", "idgt", "soort", "status", "titel"):
-                keyfout = True
-                break
-        if keyfout:
-            raise DataError("Foutief selectie-argument opgegeven")
-        if "id" in select:
-            if "idlt" not in select or "idgt" not in select:
-                raise DataError("Foutieve combinatie van selectie-argumenten opgegeven")
+        # if not arch:
+        #     return []
     if arch not in ("", "arch", "alles"):
         raise DataError("Foutieve waarde voor archief opgegeven "
                         "(moet niks, 'arch'  of 'alles' zijn)")
+    lijst = []
+    # if select:
+    #     keyfout = False
+    #     for x in list(select.keys()):
+    #         if x not in ("idlt", "id", "idgt", "soort", "status", "titel"):
+    #             keyfout = True
+    #             break
+    #     if keyfout:
+    #         raise DataError("Foutief selectie-argument opgegeven")
+    idclause = ''
+    item_lt = select.pop('idlt', '')
+    enof = select.pop('id', '')
+    item_gt = select.pop('idgt', '')
+    if enof not in ('', 'en', 'of'):
+        raise DataError('Foutieve waarde voor id-operator opgegeven')
+    if enof and not all((item_lt, item_gt)):
+        raise DataError("Operator alleen opgeven bij twee grenswaarden voor id")
+    if all((item_lt, item_gt)) and not enof:
+        raise DataError("Geen operator opgegeven bij twee grenswaarden voor id")
+    if item_lt:
+        idclause += f'"lt": "{item_lt}"'
+    if item_gt:
+        if item_lt:
+            idclause += ', '
+        idclause += f'"gt": "{item_gt}"'
+    if idclause:
+        idclause = idclause.join(('{', '}'))
+        if enof == 'of':
+            idclause = idclause.join(('{"or": ', '}'))
+        return '{"nummer": ' + idclause + '}'
+
+
+
     # sett = Settings(fnaam) - heb ik dit nodig?
     # zoeken gaat t.z.t. met mongodb, nu maar even net doen alsof
     lijst = [('2022-0001', 'vandaag', 'nieuw', 'idee', 'iets', 'vandaag', ''),
