@@ -47,25 +47,24 @@ def test_get_acties(monkeypatch, capsys):
         dmlm.get_acties('', select={'idgt': 'y', 'id': 'of'})
     assert str(excinfo.value) == "Operator alleen opgeven bij twee grenswaarden voor id"
 
-    assert dmlm.get_acties('', select={'idlt': 'x'}) == '{"nummer": {"lt": "x"}}'
-    assert dmlm.get_acties('', select={'idgt': 'y'}) == '{"nummer": {"gt": "y"}}'
+    assert dmlm.get_acties('', select={'idlt': 'x'}) == '{"nummer": {"lt": "x"}, "arch": false}'
+    assert dmlm.get_acties('', select={'idgt': 'y'}) == '{"nummer": {"gt": "y"}, "arch": false}'
     assert dmlm.get_acties('', select={'idlt': 'x', 'id': 'en', 'idgt': 'y'}) == ('{"nummer":'
-            ' {"lt": "x", "gt": "y"}}')
+            ' {"lt": "x", "gt": "y"}, "arch": false}')
     assert dmlm.get_acties('', select={'idlt': 'x', 'id': 'of', 'idgt': 'y'}) == ('{"nummer":'
-            ' {"or": {"lt": "x", "gt": "y"}}}')
+            ' {"or": {"lt": "x", "gt": "y"}}, "arch": false}')
 
     # bij zoeklogica doorgeven aan momgodb heeft uitkomst testen niet zoveel zin, kijken naar
     # output van gesimuleerd database commando wel
     result = [('2022-0001', 'vandaag', 'nieuw', 'idee', 'iets', 'vandaag', ''),
               ('2022-0002', 'vandaag', 'nieuw', 'idee', 'iets', 'vandaag', '')]
     # alles dat er is
-    assert dmlm.get_acties('') == result
-    assert dmlm.get_acties('', select={}) == result
-    # alles dat niet gearchiveerd is
-    assert dmlm.get_acties('', arch='') == result
-    assert dmlm.get_acties('', select={}, arch='') == result
-    # alles dat gearchiveerd is
-    assert dmlm.get_acties('', arch='arch') == result
-    # alles
     assert dmlm.get_acties('', arch='alles') == result
+    assert dmlm.get_acties('', select={}, arch='alles') == result
+    # alles dat niet gearchiveerd is
+    assert dmlm.get_acties('', arch='') == '{"arch": false}'
+    assert dmlm.get_acties('', select={}, arch='') == '{"arch": false}'
+    # alles dat gearchiveerd is
+    assert dmlm.get_acties('', arch='arch') == '{"arch": true}'
+    assert dmlm.get_acties('', select={}, arch='arch') == '{"arch": true}'
 

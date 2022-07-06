@@ -110,6 +110,8 @@ def get_acties(fnaam, select=None, arch="", user=None):
     #             break
     #     if keyfout:
     #         raise DataError("Foutief selectie-argument opgegeven")
+    selections = []
+
     idclause = ''
     item_lt = select.pop('idlt', '')
     enof = select.pop('id', '')
@@ -130,9 +132,34 @@ def get_acties(fnaam, select=None, arch="", user=None):
         idclause = idclause.join(('{', '}'))
         if enof == 'of':
             idclause = idclause.join(('{"or": ', '}'))
-        return '{"nummer": ' + idclause + '}'
+        idclause = '"nummer": ' + idclause
+        selections.append(idclause)
 
+    soortclause = select.pop('soort', '')
+    if soortclause:
+        soortclause = '"soort": "' + soortclause + '"'
+        selections.append(soortclause)
 
+    statclause = select.pop('status', '')
+    if statclause:
+        statclause = '"status": "' + status + '"'
+        selections.append(statclause)
+
+    textclause = select.pop('titel', '')
+    if textclause:
+        textclause = '"titel": {"regex": "\.*' + titel + '\.*"}'
+        selections.append(textclause)
+
+    if select:
+        raise DataError("Foutief selectie-argument opgegeven")
+
+    archclause = '"arch": true' if arch == "arch" else '"arch": false' if arch == "" else ''
+    if archclause:
+        selections.append(archclause)
+
+    if selections:
+        selections = '{' + ', '.join(selections) + '}'
+        return selections
 
     # sett = Settings(fnaam) - heb ik dit nodig?
     # zoeken gaat t.z.t. met mongodb, nu maar even net doen alsof
