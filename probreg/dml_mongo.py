@@ -142,12 +142,12 @@ def get_acties(fnaam, select=None, arch="", user=None):
 
     statclause = select.pop('status', '')
     if statclause:
-        statclause = '"status": "' + status + '"'
+        statclause = '"status": "' + statclause + '"'
         selections.append(statclause)
 
     textclause = select.pop('titel', '')
     if textclause:
-        textclause = '"titel": {"regex": "\.*' + titel + '\.*"}'
+        textclause = '"titel": {"regex": "\.*' + textclause + '\.*"}'
         selections.append(textclause)
 
     if select:

@@ -54,6 +54,14 @@ def test_get_acties(monkeypatch, capsys):
     assert dmlm.get_acties('', select={'idlt': 'x', 'id': 'of', 'idgt': 'y'}) == ('{"nummer":'
             ' {"or": {"lt": "x", "gt": "y"}}, "arch": false}')
 
+    assert dmlm.get_acties('', select={'soort': '1'}) == '{"soort": "1", "arch": false}'
+    assert dmlm.get_acties('', select={'status': '1'}) == '{"status": "1", "arch": false}'
+    assert dmlm.get_acties('', select={'titel': 'x'}) == ('{"titel": {"regex": "\.*x\.*"},'
+                                                          ' "arch": false}')
+    with pytest.raises(dmlm.DataError) as excinfo:
+        dmlm.get_acties('', select={'x': 'y'})
+    assert str(excinfo.value) == "Foutief selectie-argument opgegeven"
+
     # bij zoeklogica doorgeven aan momgodb heeft uitkomst testen niet zoveel zin, kijken naar
     # output van gesimuleerd database commando wel
     result = [('2022-0001', 'vandaag', 'nieuw', 'idee', 'iets', 'vandaag', ''),
