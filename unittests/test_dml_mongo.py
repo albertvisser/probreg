@@ -1,20 +1,35 @@
 import types
+import datetime
 import pytest
 import probreg.dml_mongo as dmlm
+
+FIXDATE = datetime.datetime(2020, 1, 1)
 
 class MockDate:
     def today():
         return types.SimpleNamespace(year=2022)
 
+class MockSettings:
+    def __init__(self, fnaam=''):
+        self.imagecount = 1
+        self.startitem = 0
+    def write(self):
+        print('called Settings.write()')
+
 class MockDatetime:
     def utcnow(*args):
         return 'now'
+    def today(*args):
+        return FIXDATE
 
 class MockColl:
     def find(self, *args, **kwargs):
         pass  # in testmethode patchen met gewenst resultaat
 
     def find_one(self, *args, **kwargs):
+        pass  # in testmethode patchen met gewenst resultaat
+
+    def update_one(self, *args, **kwargs):
         pass  # in testmethode patchen met gewenst resultaat
 
 def test_get_nieuwetitel(monkeypatch, capsys):
@@ -75,4 +90,148 @@ def test_get_acties(monkeypatch, capsys):
     # alles dat gearchiveerd is
     assert dmlm.get_acties('', arch='arch') == '{"arch": true}'
     assert dmlm.get_acties('', select={}, arch='arch') == '{"arch": true}'
+
+def test_settings(monkeypatch, capsys):
+    def mock_read(*args):
+        print('called Settings.read()')
+    monkeypatch.setattr(dmlm, 'check_filename', lambda x: (x, x, True, 'some message'))
+    with pytest.raises(dmlm.DataError) as excinfo:
+        dmlm.Settings()
+    assert str(excinfo.value) == 'some message'
+    monkeypatch.setattr(dmlm, 'check_filename', lambda x: (x, x, False, ''))
+    testobj = dmlm.Settings()
+    assert not testobj.exists
+    assert testobj.kop == {x: y[0] for x, y in dmlm.kopdict.items()}
+    assert testobj.stat == {x: (y[0], y[1]) for x, y in dmlm.statdict.items()}
+    assert testobj.cat == {x: (y[0], y[1]) for x, y in dmlm.catdict.items()}
+    assert testobj.imagecount == 0
+    assert testobj.startitem == ''
+    monkeypatch.setattr(dmlm, 'check_filename', lambda x: (x, x, True, ''))
+    monkeypatch.setattr(dmlm.Settings, 'read', mock_read)
+    testobj = dmlm.Settings()
+    assert testobj.exists
+    assert capsys.readouterr().out == 'called Settings.read()\n'
+
+def test_settings_read(monkeypatch, capsys):
+    def mock_find_one(self, *args, **kwargs):
+        return {'_id': 100, 'headings': {0: ('Begin',)}, 'statuses': {0: ('Started', 1)},
+                'categories': {'U': ('Unknown', 1)}, 'imagecount': 1, 'startitem': 15}
+    monkeypatch.setattr(MockColl, 'find_one', mock_find_one)
+    monkeypatch.setattr(dmlm, 'coll', MockColl())
+    testobj = dmlm.Settings()  # read wordt uitgevoerd tijdens __init__
+    assert testobj.settings_id == 100
+    assert testobj.kop == {0: 'Begin'}
+    assert testobj.stat == {0: ('Started', 1)}
+    assert testobj.cat == {'U': ('Unknown', 1)}
+    assert testobj.imagecount == 1
+    assert testobj.startitem == 15
+
+def test_settings_write(monkeypatch, capsys):
+    def mock_read(*args):
+        print('called Settings.read()')
+    def mock_update_one(self, *args):
+        print('called coll.update_one() with args', args)
+    monkeypatch.setattr(dmlm.Settings, 'read', mock_read)
+    monkeypatch.setattr(MockColl, 'update_one', mock_update_one)
+    monkeypatch.setattr(dmlm, 'coll', MockColl())
+    testobj = dmlm.Settings()
+    testobj.settings_id = 10
+    testobj.headings = {0: 'head'}
+    testobj.statuses = {0: 'stat'}
+    testobj.categories = {0: 'cat'}
+    testobj.imagecount = 2
+    testobj.startitem = 9
+    testobj.write()
+    assert testobj.exists
+    assert capsys.readouterr().out == ('called Settings.read()\n'
+        "called coll.update_one() with args ({'_id': 10}, {'$set': {'headings': {0: 'head'}}})\n"
+        "called coll.update_one() with args ({'_id': 10}, {'$set': {'statuses': {0: 'stat'}}})\n"
+        "called coll.update_one() with args ({'_id': 10}, {'$set': {'categories': {0: 'cat'}}})\n"
+        "called coll.update_one() with args ({'_id': 10}, {'$set': {'imagecount': 2}})\n"
+        "called coll.update_one() with args ({'_id': 10}, {'$set': {'startitem': 9}})\n")
+
+def test_actie(monkeypatch, capsys):
+    def mock_nieuw(*args):
+        print('called Actie.nieuw()')
+    def mock_read(*args):
+        print('called Actie.read()')
+    monkeypatch.setattr(dmlm, 'check_filename', lambda x: (x, x, True, 'some message'))
+    with pytest.raises(dmlm.DataError) as excinfo:
+        dmlm.Actie('', 'x')
+    assert str(excinfo.value) == 'some message'
+    monkeypatch.setattr(dmlm, 'Settings', MockSettings)
+    monkeypatch.setattr(dmlm, 'check_filename', lambda x: (x, x, False, ''))
+    testobj = dmlm.Actie('', 'x')
+    assert testobj.imagecount == 1
+    assert testobj.actie_id == 'x'
+    assert not testobj.file_exists
+    assert (testobj.imagelist, testobj.events) == ([], [])
+    assert (testobj.datum, testobj.soort, testobj.titel) == ('', '', '')
+    assert (testobj.status, testobj.arch) == ('0', False)
+    assert testobj.melding == ''
+    monkeypatch.setattr(dmlm, 'check_filename', lambda x: (x, x, True, ''))
+    monkeypatch.setattr(dmlm.Actie, 'read', mock_read)
+    monkeypatch.setattr(dmlm.Actie, 'nieuw', mock_nieuw)
+    testobj = dmlm.Actie('', '0')
+    assert testobj.file_exists
+    assert capsys.readouterr().out == 'called Actie.nieuw()\n'
+    testobj = dmlm.Actie('', 'x')
+    assert testobj.file_exists
+    assert capsys.readouterr().out == 'called Actie.read()\n'
+
+def test_actie_nieuw(monkeypatch, capsys):
+    monkeypatch.setattr(dmlm.dt, 'datetime', MockDatetime)
+    monkeypatch.setattr(dmlm, 'Settings', MockSettings)
+    monkeypatch.setattr(dmlm, 'get_nieuwetitel', lambda y, x: str(x) + '-0001')
+    testobj = dmlm.Actie('', '0')  # gaat nieuw() uitvoeren
+    assert testobj.nummer == '2020-0001'
+    assert testobj.datum == '2020-01-01 00:00:00'
+
+def test_actie_read(monkeypatch, capsys):
+    def mock_find_one(self, *args, **kwargs):
+        return {'_id': 100, 'jaar': '2020', 'nummer': '0001', 'gemeld': 'vandaag', 'status': 0,
+                'soort': 'A', 'bijgewerkt': 'ook vandaag', 'titel': 'whatever', 'melding': 'dit',
+                'events': [('zonet', 'iets'), ('straks', 'nog iets')]}
+    monkeypatch.setattr(dmlm, 'Settings', MockSettings)
+    monkeypatch.setattr(MockColl, 'find_one', mock_find_one)
+    monkeypatch.setattr(dmlm, 'coll', MockColl())
+    testobj = dmlm.Actie('', '1')  # read is executed during __init__
+    assert testobj.exists
+    assert testobj.nummer == '2020-0001'
+    assert testobj.datum == 'vandaag'
+    assert testobj.status == 0
+    assert testobj.soort == 'A'
+    assert testobj.updated == 'ook vandaag'
+    assert testobj.titel == 'whatever'
+    assert testobj.melding == 'dit'
+    assert testobj.events == [('zonet', 'iets'), ('straks', 'nog iets')]
+
+def test_settings_write(monkeypatch, capsys):
+    def mock_read(*args):
+        print('called Actie.read()')
+    def mock_update_one(self, *args):
+        print('called coll.update_one() with args', args)
+        return True
+    monkeypatch.setattr(dmlm, 'Settings', MockSettings)
+    monkeypatch.setattr(dmlm.Actie, 'read', mock_read)
+    monkeypatch.setattr(MockColl, 'update_one', mock_update_one)
+    monkeypatch.setattr(dmlm, 'coll', MockColl())
+    testobj = dmlm.Actie('', '1')
+    testobj.actie_id = '10'
+    testobj.nummer = '2020-0001'
+    testobj.datum = 'vandaag'
+    testobj.status = 0
+    testobj.soort = 'A'
+    testobj.updated = 'ook vandaag'
+    testobj.titel = 'whatever'
+    testobj.melding = 'dit'
+    testobj.events = [('zonet', 'iets'), ('straks', 'nog iets')]
+    testobj.startitem = 1
+    assert testobj.write()
+    assert capsys.readouterr().out == ('called Actie.read()\n'
+        'called Settings.write()\n'
+        "called coll.update_one() with args ({'_id': '10'}, {'$set': {'jaar': '2020',"
+        " 'nummer': '0001', 'gemeld': 'vandaag', 'status': 0, 'soort': 'A',"
+        " 'bijgewerkt': 'ook vandaag', 'titel': 'whatever', 'melding': 'dit',"
+        " 'events': [('zonet', 'iets'), ('straks', 'nog iets')]}})\n")
 

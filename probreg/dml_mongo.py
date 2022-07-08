@@ -195,12 +195,9 @@ class Settings:
         "settings lezen"
         settings = coll.find_one({'name': 'settings'})
         self.settings_id = settings['_id']
-        for item, value in settings['headings'].items():
-            self.kop[item] = value[0]
-        for item, value in settings['statuses'].items():
-            self.stat[item] = value
-        for item in settings['categories'].items():
-            self.cat[item] = value
+        self.kop = {x: y[0] for x, y in settings['headings'].items()}
+        self.stat = {x: y for x, y in settings['statuses'].items()}
+        self.cat = {x: y for x, y in settings['categories'].items()}
         self.imagecount = settings['imagecount']
         self.startitem = settings['startitem']
 
@@ -291,7 +288,7 @@ class Actie:
         self.actie_id, self.exists = actiekey, False
         self.datum = self.soort = self.titel = ''
         self.status, self.arch = '0', False
-        self.melding = self.oorzaak = self.oplossing = self.vervolg = self.stand = ''
+        self.melding = ''
         self.events = []
         new_item = actiekey == 0 or actiekey == "0"
         if new_item:
@@ -306,8 +303,9 @@ class Actie:
 
     def nieuw(self):
         "nieuwe actie initialiseren"
-        self.nummer = get_nieuwetitel(self.fn)
-        self.datum = dt.datetime.today().isoformat(' ')[:19]
+        now = dt.datetime.today()
+        self.nummer = get_nieuwetitel(self.fn, now.year)
+        self.datum = now.isoformat(' ')[:19]
 
     def read(self):
         "gegevens lezen van een bepaalde actie"
@@ -332,6 +330,7 @@ class Actie:
         ## if str(waarde) in statdict:
         try:
             return self.settings.stat[str(waarde)][0]
+
         ## else:
         except KeyError:
             raise DataError("Geen tekst gevonden bij statuscode {}".format(waarde))
@@ -394,12 +393,12 @@ class Actie:
 
     def write(self):
         "actiegegevens terugschrijven"
-        self.settings['imagecount'] = str(self.imagecount)  # moet dit niet parent.parent.imagecount zijn?
+        self.settings.imagecount = str(self.imagecount)  # moet dit niet parent.parent.imagecount zijn?
         if self.startitem:
-            self.settings['startitem'] = str(self.startitem)
+            self.settings.startitem = str(self.startitem)
         self.settings.write()
         jaar, nummer = self.nummer.split('-')
-        actie = coll.update_one({'_id': self.actie_id}, {'$set': {'jaar': jaar, 'nummer': nummer,
+        found = coll.update_one({'_id': self.actie_id}, {'$set': {'jaar': jaar, 'nummer': nummer,
                                                                   'gemeld': self.datum,
                                                                   'status': self.status,
                                                                   'soort': self.soort,
