@@ -1982,7 +1982,8 @@ class MainGui(wx.Frame):
             self.css = self.css.join(("<style>", "</style>"))
             self.master.printdict['css'] = self.css
         self.master.printdict['hdr'] = self.master.hdr
-        html = Template(filename='probreg/actie.tpl').render(**self.master.printdict)
+        html = Template(filename=os.path.join(os.path.dirname(__file__), 'actie.tpl')).render(
+                **self.master.printdict)
         self.printer.print_(html, self.master.hdr)
 
     def enable_settingsmenu(self):

@@ -114,7 +114,7 @@ class Page():
     def readp(self, pid):
         "lezen van een actie"
         if self.parent.pagedata:  # spul van de vorige actie opruimen
-            self.parent.pagedata.clear()
+            self.parent.pagedata.cleanup()
         self.parent.pagedata = shared.Actie[self.parent.parent.datatype](self.parent.fnaam, pid,
                                                                          self.parent.parent.user)
         self.parent.parent.imagelist = self.parent.pagedata.imagelist
@@ -650,7 +650,7 @@ class Page1(Page):
                 (shared.get_dts(), 'Categorie gewijzigd in "{0}"'.format(sel)))
             wijzig = True
         if self.parch != self.parent.pagedata.arch:
-            self.parent.pagedata.set_arch(self.parch)
+            self.parent.pagedata.arch = self.parch
             hlp = "gearchiveerd" if self.parch else "herleefd"
             self.parent.pagedata.events.append(
                 (shared.get_dts(), "Actie {0}".format(hlp)))
@@ -1135,7 +1135,7 @@ class MainWindow():
         vraag om printen scherm of actie, bv. met een InputDialog
         """
         choices = ['huidig scherm', 'huidige actie']
-        choice = gui.get_choice_item(self, 'Wat wil je afdrukken?', choices)
+        choice = gui.get_choice_item(self.gui, 'Wat wil je afdrukken?', choices)
         if choice == choices[0]:
             self.print_scherm()
         elif choice == choices[1]:
