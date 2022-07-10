@@ -1931,7 +1931,7 @@ class MainGui(qtw.QMainWindow):
         if self.master.datatype == shared.DataType.MNG:
             lasttab = 2
         else:
-            widgetsi.extend([self.master.book.pages[2].gui.text1,
+            widgets.extend([self.master.book.pages[2].gui.text1,
                              self.master.book.pages[3].gui.text1,
                              self.master.book.pages[4].gui.text1,
                              self.master.book.pages[5].gui.text1])

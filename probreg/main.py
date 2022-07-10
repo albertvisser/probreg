@@ -1219,14 +1219,20 @@ class MainWindow():
             except ValueError:
                 oms = ''
         srt = "(onbekende soort)"
-        for srtoms, srtcode in self.book.cats.values():
-            if srtcode == self.book.pagedata.soort:
-                srt = srtoms
+        # for srtoms, srtcode in self.book.cats.values()[:2]:
+        for soort in self.book.cats.values():
+            # if srtcode == self.book.pagedata.soort:
+            if soort[1] == self.book.pagedata.soort:
+                # srt = srtoms
+                srt = soort[0]
                 break
         stat = "(onbekende status)"
-        for statoms, statcode in self.book.stats.values():
-            if statcode == self.book.pagedata.status:
-                stat = statoms
+        #for statoms, statcode in self.book.stats.values():
+        for stat in self.book.stats.values():
+            #if statcode == self.book.pagedata.status:
+            if stat[1] == self.book.pagedata.status:
+                #stat = statoms
+                stat = stat[0]
                 break
         self.printdict = {'lijst': [],
                           'actie': self.book.pagedata.id,
@@ -1351,7 +1357,7 @@ class MainWindow():
                 return retval
             self.book.fnaam = fullname
             self.title = self.filename
-        elif self.datatype == shared.DataType.SQL:
+        elif self.datatype == shared.DataType.SQL or self.datatype == shared.DataType.MNG:
             self.book.fnaam = self.title = self.filename
         self.book.rereadlist = True
         self.book.sorter = None
