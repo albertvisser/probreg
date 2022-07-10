@@ -1953,7 +1953,8 @@ class MainGui(qtw.QMainWindow):
             self.master.printdict['css'] = self.css
         self.master.printdict['hdr'] = self.master.hdr
         doc = gui.QTextDocument(self)
-        html = Template(filename='probreg/actie.tpl').render(**self.master.printdict)
+        html = Template(filename=os.path.join(os.path.dirname(__file__), 'actie.tpl')).render(
+                **self.master.printdict)
         doc.setHtml(html)
         printer.setOutputFileName(self.master.hdr)
         doc.print_(printer)

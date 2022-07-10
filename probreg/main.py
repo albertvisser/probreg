@@ -1117,7 +1117,7 @@ class MainWindow():
         vraag om printen scherm of actie, bv. met een InputDialog
         """
         choices = ['huidig scherm', 'huidige actie']
-        choice = gui.get_choice_item(self, 'Wat wil je afdrukken?', choices)
+        choice = gui.get_choice_item(self.gui, 'Wat wil je afdrukken?', choices)
         if choice == choices[0]:
             self.print_scherm()
         elif choice == choices[1]:
