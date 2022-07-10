@@ -32,6 +32,28 @@ class MockColl:
     def update_one(self, *args, **kwargs):
         pass  # in testmethode patchen met gewenst resultaat
 
+def test_log(monkeypatch, capsys):
+    def mock_info(msg, *args, **kwargs):
+        print('called logging.info with', msg, args, kwargs)
+    monkeypatch.setattr(dmlm.logging, 'info', mock_info)
+    # ensure no debug key in environment  i
+    try:
+        dmlm.os.environ.pop('DEBUG')
+    except KeyError:
+        pass
+    dmlm.log('hallo', 'x', dummy='y')
+    assert capsys.readouterr().out == ''
+    # set debug to falsey value
+    dmlm.os.environ['DEBUG'] = ''
+    dmlm.log('hallo', 'x', dummy='y')
+    assert capsys.readouterr().out == ''
+    # set debug key to truthy value
+    dmlm.os.environ['DEBUG'] = '1'
+    dmlm.log('hallo', 'x', dummy='y')
+    assert capsys.readouterr().out == "called logging.info with hallo ('x',) {'dummy': 'y'}\n"
+
+
+
 def test_get_nieuwetitel(monkeypatch, capsys):
     def mock_find(self, *args, **kwargs):
         return [{'nummer': 1}, {'nummer': 17}, {'nummer': 5}]
@@ -206,7 +228,7 @@ def test_actie_read(monkeypatch, capsys):
     assert testobj.melding == 'dit'
     assert testobj.events == [('zonet', 'iets'), ('straks', 'nog iets')]
 
-def test_settings_write(monkeypatch, capsys):
+def test_actie_write(monkeypatch, capsys):
     def mock_read(*args):
         print('called Actie.read()')
     def mock_update_one(self, *args):
@@ -235,3 +257,47 @@ def test_settings_write(monkeypatch, capsys):
         " 'bijgewerkt': 'ook vandaag', 'titel': 'whatever', 'melding': 'dit',"
         " 'events': [('zonet', 'iets'), ('straks', 'nog iets')]}})\n")
 
+def test_actie_get_statustext(monkeypatch, capsys):
+    def mock_read(*args):
+        print('called Actie.read()')
+    monkeypatch.setattr(dmlm, 'Settings', MockSettings)
+    monkeypatch.setattr(dmlm.Actie, 'read', mock_read)
+    testobj = dmlm.Actie('', '1')
+    testobj.settings.stat = {'0': ('nieuw', 0)}
+    testobj.status = 0
+    assert testobj.get_statustext() == 'nieuw'
+    assert capsys.readouterr().out == 'called Actie.read()\n'
+    testobj.status = 1
+    with pytest.raises(dmlm.DataError) as excinfo:
+        testobj.get_statustext()
+    assert str(excinfo.value) == 'Geen tekst gevonden bij statuscode 1'
+
+def test_actie_get_soorttext(monkeypatch, capsys):
+    def mock_read(*args):
+        print('called Actie.read()')
+    monkeypatch.setattr(dmlm, 'Settings', MockSettings)
+    monkeypatch.setattr(dmlm.Actie, 'read', mock_read)
+    testobj = dmlm.Actie('', '1')
+    testobj.settings.cat = {'N': ('nieuw', 0)}
+    testobj.soort = 'N'
+    assert testobj.get_soorttext() == 'nieuw'
+    assert capsys.readouterr().out == 'called Actie.read()\n'
+    testobj.soort = 'Q'
+    with pytest.raises(dmlm.DataError) as excinfo:
+        testobj.get_soorttext()
+    assert str(excinfo.value) == 'Geen tekst gevonden bij soortcode Q'
+
+def test_actie_cleanup(monkeypatch, capsys):
+    def mock_read(*args):
+        print('called Actie.read()')
+    def mock_remove(*args):
+        print('called os.remove() with args', args)
+    monkeypatch.setattr(dmlm.os, 'remove', mock_remove)
+    monkeypatch.setattr(dmlm, 'Settings', MockSettings)
+    monkeypatch.setattr(dmlm.Actie, 'read', mock_read)
+    testobj = dmlm.Actie('', '1')
+    testobj.imagelist = ['image1', 'image2']
+    testobj.cleanup()
+    assert capsys.readouterr().out == ('called Actie.read()\n'
+                                       "called os.remove() with args ('image1',)\n"
+                                       "called os.remove() with args ('image2',)\n")

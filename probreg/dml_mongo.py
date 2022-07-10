@@ -8,7 +8,8 @@ from shutil import copyfile
 import logging
 from pymongo import MongoClient
 from pymongo.collection import Collection
-# from probreg.shared import DataError, kopdict, statdict, catdict -- even ingekopieerd
+# ingekopieerd vanwege cirular import, hetzelfde geldt voor logging
+# from probreg.shared import DataError, kopdict, statdict, catdict
 cl = MongoClient()
 db = cl.probreg_database
 coll = db.default  # for now we only do one collection per database
@@ -58,10 +59,6 @@ def check_filename(fnaam):
     fnaam is a pathlib.Path object
     """
     return fnaam, fnaam, True, ''
-
-
-def checkfile(fn, new=False):
-    raise NotImplementedError
 
 
 def get_nieuwetitel(fnaam, jaar=None):
@@ -210,67 +207,6 @@ class Settings:
         coll.update_one({'_id': self.settings_id}, {'$set': {'startitem': self.startitem}})
         self.exists = True
 
-    def set(self, naam, key=None, waarde=None):
-        "settings waarde instellen"
-        if naam not in ("stat", "cat", "kop"):
-            self.meld = 'Foutieve soort opgegeven'
-            raise DataError(self.meld)
-        elif key is None:
-            self.meld = 'Geen sleutel opgegeven'
-            raise DataError(self.meld)
-        elif waarde is None:
-            self.meld = 'Geen waarde voor sleutel opgegeven'
-            raise DataError(self.meld)
-        elif naam == "stat":
-            if not isinstance(waarde, tuple):
-                self.meld = 'Sleutelwaarde moet bestaan uit tekst en sortvolgnummer'
-                raise DataError(self.meld)
-            self.stat[key] = waarde
-        elif naam == "cat":
-            if not isinstance(waarde, tuple):
-                self.meld = 'Sleutelwaarde moet bestaan uit tekst en sortvolgnummer'
-                raise DataError(self.meld)
-            self.cat[key] = waarde
-        elif naam == "kop":
-            if not isinstance(waarde, str):
-                self.meld = 'Sleutelwaarde moet bestaan uit alleen tekst'
-                raise DataError(self.meld)
-            self.kop[key] = waarde
-
-    def get(self, naam, key=None):
-        "settings waarde lezen"
-        if naam not in ("stat", "cat", "kop"):
-            self.meld = 'Foutieve soort opgegeven'
-            raise DataError(self.meld)
-        elif naam == "stat":
-            if key is None:
-                return self.stat
-            else:
-                if isinstance(key, int):
-                    key = str(key)
-                if key not in self.stat:
-                    self.meld = 'Sleutel bestaat niet voor status'
-                    raise DataError(self.meld)
-                return self.stat[key]
-        elif naam == "cat":
-            if key is None:
-                return self.cat
-            else:
-                if key not in self.cat:
-                    self.meld = 'Sleutel bestaat niet voor soort'
-                    raise DataError(self.meld)
-                return self.cat[key]
-        elif naam == "kop":
-            if key is None:
-                return self.kop
-            else:
-                if isinstance(key, int):
-                    key = str(key)
-                if key not in self.kop:
-                    self.meld = 'Sleutel bestaat niet voor kop'
-                    raise DataError(self.meld)
-                return self.kop[key]
-
 
 class Actie:
     """lijst alle gegevens van een bepaald item
@@ -326,7 +262,7 @@ class Actie:
 
     def get_statustext(self):
         "geef tekst bij statuscode"
-        waarde = self.status[0]
+        waarde = self.status
         ## if str(waarde) in statdict:
         try:
             return self.settings.stat[str(waarde)][0]
@@ -345,52 +281,6 @@ class Actie:
         except KeyError:
             raise DataError("Geen tekst gevonden bij soortcode {}".format(waarde))
 
-    def set_status(self, waarde):
-        "stel status in (code of tekst)"
-        if isinstance(waarde, int):
-            if str(waarde) in statdict:
-                self.status = waarde
-            else:
-                raise DataError("Foutieve numerieke waarde voor status")
-        elif isinstance(waarde, str):
-            found = False
-            for x, y in list(statdict.values()):
-                log('%s %s %s', waarde, x, y)
-                # if x == waarde:  # FIXME: moet dit soms y zijn?
-                if y == waarde:
-                    found = True
-                    self.status = x
-                    break
-            if not found:
-                raise DataError("Foutieve tekstwaarde voor status")
-        else:
-            raise DataError("Foutief datatype voor status")
-
-    def set_soort(self, waarde):
-        "stel soort in (code of tekst)"
-        log(waarde)
-        if isinstance(waarde, str):
-            if waarde in catdict:
-                self.soort = waarde
-            else:
-                found = False
-                for x, y in list(catdict.items()):
-                    log(y)
-                    if y[0] == waarde:
-                        found = True
-                        self.soort = x
-                        break
-                if not found:
-                    raise DataError("Foutieve tekstwaarde voor categorie")
-        else:
-            raise DataError("Foutief datatype voor categorie")
-
-    def set_arch(self, waarde):
-        "stel archiefstatus in"
-        if not isinstance(waarde, bool):
-            raise DataError("Foutief datatype voor archiveren")
-        self.arch = waarde
-
     def write(self):
         "actiegegevens terugschrijven"
         self.settings.imagecount = str(self.imagecount)  # moet dit niet parent.parent.imagecount zijn?
@@ -408,37 +298,7 @@ class Actie:
                                                                   'events': self.events}})
         return found
 
-
-    def clear(self):
+    def cleanup(self):
         "images opruimen"
         for fname in self.imagelist:
             os.remove(fname)
-
-    def list(self):
-        "actie uitlijsten naar print"
-        try:
-            soort = self.get_soorttext()
-        except DataError:
-            soort = self.soort
-        status = self.status
-        try:
-            status = status + ' ' + self.get_statustext()
-        except DataError:
-            pass
-        result = ["%s %s gemeld op %s status %s" % (soort,
-                                                    self.id,
-                                                    self.datum,
-                                                    status)]
-        result.append("Titel: {}".format(self.titel))
-        result.append("Melding: {}".format(self.melding))
-        result.append("Oorzaak: {}".format(self.oorzaak))
-        result.append("Oplossing: {}".format(self.oplossing))
-        result.append("Vervolg: {}".format(self.vervolg))
-        result.append("Stand: {}".format(self.stand))
-        result.append("Verslag:")
-        for date, text in self.events:
-            result.append("\t{} - {}".format(date, text))
-        if self.arch:
-            result.append("Actie is gearchiveerd.")
-        # for now
-        return result
