@@ -5,7 +5,6 @@ import pathlib
 import base64  # gzip
 import datetime as dt
 from shutil import copyfile
-import logging
 from pymongo import MongoClient
 from pymongo.collection import Collection
 # ingekopieerd vanwege cirular import, hetzelfde geldt voor logging
@@ -45,20 +44,6 @@ catdict = {
 class DataError(ValueError):    # Exception):
     "Eigen all-purpose exception - maakt resultaat testen eenvoudiger"
     pass
-
-
-def log(msg, *args, **kwargs):
-    "schrijf logregel indien debuggen gewenst"
-    if 'DEBUG' in os.environ and os.environ['DEBUG']:
-        logging.info(msg, *args, **kwargs)
-
-
-def check_filename(fnaam):
-    """check for correct filename and return short and long version
-
-    fnaam is a pathlib.Path object
-    """
-    return fnaam, fnaam, True, ''
 
 
 def get_nieuwetitel(fnaam, jaar=None):
@@ -181,31 +166,31 @@ class Settings:
         self.cat = {x: (y[0], y[1]) for x, y in catdict.items()}
         self.imagecount = 0
         self.startitem = ''
-        self.meld = ''
-        self.fn, self.fnaam, self.exists, self.meld = check_filename(fnaam)
-        if self.meld:
-            raise DataError(self.meld)
-        if self.exists:
-            self.read()
+        self.exists = self.read()
 
     def read(self):
         "settings lezen"
         settings = coll.find_one({'name': 'settings'})
-        self.settings_id = settings['_id']
-        self.kop = {x: y[0] for x, y in settings['headings'].items()}
-        self.stat = {x: y for x, y in settings['statuses'].items()}
-        self.cat = {x: y for x, y in settings['categories'].items()}
-        self.imagecount = settings['imagecount']
-        self.startitem = settings['startitem']
+        exists = settings is not None
+        if exists:
+            self.settings_id = settings['_id']
+            self.kop = {x: y[0] for x, y in settings['headings'].items()}
+            self.stat = {x: y for x, y in settings['statuses'].items()}
+            self.cat = {x: y for x, y in settings['categories'].items()}
+            self.imagecount = settings['imagecount']
+            self.startitem = settings['startitem']
+        return exists
 
     def write(self, srt=None):  # extra argument ivm compat sql-versie
         "settings terugschrijven"
+        if not self.exists:
+            self.settings_id = coll.insert_one({}).inserted_id
+            self.exists = True
         coll.update_one({'_id': self.settings_id}, {'$set': {'headings': self.headings}})
         coll.update_one({'_id': self.settings_id}, {'$set': {'statuses': self.statuses}})
         coll.update_one({'_id': self.settings_id}, {'$set': {'categories': self.categories}})
         coll.update_one({'_id': self.settings_id}, {'$set': {'imagecount': self.imagecount}})
         coll.update_one({'_id': self.settings_id}, {'$set': {'startitem': self.startitem}})
-        self.exists = True
 
 
 class Actie:
@@ -215,9 +200,7 @@ class Actie:
     user is only for compatibilty with the Django version
     """
     def __init__(self, fnaam, actiekey, user=None):
-        self.fn, self.fnaam, self.file_exists, self.meld = check_filename(fnaam)
-        if self.meld:
-            raise DataError(self.meld)
+        self.fn = fnaam
         self.settings = Settings(fnaam)
         self.imagecount = int(self.settings.imagecount)
         self.imagelist = []
@@ -226,10 +209,9 @@ class Actie:
         self.status, self.arch = '0', False
         self.melding = ''
         self.events = []
-        new_item = actiekey == 0 or actiekey == "0"
-        if new_item:
+        if actiekey == 0 or actiekey == "0":
             self.nieuw()
-        elif self.file_exists:
+        else:
             self.read()
 
     def nieuwfile(self):
@@ -245,9 +227,10 @@ class Actie:
 
     def read(self):
         "gegevens lezen van een bepaalde actie"
-        # tzt via mongodb doen; nu geven we een setje standaard waarden terug
-        # self.id is meegegeven in de instantiëring
         actie = coll.find_one({'_id': self.actie_id})
+        if actie is None:
+            self.exists = False
+            return
         self.nummer = '-'.join((actie['jaar'], actie['nummer']))
         self.datum = actie['gemeld']
         self.status = actie['status']

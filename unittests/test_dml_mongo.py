@@ -29,30 +29,11 @@ class MockColl:
     def find_one(self, *args, **kwargs):
         pass  # in testmethode patchen met gewenst resultaat
 
-    def update_one(self, *args, **kwargs):
+    def insert_one(self, *args, **kwargs):
         pass  # in testmethode patchen met gewenst resultaat
 
-def test_log(monkeypatch, capsys):
-    def mock_info(msg, *args, **kwargs):
-        print('called logging.info with', msg, args, kwargs)
-    monkeypatch.setattr(dmlm.logging, 'info', mock_info)
-    # ensure no debug key in environment  i
-    try:
-        dmlm.os.environ.pop('DEBUG')
-    except KeyError:
-        pass
-    dmlm.log('hallo', 'x', dummy='y')
-    assert capsys.readouterr().out == ''
-    # set debug to falsey value
-    dmlm.os.environ['DEBUG'] = ''
-    dmlm.log('hallo', 'x', dummy='y')
-    assert capsys.readouterr().out == ''
-    # set debug key to truthy value
-    dmlm.os.environ['DEBUG'] = '1'
-    dmlm.log('hallo', 'x', dummy='y')
-    assert capsys.readouterr().out == "called logging.info with hallo ('x',) {'dummy': 'y'}\n"
-
-
+    def update_one(self, *args, **kwargs):
+        pass  # in testmethode patchen met gewenst resultaat
 
 def test_get_nieuwetitel(monkeypatch, capsys):
     def mock_find(self, *args, **kwargs):
@@ -114,13 +95,7 @@ def test_get_acties(monkeypatch, capsys):
     assert dmlm.get_acties('', select={}, arch='arch') == '{"arch": true}'
 
 def test_settings(monkeypatch, capsys):
-    def mock_read(*args):
-        print('called Settings.read()')
-    monkeypatch.setattr(dmlm, 'check_filename', lambda x: (x, x, True, 'some message'))
-    with pytest.raises(dmlm.DataError) as excinfo:
-        dmlm.Settings()
-    assert str(excinfo.value) == 'some message'
-    monkeypatch.setattr(dmlm, 'check_filename', lambda x: (x, x, False, ''))
+    monkeypatch.setattr(dmlm.Settings, 'read', lambda x: False)
     testobj = dmlm.Settings()
     assert not testobj.exists
     assert testobj.kop == {x: y[0] for x, y in dmlm.kopdict.items()}
@@ -128,19 +103,30 @@ def test_settings(monkeypatch, capsys):
     assert testobj.cat == {x: (y[0], y[1]) for x, y in dmlm.catdict.items()}
     assert testobj.imagecount == 0
     assert testobj.startitem == ''
-    monkeypatch.setattr(dmlm, 'check_filename', lambda x: (x, x, True, ''))
-    monkeypatch.setattr(dmlm.Settings, 'read', mock_read)
+    monkeypatch.setattr(dmlm.Settings, 'read', lambda x: True)
     testobj = dmlm.Settings()
     assert testobj.exists
-    assert capsys.readouterr().out == 'called Settings.read()\n'
 
 def test_settings_read(monkeypatch, capsys):
+    def mock_find_none(self, *args, **kwargs):
+        return None
     def mock_find_one(self, *args, **kwargs):
         return {'_id': 100, 'headings': {0: ('Begin',)}, 'statuses': {0: ('Started', 1)},
                 'categories': {'U': ('Unknown', 1)}, 'imagecount': 1, 'startitem': 15}
+    monkeypatch.setattr(MockColl, 'find_one', mock_find_none)
+    monkeypatch.setattr(dmlm, 'coll', MockColl())
+    testobj = dmlm.Settings()  # read wordt uitgevoerd tijdens __init__
+    assert not testobj.exists
+    assert testobj.kop == {x: y[0] for x, y in dmlm.kopdict.items()}
+    assert testobj.stat == {x: (y[0], y[1]) for x, y in dmlm.statdict.items()}
+    assert testobj.cat == {x: (y[0], y[1]) for x, y in dmlm.catdict.items()}
+    assert testobj.imagecount == 0
+    assert testobj.startitem == ''
+
     monkeypatch.setattr(MockColl, 'find_one', mock_find_one)
     monkeypatch.setattr(dmlm, 'coll', MockColl())
     testobj = dmlm.Settings()  # read wordt uitgevoerd tijdens __init__
+    assert testobj.exists
     assert testobj.settings_id == 100
     assert testobj.kop == {0: 'Begin'}
     assert testobj.stat == {0: ('Started', 1)}
@@ -149,14 +135,38 @@ def test_settings_read(monkeypatch, capsys):
     assert testobj.startitem == 15
 
 def test_settings_write(monkeypatch, capsys):
-    def mock_read(*args):
-        print('called Settings.read()')
+    def mock_insert_one(self, *args):
+        print('called coll.insert_one() with args', args)
+        return types.SimpleNamespace(inserted_id=5)
     def mock_update_one(self, *args):
         print('called coll.update_one() with args', args)
-    monkeypatch.setattr(dmlm.Settings, 'read', mock_read)
+    monkeypatch.setattr(MockColl, 'insert_one', mock_insert_one)
     monkeypatch.setattr(MockColl, 'update_one', mock_update_one)
     monkeypatch.setattr(dmlm, 'coll', MockColl())
+
+    # nog geen settings aanwezig
+    monkeypatch.setattr(dmlm.Settings, 'read', lambda x: False)
     testobj = dmlm.Settings()
+    assert not testobj.exists
+    testobj.headings = {0: 'head'}
+    testobj.statuses = {0: 'stat'}
+    testobj.categories = {0: 'cat'}
+    testobj.imagecount = 1
+    testobj.startitem = 1
+    testobj.write()
+    assert testobj.exists
+    assert capsys.readouterr().out == (
+        "called coll.insert_one() with args ({},)\n"
+        "called coll.update_one() with args ({'_id': 5}, {'$set': {'headings': {0: 'head'}}})\n"
+        "called coll.update_one() with args ({'_id': 5}, {'$set': {'statuses': {0: 'stat'}}})\n"
+        "called coll.update_one() with args ({'_id': 5}, {'$set': {'categories': {0: 'cat'}}})\n"
+        "called coll.update_one() with args ({'_id': 5}, {'$set': {'imagecount': 1}})\n"
+        "called coll.update_one() with args ({'_id': 5}, {'$set': {'startitem': 1}})\n")
+
+    # settings aanwezig
+    monkeypatch.setattr(dmlm.Settings, 'read', lambda x: True)
+    testobj = dmlm.Settings()
+    assert testobj.exists
     testobj.settings_id = 10
     testobj.headings = {0: 'head'}
     testobj.statuses = {0: 'stat'}
@@ -165,7 +175,7 @@ def test_settings_write(monkeypatch, capsys):
     testobj.startitem = 9
     testobj.write()
     assert testobj.exists
-    assert capsys.readouterr().out == ('called Settings.read()\n'
+    assert capsys.readouterr().out == (
         "called coll.update_one() with args ({'_id': 10}, {'$set': {'headings': {0: 'head'}}})\n"
         "called coll.update_one() with args ({'_id': 10}, {'$set': {'statuses': {0: 'stat'}}})\n"
         "called coll.update_one() with args ({'_id': 10}, {'$set': {'categories': {0: 'cat'}}})\n"
@@ -177,28 +187,19 @@ def test_actie(monkeypatch, capsys):
         print('called Actie.nieuw()')
     def mock_read(*args):
         print('called Actie.read()')
-    monkeypatch.setattr(dmlm, 'check_filename', lambda x: (x, x, True, 'some message'))
-    with pytest.raises(dmlm.DataError) as excinfo:
-        dmlm.Actie('', 'x')
-    assert str(excinfo.value) == 'some message'
     monkeypatch.setattr(dmlm, 'Settings', MockSettings)
-    monkeypatch.setattr(dmlm, 'check_filename', lambda x: (x, x, False, ''))
     testobj = dmlm.Actie('', 'x')
     assert testobj.imagecount == 1
     assert testobj.actie_id == 'x'
-    assert not testobj.file_exists
     assert (testobj.imagelist, testobj.events) == ([], [])
     assert (testobj.datum, testobj.soort, testobj.titel) == ('', '', '')
     assert (testobj.status, testobj.arch) == ('0', False)
     assert testobj.melding == ''
-    monkeypatch.setattr(dmlm, 'check_filename', lambda x: (x, x, True, ''))
     monkeypatch.setattr(dmlm.Actie, 'read', mock_read)
     monkeypatch.setattr(dmlm.Actie, 'nieuw', mock_nieuw)
     testobj = dmlm.Actie('', '0')
-    assert testobj.file_exists
     assert capsys.readouterr().out == 'called Actie.nieuw()\n'
     testobj = dmlm.Actie('', 'x')
-    assert testobj.file_exists
     assert capsys.readouterr().out == 'called Actie.read()\n'
 
 def test_actie_nieuw(monkeypatch, capsys):
