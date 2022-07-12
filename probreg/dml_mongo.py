@@ -51,9 +51,12 @@ def get_nieuwetitel(fnaam, jaar=None):
     if jaar is None:
         jaar = str(dt.date.today().year)
     # zoek laatst uitgegeven actienummer voor het huidige jaar (voor nu even simuleren)
-    acties_van_jaar = coll.find({'jaar': jaar})
-    last_action = max([x['nummer'] for x in acties_van_jaar])
-    action = last_action + 1
+    acties_van_jaar = list(coll.find({'jaar': jaar}))
+    if acties_van_jaar:
+        last_action = max([x['nummer'] for x in acties_van_jaar])
+        action = last_action + 1
+    else:
+        action = 1
     return f'{jaar}-{action:04}'
 
 
@@ -184,11 +187,11 @@ class Settings:
     def write(self, srt=None):  # extra argument ivm compat sql-versie
         "settings terugschrijven"
         if not self.exists:
-            self.settings_id = coll.insert_one({}).inserted_id
+            self.settings_id = coll.insert_one({'name': 'settings'}).inserted_id
             self.exists = True
-        coll.update_one({'_id': self.settings_id}, {'$set': {'headings': self.headings}})
-        coll.update_one({'_id': self.settings_id}, {'$set': {'statuses': self.statuses}})
-        coll.update_one({'_id': self.settings_id}, {'$set': {'categories': self.categories}})
+        coll.update_one({'_id': self.settings_id}, {'$set': {'headings': self.kop}})
+        coll.update_one({'_id': self.settings_id}, {'$set': {'statuses': self.stat}})
+        coll.update_one({'_id': self.settings_id}, {'$set': {'categories': self.cat}})
         coll.update_one({'_id': self.settings_id}, {'$set': {'imagecount': self.imagecount}})
         coll.update_one({'_id': self.settings_id}, {'$set': {'startitem': self.startitem}})
 
@@ -205,7 +208,7 @@ class Actie:
         self.imagecount = int(self.settings.imagecount)
         self.imagelist = []
         self.actie_id, self.exists = actiekey, False
-        self.datum = self.soort = self.titel = ''
+        self.datum = self.updated = self.soort = self.titel = ''
         self.status, self.arch = '0', False
         self.melding = ''
         self.events = []
@@ -227,10 +230,10 @@ class Actie:
 
     def read(self):
         "gegevens lezen van een bepaalde actie"
+        self.exists = False
         actie = coll.find_one({'_id': self.actie_id})
         if actie is None:
-            self.exists = False
-            return
+            raise DataError('Actie object does not exist')
         self.nummer = '-'.join((actie['jaar'], actie['nummer']))
         self.datum = actie['gemeld']
         self.status = actie['status']
@@ -266,20 +269,21 @@ class Actie:
 
     def write(self):
         "actiegegevens terugschrijven"
+        if not self.exists:
+            self.actie_id = coll.insert_one({}).inserted_id
+            self.exists = True
         self.settings.imagecount = str(self.imagecount)  # moet dit niet parent.parent.imagecount zijn?
-        if self.startitem:
-            self.settings.startitem = str(self.startitem)
+        self.settings.startitem = str(self.actie_id)
         self.settings.write()
         jaar, nummer = self.nummer.split('-')
-        found = coll.update_one({'_id': self.actie_id}, {'$set': {'jaar': jaar, 'nummer': nummer,
-                                                                  'gemeld': self.datum,
-                                                                  'status': self.status,
-                                                                  'soort': self.soort,
-                                                                  'bijgewerkt': self.updated,
-                                                                  'titel': self.titel,
-                                                                  'melding': self.melding,
-                                                                  'events': self.events}})
-        return found
+        coll.update_one({'_id': self.actie_id}, {'$set': {'jaar': jaar, 'nummer': nummer,
+                                                          'gemeld': self.datum,
+                                                          'status': self.status,
+                                                          'soort': self.soort,
+                                                          'bijgewerkt': self.updated,
+                                                          'titel': self.titel,
+                                                          'melding': self.melding,
+                                                          'events': self.events}})
 
     def cleanup(self):
         "images opruimen"
