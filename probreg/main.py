@@ -466,7 +466,7 @@ class Page0(Page):
             self.parent.rereadlist = True
             try:
                 self.vulp()
-            except (dmlx.DataError, dmls.DataError) as msg:
+            except shared.DataError[self.parent.parent.datatype] as msg:
                 self.parent.rereadlist = False
                 gui.show_message(self, str(msg))
             else:
@@ -479,15 +479,15 @@ class Page0(Page):
         2x4 comboboxjes waarin je de volgorde van de rubrieken en de sorteervolgorde
         per rubriek kunt aangeven"""
         sortopts, sortlist = {}, []
-        if self.parent.parent.datatype == shared.DataType.XML:
-            gui.show_message(self.gui, 'Sorry, multi-column sorteren werkt nog niet')
-            return
         if self.parent.parent.datatype == shared.DataType.SQL:
             sortopts = self.saved_sortopts.load_options()
             try:
                 sortlist = [x[0] for x in dmls.SORTFIELDS]
             except AttributeError:
                 pass
+        else:
+            gui.show_message(self.gui, 'Sorry, multi-column sorteren werkt nog niet')
+            return
         if not sortlist:
             sortlist = [x for x in self.parent.ctitels]
             sortlist[1] = "Soort"
@@ -502,7 +502,7 @@ class Page0(Page):
             try:
                 self.vulp()
             # moet hier soms nog het daadwerkelijke sorteren tussen (bij XML)?
-            except (dmlx.DataError, dmls.DataError) as msg:
+            except shared.DataError[self.parent.parent.datatype] as msg:
                 self.parent.rereadlist = False
                 gui.show_message(self, str(msg))
         else:
@@ -589,18 +589,19 @@ class Page1(Page):
         self.oldbuf = self.gui.set_oldbuf()
         if self.parch:
             aanuit = False
-            if self.parent.parent.datatype == shared.DataType.XML:
-                if self.parent.pagedata.titel is not None:
-                    if " - " in self.parent.pagedata.titel:
-                        hlp = self.parent.pagedata.titel.split(" - ", 1)
-                    else:
-                        hlp = self.parent.pagedata.titel.split(": ", 1)
-                    self.gui.set_text('proc', hlp[0])
-                    if len(hlp) > 1:
-                        self.gui.set_text('desc', hlp[1])
-            elif self.parent.parent.datatype == shared.DataType.SQL:
-                self.gui.set_text('proc', self.parent.pagedata.over)
-                self.gui.set_text('desc', self.parent.pagedata.titel)
+            # staat hierboven ook al - is dat hier dan nog een keer nodig?
+            # if self.parent.parent.datatype == shared.DataType.XML:
+            #     if self.parent.pagedata.titel is not None:
+            #         if " - " in self.parent.pagedata.titel:
+            #             hlp = self.parent.pagedata.titel.split(" - ", 1)
+            #         else:
+            #             hlp = self.parent.pagedata.titel.split(": ", 1)
+            #         self.gui.set_text('proc', hlp[0])
+            #         if len(hlp) > 1:
+            #             self.gui.set_text('desc', hlp[1])
+            # elif self.parent.parent.datatype == shared.DataType.SQL:
+            #     self.gui.set_text('proc', self.parent.pagedata.over)
+            #     self.gui.set_text('desc', self.parent.pagedata.titel)
             self.gui.set_text('arch', "Deze actie is gearchiveerd")
             self.gui.set_archive_button_text("Herleven")
         else:
@@ -854,12 +855,17 @@ class StatOptions:
         self.titel = "Status codes en waarden"
         self.data = []
         for key in sorted(parent.master.book.stats.keys()):
-            if parent.master.datatype == shared.DataType.XML:
-                item_text, item_value = parent.master.book.stats[key]
-                self.data.append(": ".join((item_value, item_text)))
-            elif parent.master.datatype == shared.DataType.SQL:
-                item_text, item_value, row_id = parent.master.book.stats[key]
-                self.data.append(": ".join((item_value, item_text, row_id)))
+            # if parent.master.datatype == shared.DataType.XML:
+            #     item_text, item_value = parent.master.book.stats[key]
+            #     self.data.append(": ".join((item_value, item_text)))
+            # elif parent.master.datatype == shared.DataType.SQL:
+            #     item_text, item_value, row_id = parent.master.book.stats[key]
+            #     self.data.append(": ".join((item_value, item_text, row_id)))
+            item_text, item_value, *row_id = parent.master.book.stats[key]
+            statitems = [item_value, item_text]
+            if row_id:
+                statitems.append(row_id[0])
+            self.data.append(':'.join(statitems))
         self.tekst = ["De waarden voor de status worden getoond in dezelfde volgorde",
                       "als waarin ze in de combobox staan.",
                       "Vóór de dubbele punt staat de code, erachter de waarde.",
@@ -888,12 +894,17 @@ class CatOptions:
         self.titel = "Soort codes en waarden"
         self.data = []
         for key in sorted(parent.master.book.cats.keys()):
-            if parent.master.datatype == shared.DataType.XML:
-                item_value, item_text = parent.master.book.cats[key]
-                self.data.append(": ".join((item_text, item_value)))
-            elif parent.master.datatype == shared.DataType.SQL:
-                item_value, item_text, row_id = parent.master.book.cats[key]
-                self.data.append(": ".join((item_text, item_value, str(row_id))))
+            # if parent.master.datatype == shared.DataType.XML:
+            #     item_value, item_text = parent.master.book.cats[key]
+            #     self.data.append(": ".join((item_text, item_value)))
+            # elif parent.master.datatype == shared.DataType.SQL:
+            #     item_value, item_text, row_id = parent.master.book.cats[key]
+            #     self.data.append(": ".join((item_text, item_value, str(row_id))))
+            item_text, item_value, *row_id = parent.master.book.cats[key]
+            catitems = [item_value, item_text]
+            if row_id:
+                catitems.append(row_id[0])
+            self.data.append(':'.join(catitems))
         self.tekst = ["De waarden voor de soorten worden getoond in dezelfde volgorde",
                       "als waarin ze in de combobox staan.",
                       "Vóór de dubbele punt staat de code, erachter de waarde.",

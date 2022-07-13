@@ -23,6 +23,8 @@ get_acties = {DataType.XML: dmlx.get_acties, DataType.SQL: dmls.get_acties,
               DataType.MNG: dmlm.get_acties}
 Actie = {DataType.XML: dmlx.Actie, DataType.SQL: dmls.Actie, DataType.MNG: dmlm.Actie}
 Settings = {DataType.XML: dmlx.Settings, DataType.SQL: dmls.Settings, DataType.MNG: dmlm.Settings}
+DataError = {DataType.XML: dmlx.DataError, DataType.SQL: dmls.DataError,
+             DataType.MNG: dmlm.DataError}
 Order = enum.Enum('Order', 'A D')
 logfile = pathlib.Path('/tmp') / 'logs' / 'probreg.log'
 logfile.parent.mkdir(exist_ok=True)
