@@ -371,6 +371,10 @@ class PageGui(wx.Panel):
         self.use_rt = None
         if not self.master.is_text_page:
             return
+        if self.parent.parent.datatype == shared.DataType.XML.name:
+            self.use_rt = True
+        elif self.parent.parent.datatype == shared.DataType.SQL.name:
+            self.use_rt = False
         self.actiondict = collections.OrderedDict()
         self.text1 = self.create_text_field()
         if self.use_rt:
@@ -401,11 +405,9 @@ class PageGui(wx.Panel):
         if not parent:
             parent = self
         high = 330 if LIN else 430
-        if self.parent.parent.datatype == shared.DataType.XML.name:
-            self.use_rt = True
+        if self.use_rt:
             cls = EditorPanelRt
-        elif self.parent.parent.datatype == shared.DataType.SQL.name:
-            self.use_rt = False
+        else:
             cls = EditorPanel
         if size == wx.DefaultSize:
             textfield = cls(parent)  # , size=(490, high))
