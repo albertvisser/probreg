@@ -185,7 +185,7 @@ class Page():
             self.oldbuf = self.parent.pagedata.vervolg = text
             event_text = "Tekst vervolgactie aangepast"
         if event_text:
-            self.parent.pagedata.events.append((shared.get_dts(), event_text))
+            self.parent.pagedata.add_event(event_text)
             self.update_actie()
             # onderstaande verplaatst naar update_actie
             # self.parent.pages[0].gui.set_item_text(self.parent.pages[0].gui.get_selection(), 3,
@@ -368,7 +368,7 @@ class Page0(Page):
             data = shared.get_acties[self.parent.parent.datatype](self.parent.fnaam, select,
                                                                   arch, self.parent.parent.user)
             for idx, item in enumerate(data):
-                if self.parent.parent.datatype == shared.DataType.XML:
+                if len(self.parent.parent.data[idx]) == 7:  # type == shared.DataType.XML:
                     self.parent.data[idx] = (item[0],
                                              item[1],
                                              ".".join((item[3][1], item[3][0])),
@@ -376,7 +376,7 @@ class Page0(Page):
                                              item[5],
                                              item[4],
                                              True if item[6] == 'arch' else False)
-                elif self.parent.parent.datatype == shared.DataType.SQL:
+                elif len(self.parent.parent.data[idx]) == 10:  # type == shared.DataType.SQL:
                     self.parent.data[idx] = (item[0],
                                              item[1],
                                              ".".join((item[5], item[4])),
@@ -516,12 +516,9 @@ class Page0(Page):
         else:
             selindx = shared.data2int(selindx)
         self.readp(selindx)
-        if self.parent.parent.datatype == shared.DataType.XML:
-            self.parent.pagedata.arch = not self.parent.pagedata.arch
-            hlp = "gearchiveerd" if self.parent.pagedata.arch else "herleefd"
-            self.parent.pagedata.events.append((shared.get_dts(), "Actie {0}".format(hlp)))
-        elif self.parent.parent.datatype == shared.DataType.SQL:
-            self.parent.pagedata.set_arch(not self.parent.pagedata.arch)
+        self.parent.pagedata.arch = not self.parent.pagedata.arch
+        hlp = "gearchiveerd" if self.parent.pagedata.arch else "herleefd"
+        self.parent.pagedata.add_event("Actie {0}".format(hlp))
         self.update_actie()  # self.parent.pagedata.write()
         self.parent.rereadlist = True
         self.vulp()
@@ -632,29 +629,24 @@ class Page1(Page):
                 self.parent.pagedata.titel = procdesc
             elif self.parent.parent.datatype == shared.DataType.SQL:
                 self.parent.pagedata.over = proc
-                self.parent.pagedata.events.append(
-                    (shared.get_dts(), 'Onderwerp gewijzigd in "{0}"'.format(proc)))
+                self.parent.pagedata.add_event('Onderwerp gewijzigd in "{0}"'.format(proc))
                 self.parent.pagedata.titel = procdesc = desc
-            self.parent.pagedata.events.append(
-                (shared.get_dts(), 'Titel gewijzigd in "{0}"'.format(procdesc)))
+            self.parent.pagedata.add_event('Titel gewijzigd in "{0}"'.format(procdesc))
             wijzig = True
         newstat, sel = self.gui.get_choice_data('stat')
         if newstat != self.parent.pagedata.status:
             self.parent.pagedata.status = newstat
-            self.parent.pagedata.events.append(
-                (shared.get_dts(), 'Status gewijzigd in "{0}"'.format(sel)))
+            self.parent.pagedata.add_event('Status gewijzigd in "{0}"'.format(sel))
             wijzig = True
         newcat, sel = self.gui.get_choice_data('cat')
         if newcat != self.parent.pagedata.soort:
             self.parent.pagedata.soort = newcat
-            self.parent.pagedata.events.append(
-                (shared.get_dts(), 'Categorie gewijzigd in "{0}"'.format(sel)))
+            self.parent.pagedata.add_event('Categorie gewijzigd in "{0}"'.format(sel))
             wijzig = True
         if self.parch != self.parent.pagedata.arch:
             self.parent.pagedata.arch = self.parch
             hlp = "gearchiveerd" if self.parch else "herleefd"
-            self.parent.pagedata.events.append(
-                (shared.get_dts(), "Actie {0}".format(hlp)))
+            self.parent.pagedata.add_event("Actie {0}".format(hlp))
             wijzig = True
         if wijzig:
             self.update_actie()
