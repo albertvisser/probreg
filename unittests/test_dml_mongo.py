@@ -332,6 +332,18 @@ def test_actie_get_soorttext(monkeypatch, capsys):
         testobj.get_soorttext()
     assert str(excinfo.value) == 'Geen tekst gevonden bij soortcode Q'
 
+def test_actie_add_event(monkeypatch, capsys):
+    def mock_read(*args):
+        print('called Actie.read()')
+    monkeypatch.setattr(dmlm.dt, 'datetime', MockDatetime)
+    monkeypatch.setattr(dmlm, 'Settings', MockSettings)
+    monkeypatch.setattr(dmlm.Actie, 'read', mock_read)
+    testobj = dmlm.Actie('', 'x')
+    assert testobj.events == []
+    testobj.add_event('some text')
+    assert testobj.events == [('01-01-2020 00:12:00' , 'some text')]
+    assert capsys.readouterr().out == 'called Actie.read()\n'
+
 def test_actie_cleanup(monkeypatch, capsys):
     def mock_read(*args):
         print('called Actie.read()')

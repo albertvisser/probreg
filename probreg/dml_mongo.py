@@ -14,6 +14,7 @@ db = cl.probreg_database
 coll = db.default  # for now we only do one collection per database
 
 datapad = os.getcwd()
+dtformat = '%d-%m-%Y %H:%I:%S'  # zelfde als in shared.get_dts()
 
 
 kopdict = {
@@ -134,6 +135,7 @@ def get_acties(fnaam, select=None, arch="", user=None):
     if textclause:
         textclause = '"titel": {"regex": "\.*' + textclause + '\.*"}'
         selections.append(textclause)
+    # TODO ook op onderwerp kunnen zoeken
 
     if select:
         raise DataError("Foutief selectie-argument opgegeven")
@@ -148,6 +150,10 @@ def get_acties(fnaam, select=None, arch="", user=None):
 
     # sett = Settings(fnaam) - heb ik dit nodig?
     # zoeken gaat t.z.t. met mongodb, nu maar even net doen alsof
+    # TODO: afmaken
+    # ik wil ook een rubriek 'onderwerp' teruggeven net als bij django, als ik dan status en soort
+    # in twee rubrieken doorgeef heb ik net zoveel velden als de django versie
+    # of ik moet dat daar ook anders doen
     lijst = [('2022-0001', 'vandaag', 'nieuw', 'idee', 'iets', 'vandaag', ''),
              ('2022-0002', 'vandaag', 'nieuw', 'idee', 'iets', 'vandaag', '')]
     return lijst
@@ -266,6 +272,11 @@ class Actie:
         ## else:
         except KeyError:
             raise DataError("Geen tekst gevonden bij soortcode {}".format(waarde))
+
+    def add_event(self, txt):
+        "voeg tekstregel toe aan events"
+        now = dt.datetime.today()
+        self.events.append((now.strftime(dtformat), txt))
 
     def write(self):
         "actiegegevens terugschrijven"

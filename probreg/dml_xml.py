@@ -11,6 +11,7 @@ import logging
 # from probreg.shared import DataError, kopdict, statdict, catdict
 
 datapad = os.getcwd()
+dtformat = '%d-%m-%Y %H:%I:%S'  # zelfde als in shared.get_dts()
 
 
 kopdict = {
@@ -550,6 +551,11 @@ class Actie:
     #     if not isinstance(waarde, bool):
     #         raise DataError("Foutief datatype voor archiveren")
     #     self.arch = waarde
+
+    def add_event(self, txt):
+        "voeg tekstregel toe aan events"
+        now = dt.datetime.today()
+        self.events.append((now.strftime(dtformat), txt))
 
     def write(self):
         "actiegegevens terugschrijven"
