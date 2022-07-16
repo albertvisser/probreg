@@ -652,12 +652,15 @@ class Page0Gui(PageGui):
         return shared.data2str(self.p0list.currentItem().data(0, core.Qt.UserRole))
 
     def get_list_row(self):
-        "return the event list's selected row index"
-        return self.p0list.currentRow()
+        "return the event list's selected row index - but this is a tree, not a list"
+        # return self.p0list.currentRow()
+        return self.get_selection()  # p0list.currentItem()
 
     def set_list_row(self, num):
-        "set the event list's row selection"
-        self.p0list.setCurrentRow(num)
+        "set the event list's row selection - but this is a tree, not a list"
+        # self.p0list.setCurrentRow(num)
+        # self.p0list.setCurrentItem(num)  - naa login kan het onthouden item zijn weggefilterd
+        self.set_selection()
 
 
 class Page1Gui(PageGui):
@@ -1258,8 +1261,7 @@ class SelectOptionsDialog(qtw.QDialog):
         self.check_options = qtw.QButtonGroup()
         self.check_options.setExclusive(False)
 
-        self.check_options.addButton(qtw.QCheckBox(parent.parent.ctitels[0] +
-                                                   '   -', self))
+        self.check_options.addButton(qtw.QCheckBox(parent.parent.ctitels[0] + '   -', self))
         self.text_gt = qtw.QLineEdit(self)
         self.text_gt.textChanged.connect(functools.partial(self.on_text, 'gt'))
         self.radio_id = qtw.QButtonGroup(self)
@@ -1278,8 +1280,7 @@ class SelectOptionsDialog(qtw.QDialog):
             check.toggled.connect(functools.partial(self.on_checked, 'cat'))
             self.check_cats.addButton(check)
 
-        self.check_options.addButton(qtw.QCheckBox(parent.parent.ctitels[2] + '   -',
-                                                   self))
+        self.check_options.addButton(qtw.QCheckBox(parent.parent.ctitels[2] + '   -', self))
         self.check_stats = qtw.QButtonGroup(self)
         self.check_stats.setExclusive(False)
         for x in [self.parent.parent.stats[y] for y in sorted(
@@ -1289,8 +1290,7 @@ class SelectOptionsDialog(qtw.QDialog):
             self.check_stats.addButton(check)
 
         if self.datatype == shared.DataType.XML:
-            self.check_options.addButton(qtw.QCheckBox(parent.parent.ctitels[4] +
-                                                       '   -', self))
+            self.check_options.addButton(qtw.QCheckBox(parent.parent.ctitels[4] + '   -', self))
             self.text_zoek = qtw.QLineEdit(self)
             self.text_zoek.textChanged.connect(functools.partial(self.on_text, 'zoek'))
         elif self.datatype == shared.DataType.SQL:
@@ -1429,10 +1429,12 @@ class SelectOptionsDialog(qtw.QDialog):
         if "idlt" in sel_args:
             self.text_lt.setText(sel_args["idlt"])
 
+        print('in SelectOptionsDialog.set_default_values for ', self.datatype)
         if self.datatype == shared.DataType.XML:
             itemindex = 1
         elif self.datatype == shared.DataType.SQL:
             itemindex = 2
+        print('   itemindex wordt', itemindex)
         if "soort" in sel_args:
             for x in self.parent.parent.cats.keys():
                 if self.parent.parent.cats[x][itemindex] in sel_args["soort"]:
@@ -1880,6 +1882,7 @@ class MainGui(qtw.QMainWindow):
         elif new == 0 or new == 6:
             if old == new:
                 item = self.master.book.pages[new].gui.get_list_row()  # remember current item
+                print('in on_page_changing, selection is', item)
             self.master.book.pages[new].vulp()
             if old == new:
                 self.master.book.pages[new].gui.set_list_row(item)     # reselect item

@@ -368,7 +368,7 @@ class Page0(Page):
             data = shared.get_acties[self.parent.parent.datatype](self.parent.fnaam, select,
                                                                   arch, self.parent.parent.user)
             for idx, item in enumerate(data):
-                if len(self.parent.parent.data[idx]) == 7:  # type == shared.DataType.XML:
+                if len(item) == 7:  # type == self.parent.parent.shared.DataType.XML:
                     self.parent.data[idx] = (item[0],
                                              item[1],
                                              ".".join((item[3][1], item[3][0])),
@@ -376,7 +376,7 @@ class Page0(Page):
                                              item[5],
                                              item[4],
                                              True if item[6] == 'arch' else False)
-                elif len(self.parent.parent.data[idx]) == 10:  # type == shared.DataType.SQL:
+                elif len(item) == 10:  # type == self.parent.parent.shared.DataType.SQL:
                     self.parent.data[idx] = (item[0],
                                              item[1],
                                              ".".join((item[5], item[4])),
@@ -399,7 +399,7 @@ class Page0(Page):
         self.gui.enable_buttons()
         if self.gui.has_selection():
             self.parent.parent.enable_all_book_tabs(True)
-            print(self.parent.current_item)
+            print('in Page0.vulp(), current_item is', self.parent.current_item)
             self.gui.set_selection()
             self.gui.ensure_visible(self.parent.current_item)
         self.parent.parent.set_statusmessage(msg)
@@ -1395,25 +1395,33 @@ class MainWindow():
                               "Eventuele vervolgactie(s)",
                               "Overzicht stand van zaken"]
         for item_value, item in data.stat.items():
-            if self.datatype in (shared.DataType.XML, shared.DataType.MNG):
-                item_text, sortkey = item
-                self.book.stats[int(sortkey)] = (item_text, item_value)
-            elif self.datatype == shared.DataType.SQL:
-                item_text, sortkey, row_id = item
-                self.book.stats[int(sortkey)] = (item_text, item_value, row_id)
+            # if self.datatype in (shared.DataType.XML, shared.DataType.MNG):
+            #     item_text, sortkey = item
+            #     self.book.stats[int(sortkey)] = (item_text, item_value)
+            # elif self.datatype == shared.DataType.SQL:
+            #     item_text, sortkey, row_id = item
+            #     self.book.stats[int(sortkey)] = (item_text, item_value, row_id)
+            self.book.stats[int(item[1])] = [item_value, item[0]]
+            if len(item) > 2:
+                self.book.stats[int(item[1])].append(item[2])
         for item_value, item in data.cat.items():
-            if self.datatype in (shared.DataType.XML, shared.DataType.MNG):
-                item_text, sortkey = item
-                self.book.cats[int(sortkey)] = (item_text, item_value)
-            elif self.datatype == shared.DataType.SQL:
-                item_text, sortkey, row_id = item
-                self.book.cats[int(sortkey)] = (item_text, item_value, row_id)
-        for tab_num, tab_text in data.kop.items():
-            if self.datatype in (shared.DataType.XML, shared.DataType.MNG):
-                self.book.tabs[int(tab_num)] = " ".join((tab_num, tab_text))
-            elif self.datatype == shared.DataType.SQL:
-                tab_text = tab_text[0]  # , tab_adr = tab_text
-                self.book.tabs[int(tab_num)] = " ".join((tab_num, tab_text.title()))
+            # if self.datatype in (shared.DataType.XML, shared.DataType.MNG):
+            #     item_text, sortkey = item
+            #     self.book.cats[int(sortkey)] = (item_text, item_value)
+            # elif self.datatype == shared.DataType.SQL:
+            #     item_text, sortkey, row_id = item
+            #     self.book.cats[int(sortkey)] = (item_text, item_value, row_id)
+            self.book.cats[int(item[1])] = [item_value, item[0]]
+            if len(item) > 2:
+                self.book.cats[int(item[1])].append(item[2])
+        # for tab_num, tab_text in data.kop.items():
+        #     if self.datatype in (shared.DataType.XML, shared.DataType.MNG):
+        #         self.book.tabs[int(tab_num)] = " ".join((tab_num, tab_text))
+        #     elif self.datatype == shared.DataType.SQL:
+        #         tab_text = tab_text[0]  # , tab_adr = tab_text
+        #         self.book.tabs[int(tab_num)] = " ".join((tab_num, tab_text.title()))
+        for tab_num, tab_item in data.kop.items():
+            self.book.tabs[int(tab_num)] = " ".join((tab_num, tab_item[0].title()))
         # print('in lees_settings voor', self.book.fnaam, 'book.tabs is', self.book.tabs)
 
     def save_settings(self, srt, data):
@@ -1427,32 +1435,37 @@ class MainWindow():
             settings.kop = data
             settings.write()
             self.book.tabs = {}
-            for item_value, item_text in data.items():
-                item = " ".join((item_value, item_text))
-                self.book.tabs[int(item_value)] = item
-                self.gui.set_page_title(int(item_value), item)
+            for item_value, item in data.items():
+                self.book.tabs[int(item_value)] = " ".join((item_value, item[0]))
+                self.gui.set_page_title(int(item_value), item[0])
         elif srt == "stat":
             settings.stat = data
             settings.write()
             self.book.stats = {}
             for item_value, item in data.items():
-                if self.datatype == shared.DataType.XML:
-                    item_text, sortkey = item
-                    self.book.stats[sortkey] = (item_text, item_value)
-                elif self.datatype == shared.DataType.SQL:
-                    item_text, sortkey, row_id = item
-                    self.book.stats[sortkey] = (item_text, item_value, row_id)
+                #     if self.datatype == shared.DataType.XML:
+                #         item_text, sortkey = item
+                #         self.book.stats[sortkey] = (item_text, item_value)
+                #     elif self.datatype == shared.DataType.SQL:
+                #         item_text, sortkey, row_id = item
+                #         self.book.stats[sortkey] = (item_text, item_value, row_id)
+                self.book.stats[int(item[1])] = [item_value, item[0]]
+                if len(item) > 2:
+                    self.book.stats[int(item[1])].append(item[2])
         elif srt == "cat":
             settings.cat = data
             settings.write()
             self.book.cats = {}
             for item_value, item in data.items():
-                if self.datatype == shared.DataType.XML:
-                    item_text, sortkey = item
-                    self.book.cats[sortkey] = (item_text, item_value)
-                elif self.datatype == shared.DataType.SQL:
-                    item_text, sortkey, row_id = item
-                    self.book.cats[sortkey] = (item_text, item_value, row_id)
+                # if self.datatype == shared.DataType.XML:
+                #     item_text, sortkey = item
+                #     self.book.cats[sortkey] = (item_text, item_value)
+                # elif self.datatype == shared.DataType.SQL:
+                #     item_text, sortkey, row_id = item
+                #     self.book.cats[sortkey] = (item_text, item_value, row_id)
+                self.book.cats[int(item[1])] = [item_value, item[0]]
+                if len(item) > 2:
+                    self.book.cats[int(item[1])].append(item[2])
         self.book.pages[1].vul_combos()
 
     def save_startitem_on_exit(self):

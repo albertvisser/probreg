@@ -276,7 +276,7 @@ class Settings:
             if h is not None:
                 self.kop = {}
                 for y in h.findall("kop"):
-                    self.kop[y.get("value")] = y.text
+                    self.kop[y.get("value")] = (y.text,)
 
     def write(self, srt=None):  # extra argument ivm compat sql-versie
         "settings terugschrijven"
@@ -316,7 +316,7 @@ class Settings:
             if x is int:
                 x = str(x)
             j = SubElement(h, "kop", value=x)
-            j.text = self.kop[x]
+            j.text = self.kop[x][0]
         copyfile(fnaam, fnaam + ".old")
         tree.write(fnaam, encoding='utf-8', xml_declaration=True)
         self.exists = True

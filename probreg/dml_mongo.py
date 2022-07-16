@@ -170,7 +170,7 @@ class Settings:
     def __init__(self, fnaam=""):
         if not fnaam:
             fnaam = 'default'
-        self.kop = {x: y[0] for x, y in kopdict.items()}
+        self.kop = {x: (y[0],) for x, y in kopdict.items()}
         self.stat = {x: (y[0], y[1]) for x, y in statdict.items()}
         self.cat = {x: (y[0], y[1]) for x, y in catdict.items()}
         self.imagecount = 0
@@ -183,7 +183,7 @@ class Settings:
         exists = settings is not None
         if exists:
             self.settings_id = settings['_id']
-            self.kop = {x: y[0] for x, y in settings['headings'].items()}
+            self.kop = {x: (y[0],) for x, y in settings['headings'].items()}
             self.stat = {x: y for x, y in settings['statuses'].items()}
             self.cat = {x: y for x, y in settings['categories'].items()}
             self.imagecount = settings['imagecount']
