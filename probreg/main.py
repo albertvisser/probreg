@@ -258,15 +258,14 @@ class Page():
         if self.parent.current_tab >= 3 and self.parent.pagedata.status == '0':
             self.parent.pagedata.status = '1'
             sel = [y for x, y in self.parent.stats.items() if y[1] == '1'][0]
-            self.parent.pagedata.events.append(
-                    (shared.get_dts(), 'Status gewijzigd in "{0}"'.format(sel[0])))
+            self.parent.pagedata.add_event('Status gewijzigd in "{0}"'.format(sel[0])))
 
         # self.parent.pagedata.id onthouden voor de nieuwe startpositie
         if self.parent.pagedata:
             self.parent.pagedata.startitem = self.parent.pagedata.id
         else:
             self.parent.pagedata.startitem = ''
-        if self.parent.parent.datatype == shared.DataType.SQL:
+        if self.parent.parent.work_with_user:
             self.parent.pagedata.write(self.parent.parent.user)
         else:
             self.parent.pagedata.write()
@@ -749,7 +748,7 @@ class Page6(Page):
             self.gui.init_list(text)
             for idx, datum in enumerate(self.event_list):
                 self.gui.add_item_to_list(idx, datum)
-        if self.parent.parent.datatype == shared.DataType.SQL:
+        if self.parent.parent.work_with_user:
             self.gui.set_list_callback()
         # self.gui.clear_textfield() - zit al in init_textfield
         self.oldbuf = (self.old_list, self.old_data)
@@ -994,7 +993,8 @@ class MainWindow():
                 raise SystemExit('No datatype selected')
         self.user = None    # start without user
         self.is_user = self.is_admin = False
-        if self.datatype == shared.DataType.XML:
+        self.work_with_user = self.datatype == shared.DataType.SQL
+        if not self.work_with_user:
             self.user = 1  # pretend user
             self.is_user = self.is_admin = True  # force editability for XML mode
         self.create_book()
@@ -1495,7 +1495,7 @@ class MainWindow():
             if self.book.current_tab == 0:
                 msg += ' - {} items'.format(len(self.book.data))
         self.gui.set_statusmessage(msg)
-        if self.datatype == shared.DataType.SQL:
+        if self.work_with_user:
             if self.user:
                 msg = 'Aangemeld als {}'.format(self.user.username)
             else:

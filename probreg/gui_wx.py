@@ -1001,7 +1001,7 @@ class Page6Gui(PageGui):
                                         style=wx.LC_REPORT | wx.LC_HRULES | wx.LC_VRULES |
                                               wx.LC_SINGLE_SEL)
         accel_data = []
-        if self.parent.parent.datatype == shared.DataType.XML.name:
+        if not parent.parent.work_with_user:
             self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.on_activate_item, self.progress_list)
             accel_data.append(('new-item', self.add_item, 'Shift-Ctrl-N'))
         # self.progress_list.Bind(wx.EVT_LIST_ITEM_SELECTED, self.on_select_item)
@@ -1178,7 +1178,8 @@ class Page6Gui(PageGui):
             self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.on_activate_item, self.progress_list)
             self.progress_list.Bind(wx.EVT_LEFT_UP, self.on_activate_item)
         else:
-            pass  # how to unbind a callback?
+            self.Unbind(wx.EVT_LIST_ITEM_ACTIVATED, self.progress_list)
+            self.progress_list.Unbind(wx.EVT_LEFT_UP)
 
     def clear_textfield(self):
         "empty textfield context"

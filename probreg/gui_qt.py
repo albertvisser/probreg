@@ -333,12 +333,9 @@ class PageGui(qtw.QFrame):
         self.parent = parent
         self.master = master
         super().__init__(parent)
+        self.use_rt = self.parent.parent.datatype == shared.DataType.XML.name
         if not self.master.is_text_page:
             return
-        if self.parent.parent.datatype == shared.DataType.XML.name:
-            self.use_rt = True
-        elif self.parent.parent.datatype == shared.DataType.SQL.name:
-            self.use_rt = False
         self.actiondict = collections.OrderedDict()
         self.text1 = self.create_text_field()
         if self.use_rt:
@@ -931,7 +928,7 @@ class Page6Gui(PageGui):
         self.progress_list = qtw.QListWidget(self)
         self.progress_list.currentItemChanged.connect(self.on_select_item)
         self.new_action = qtw.QShortcut('Shift+Ctrl+N', self)
-        if self.parent.parent.datatype == shared.DataType.XML:
+        if not self.parent.parent.work_with_user:
             self.progress_list.itemActivated.connect(self.on_activate_item)
             # self.progress_list.itemDoubleClicked.connect(self.on_activate_item)
             # action = qtw.QShortcut('Shift+Ctrl+N', self, functools.partial(
@@ -944,7 +941,7 @@ class Page6Gui(PageGui):
         self.progress_text = super().create_text_field()
         sizer0 = qtw.QHBoxLayout()
         sizer1 = qtw.QVBoxLayout()
-        if self.parent.parent.datatype == shared.DataType.XML:
+        if self.use_rt:
             super().create_toolbar(textfield=self.progress_text)
             sizer1.addWidget(self.toolbar)
         sizer1.addWidget(self.progress_text)
