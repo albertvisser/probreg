@@ -96,8 +96,8 @@ class Page():
 
         methode aan te roepen voorafgaand aan het tonen van de pagina"""
         self.initializing = True
-        if self.parent.parent.datatype != shared.DataType.MNG:
-            self.parent.parent.enable_settingsmenu()
+        # if self.parent.parent.datatype != shared.DataType.MNG:
+        self.parent.parent.enable_settingsmenu()  # FIXME: waarom hier?
         if self.parent.current_tab == 0:
             text = self.seltitel
         else:
@@ -1002,12 +1002,15 @@ class MainWindow():
         self.gui.create_actions()
         self.create_book_pages()
 
+        self.multiple_files = self.multiple_projects = False
         if self.datatype == shared.DataType.XML:
+            self.multiple_files = True
             if self.filename == "":
                 self.open_xml()
             else:
                 self.startfile()
         elif self.datatype == shared.DataType.SQL:
+            self.multiple_projects = True
             if self.filename:
                 self.open_sql(do_sel=False)
             else:
@@ -1048,17 +1051,16 @@ class MainWindow():
             data[3][1].append(('&{}'.format(tabtitle),
                                functools.partial(self.gui.go_to, int(tabnum)),
                                'Alt+{}'.format(tabnum), "switch to tab"))
-        if self.datatype == shared.DataType.XML:
-            data.pop(1)
-        elif self.datatype == shared.DataType.SQL:
+        if not self.work_with_user:
+            data.pop(1)     # remove login menu
+        if self.multiple_projects:
             data[0][1][0] = ("&Other project", self.open_sql, 'Ctrl+O', " Select a project")
             data[0][1][1] = ("&New", self.new_file, 'Ctrl+N', " Create a new project")
-        elif self.datatype == shared.DataType.MNG:
-            data.pop(2)     # remove settings menu
-            data.pop(1)     # remove login menu
-            data[0][1].pop(2)  # remove separator
-            data[0][1].pop(1)  # remove file - new
-            data[0][1].pop(0)  # remove file - open
+        elif not self.multiple_filenames:
+            data[0][1][:3] = []
+            # data[0][1].pop(2)  # remove separator
+            # data[0][1].pop(1)  # remove file - new
+            # data[0][1].pop(0)  # remove file - open
         return data
 
     def create_book(self):
@@ -1107,7 +1109,7 @@ class MainWindow():
 
     def new_file(self, event=None):
         "Menukeuze: nieuw file"
-        if self.datatype == shared.DataType.SQL:
+        if not self.multiple_files:
             self.not_implemented_message()
             return
         self.is_newfile = False
@@ -1363,13 +1365,14 @@ class MainWindow():
                      "    Ctrl-Z in een tekstveld:       undo",
                      "    Shift-Ctrl-Z in een tekstveld: redo",
                      "    Alt-Ctrl-Z overal:             wijzigingen ongedaan maken",
-                     "    Shift-Ctrl-N op tab 6:         nieuwe regel opvoeren",
-                     "    Ctrl-up/down op tab 6:         move in list"]
-            if self.datatype == shared.DataType.XML:
+                     "    Shift-Ctrl-N op laatste tab:   nieuwe regel opvoeren",
+                     "    Ctrl-up/down op laatste tab:   omhoog/omlaag in list"]
+            if self.multiple_files:
                 lines.insert(8, "    Ctrl-O:                       _o_pen een (ander) actiebestand")
                 lines.insert(8, "    Ctrl-N:                       maak een _n_ieuw actiebestand")
-            elif self.datatype == shared.DataType.SQL:
+            elif self.multiple_projects:
                 lines.insert(8, "    Ctrl-O:                       selecteer een (ander) pr_o_ject")
+                lines.insert(8, "    Ctrl-N:                       start een _n_ieuw project")
             self.helptext = "\n".join(lines)
         gui.show_message(self.gui, self.helptext)
 
@@ -1379,7 +1382,7 @@ class MainWindow():
 
     def startfile(self):
         "initialisatie t.b.v. nieuw bestand"
-        if self.datatype == shared.DataType.XML:
+        if self.multiple_files:
             fullname = self.dirname / self.filename
             retval = dmlx.checkfile(fullname, self.is_newfile)
             if retval != '':
@@ -1387,7 +1390,7 @@ class MainWindow():
                 return retval
             self.book.fnaam = fullname
             self.title = self.filename
-        elif self.datatype == shared.DataType.SQL or self.datatype == shared.DataType.MNG:
+        else:
             self.book.fnaam = self.title = self.filename
         self.book.rereadlist = True
         self.book.sorter = None
