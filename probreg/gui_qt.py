@@ -335,9 +335,13 @@ class PageGui(qtw.QFrame):
         super().__init__(parent)
         if not self.master.is_text_page:
             return
+        if self.parent.parent.datatype == shared.DataType.XML.name:
+            self.use_rt = True
+        elif self.parent.parent.datatype == shared.DataType.SQL.name:
+            self.use_rt = False
         self.actiondict = collections.OrderedDict()
         self.text1 = self.create_text_field()
-        if self.parent.parent.datatype == shared.DataType.XML:
+        if self.use_rt:
             self.create_toolbar(textfield=self.text1)
         self.save_button = qtw.QPushButton('Sla wijzigingen op (Ctrl-S)', self)
         self.save_button.clicked.connect(self.master.savep)
@@ -415,7 +419,7 @@ class PageGui(qtw.QFrame):
     def doelayout(self):
         "layout page"
         sizer0 = qtw.QVBoxLayout()
-        if self.parent.parent.datatype == shared.DataType.XML:
+        if self.use_rt:
             sizer1 = qtw.QVBoxLayout()
             sizer1.addWidget(self.toolbar)
             sizer0.addLayout(sizer1)
@@ -466,11 +470,8 @@ class PageGui(qtw.QFrame):
 
     def enable_toolbar(self, value):
         "make the toolbar accessible (or not)"
-        # try:
-        if self.parent.parent.datatype == shared.DataType.XML:
+        if self.use_rt:
             self.toolbar.setEnabled(value)
-        # except AttributeError:
-        #     pass
 
     def set_text_readonly(self, value):
         "protect page text from updating (or not)"

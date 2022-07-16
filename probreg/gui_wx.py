@@ -510,10 +510,8 @@ class PageGui(wx.Panel):
         "layout page"
         vsizer = wx.BoxSizer(wx.VERTICAL)
         # self.toolbar = wx.StaticText(self, label="Hello this is a placeholder for a toolbar")
-        try:
+        if self.use_rt:
             vsizer.Add(self.toolbar, 0, wx.EXPAND)
-        except AttributeError:
-            pass    # skip if no toolbar defined
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
         hsizer.Add(self.text1, 1, wx.ALL | wx.EXPAND, 4)
         vsizer.Add(hsizer, 1, wx.EXPAND)
@@ -557,11 +555,8 @@ class PageGui(wx.Panel):
 
     def enable_toolbar(self, value):
         "make the toolbar accessible (or not)"
-        # try:
         if self.use_rt:
             self.toolbar.Enable(value)
-        # except AttributeError:
-        #     pass    # do nothing in case we don't have a toolbar
 
     def set_text_readonly(self, value):
         "protect page text from updating (or not)"
