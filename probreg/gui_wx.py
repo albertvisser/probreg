@@ -1490,10 +1490,6 @@ class SelectOptionsDialog(wx.Dialog):
     def set_default_values(self, sel_args):
         """get search settings and present them in the dialog
         """
-        if self.parent.parent.parent.datatype == shared.DataType.XML.name:
-            self.getpos = 1
-        elif self.parent.parent.parent.datatype == shared.DataType.SQL.name:
-            self.getpos = 2
         if "idgt" in sel_args:
             self.text_gt.SetValue(sel_args["idgt"])
         if "id" in sel_args:
@@ -1505,12 +1501,12 @@ class SelectOptionsDialog(wx.Dialog):
             self.text_lt.SetValue(sel_args["idlt"])
         if "soort" in sel_args:
             for x in self.parent.parent.cats.keys():
-                if self.parent.parent.cats[x][self.getpos] in sel_args["soort"]:
+                if self.parent.parent.cats[x][-1] in sel_args["soort"]:
                     self.clb_soort.Check(int(x))
             self.cb_soort.SetValue(True)
         if "status" in sel_args:
             for x in self.parent.parent.stats.keys():
-                if self.parent.parent.stats[x][self.getpos] in sel_args["status"]:
+                if self.parent.parent.stats[x][-1] in sel_args["status"]:
                     self.clb_stat.Check(int(x))
             self.cb_stat.SetValue(True)
         if "titel" in sel_args:
@@ -1577,13 +1573,13 @@ class SelectOptionsDialog(wx.Dialog):
                 sel_args["id"] = "or"
         if self.cb_soort.IsChecked():  # checkbox voor "soort"
             selection = '(gefilterd)'
-            lst = [self.parent.parent.cats[x][self.getpos] for x in range(
+            lst = [self.parent.parent.cats[x][-1] for x in range(
                    len(self.parent.parent.cats.keys())) if self.clb_soort.IsChecked(x)]
             if lst:
                 sel_args["soort"] = lst
         if self.cb_stat.IsChecked():  # checkbox voor "status"
             selection = '(gefilterd)'
-            lst = [self.parent.parent.stats[x][self.getpos] for x in range(
+            lst = [self.parent.parent.stats[x][-1] for x in range(
                    len(self.parent.parent.stats.keys())) if self.clb_stat.IsChecked(x)]
             if lst:
                 sel_args["status"] = lst

@@ -15,6 +15,33 @@ import probreg.dml_xml as dmlx
 LIN = True if os.name == 'posix' else False
 
 
+def db_stat_to_book_stat(item_value, item):
+    """zet een in Settings ingelezen status instelling om naar zoals de applicatie deze gebruikt
+
+    subroutine van gemaakt omdat dit op meerdere plekken gebruikt wordt"""
+    retval = [item[0], item_value]
+    if len(item) > 2:
+        retval.append(item[2])
+    return retval
+
+
+def db_cat_to_book_cat(item_value, item):
+    """zet een in Settings ingelezen categorie instelling om naar zoals de applicatie deze gebruikt
+
+    subroutine van gemaakt omdat dit op meerdere plekken gebruikt wordt"""
+    retval = [item[0], item_value]
+    if len(item) > 2:
+        retval.append(item[2])
+    return retval
+
+
+def db_head_to_book_head(tab_num, tab_item):
+    """zet een in Settings ingelezen tabheading instelling om naar zoals de applicatie deze gebruikt
+
+    subroutine van gemaakt omdat dit op meerdere plekken gebruikt wordt"""
+    return " ".join((tab_num, tab_item[0].title()))
+
+
 class Page():
     "base class for notebook page"
     def __init__(self, parent, pageno, standard=True):
@@ -1395,34 +1422,11 @@ class MainWindow():
                               "Eventuele vervolgactie(s)",
                               "Overzicht stand van zaken"]
         for item_value, item in data.stat.items():
-            # if self.datatype in (shared.DataType.XML, shared.DataType.MNG):
-            #     item_text, sortkey = item
-            #     self.book.stats[int(sortkey)] = (item_text, item_value)
-            # elif self.datatype == shared.DataType.SQL:
-            #     item_text, sortkey, row_id = item
-            #     self.book.stats[int(sortkey)] = (item_text, item_value, row_id)
-            self.book.stats[int(item[1])] = [item_value, item[0]]
-            if len(item) > 2:
-                self.book.stats[int(item[1])].append(item[2])
+            self.book.stats[int(item[1])] = db_stat_to_book_stat(item_value, item)
         for item_value, item in data.cat.items():
-            # if self.datatype in (shared.DataType.XML, shared.DataType.MNG):
-            #     item_text, sortkey = item
-            #     self.book.cats[int(sortkey)] = (item_text, item_value)
-            # elif self.datatype == shared.DataType.SQL:
-            #     item_text, sortkey, row_id = item
-            #     self.book.cats[int(sortkey)] = (item_text, item_value, row_id)
-            self.book.cats[int(item[1])] = [item_value, item[0]]
-            if len(item) > 2:
-                self.book.cats[int(item[1])].append(item[2])
-        # for tab_num, tab_text in data.kop.items():
-        #     if self.datatype in (shared.DataType.XML, shared.DataType.MNG):
-        #         self.book.tabs[int(tab_num)] = " ".join((tab_num, tab_text))
-        #     elif self.datatype == shared.DataType.SQL:
-        #         tab_text = tab_text[0]  # , tab_adr = tab_text
-        #         self.book.tabs[int(tab_num)] = " ".join((tab_num, tab_text.title()))
+            self.book.cats[int(item[1])] = db_cat_to_book_cat(item_value, item)
         for tab_num, tab_item in data.kop.items():
-            self.book.tabs[int(tab_num)] = " ".join((tab_num, tab_item[0].title()))
-        # print('in lees_settings voor', self.book.fnaam, 'book.tabs is', self.book.tabs)
+            self.book.tabs[int(tab_num)] = db_head_to_book_head(tab_num, tab_item)
 
     def save_settings(self, srt, data):
         """instellingen (tabnamen, actiesoorten of actiestatussen) terugschrijven
@@ -1436,36 +1440,20 @@ class MainWindow():
             settings.write()
             self.book.tabs = {}
             for item_value, item in data.items():
-                self.book.tabs[int(item_value)] = " ".join((item_value, item[0]))
+                self.book.tabs[int(item_value)] = db_head_to_ook_head(item_value, item)
                 self.gui.set_page_title(int(item_value), item[0])
         elif srt == "stat":
             settings.stat = data
             settings.write()
             self.book.stats = {}
             for item_value, item in data.items():
-                #     if self.datatype == shared.DataType.XML:
-                #         item_text, sortkey = item
-                #         self.book.stats[sortkey] = (item_text, item_value)
-                #     elif self.datatype == shared.DataType.SQL:
-                #         item_text, sortkey, row_id = item
-                #         self.book.stats[sortkey] = (item_text, item_value, row_id)
-                self.book.stats[int(item[1])] = [item_value, item[0]]
-                if len(item) > 2:
-                    self.book.stats[int(item[1])].append(item[2])
+                self.book.stats[int(item[1])] = db_stat_to_book_stat(item_value, item)
         elif srt == "cat":
             settings.cat = data
             settings.write()
             self.book.cats = {}
             for item_value, item in data.items():
-                # if self.datatype == shared.DataType.XML:
-                #     item_text, sortkey = item
-                #     self.book.cats[sortkey] = (item_text, item_value)
-                # elif self.datatype == shared.DataType.SQL:
-                #     item_text, sortkey, row_id = item
-                #     self.book.cats[sortkey] = (item_text, item_value, row_id)
-                self.book.cats[int(item[1])] = [item_value, item[0]]
-                if len(item) > 2:
-                    self.book.cats[int(item[1])].append(item[2])
+                self.book.cats[int(item[1])] = db_cat_to_book_cat(item_value, item)
         self.book.pages[1].vul_combos()
 
     def save_startitem_on_exit(self):

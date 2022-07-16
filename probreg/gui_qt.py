@@ -1429,21 +1429,15 @@ class SelectOptionsDialog(qtw.QDialog):
         if "idlt" in sel_args:
             self.text_lt.setText(sel_args["idlt"])
 
-        print('in SelectOptionsDialog.set_default_values for ', self.datatype)
-        if self.datatype == shared.DataType.XML:
-            itemindex = 1
-        elif self.datatype == shared.DataType.SQL:
-            itemindex = 2
-        print('   itemindex wordt', itemindex)
         if "soort" in sel_args:
             for x in self.parent.parent.cats.keys():
-                if self.parent.parent.cats[x][itemindex] in sel_args["soort"]:
+                if self.parent.parent.cats[x][-1] in sel_args["soort"]:
                     self.check_cats.buttons()[int(x)].setChecked(True)
             self.check_options.buttons()[1].setChecked(True)
 
         if "status" in sel_args:
             for x in self.parent.parent.stats.keys():
-                if self.parent.parent.stats[x][itemindex] in sel_args["status"]:
+                if self.parent.parent.stats[x][-1] in sel_args["status"]:
                     self.check_stats.buttons()[int(x)].setChecked(True)
             self.check_options.buttons()[2].setChecked(True)
 
@@ -1516,32 +1510,18 @@ class SelectOptionsDialog(qtw.QDialog):
                 sel_args["id"] = "and"
             elif self.radio_id.buttons()[1].isChecked():
                 sel_args["id"] = "or"
-        if self.datatype == shared.DataType.XML:
-            itemindex = 1
-        elif self.datatype == shared.DataType.SQL:
-            itemindex = 2
         if self.check_options.buttons()[1].isChecked():
             selection = '(gefilterd)'
-            if self.datatype == shared.DataType.XML:
-                lst = [self.parent.parent.cats[x][itemindex]
-                       for x in range(len(self.parent.parent.cats.keys()))
-                       if self.check_cats.buttons()[x].isChecked()]
-            elif self.datatype == shared.DataType.SQL:
-                lst = [self.parent.parent.cats[x][itemindex]
-                       for x in range(len(self.parent.parent.cats.keys()))
-                       if self.check_cats.buttons()[x].isChecked()]
+            lst = [self.parent.parent.cats[x][-1]
+                   for x in range(len(self.parent.parent.cats.keys()))
+                   if self.check_cats.buttons()[x].isChecked()]
             if lst:
                 sel_args["soort"] = lst
         if self.check_options.buttons()[2].isChecked():
             selection = '(gefilterd)'
-            if self.datatype == shared.DataType.XML:
-                lst = [self.parent.parent.stats[x][itemindex]
-                       for x in range(len(self.parent.parent.stats.keys()))
-                       if self.check_stats.buttons()[x].isChecked()]
-            elif self.datatype == shared.DataType.SQL:
-                lst = [self.parent.parent.stats[x][itemindex]
-                       for x in range(len(self.parent.parent.stats.keys()))
-                       if self.check_stats.buttons()[x].isChecked()]
+            lst = [self.parent.parent.stats[x][-1]
+                   for x in range(len(self.parent.parent.stats.keys()))
+                   if self.check_stats.buttons()[x].isChecked()]
             if lst:
                 sel_args["status"] = lst
         if self.check_options.buttons()[3].isChecked():
