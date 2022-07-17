@@ -597,10 +597,7 @@ class Page0Gui(PageGui, listmix.ColumnSorterMixin):
         # Now that the list exists we can init the other base class,
         # see wx/lib/mixins/listctrl.py
         self.itemDataMap = self.parent.data
-        if self.parent.parent.datatype == shared.DataType.XML.name:
-            aantcols = 6
-        elif self.parent.parent.datatype == shared.DataType.SQL.name:
-            aantcols = 7
+        aantcols = 7 if self.parent.parent.use_separate_subject else 6
         listmix.ColumnSorterMixin.__init__(self, aantcols)
         for indx, wid in enumerate(widths):
             self.p0list.InsertColumn(indx, self.parent.ctitels[indx])
@@ -1385,11 +1382,7 @@ class SelectOptionsDialog(wx.Dialog):
                                                  for y in sorted(self.parent.parent.stats.keys())]])
         self.Bind(wx.EVT_CHECKLISTBOX, self.on_checked, self.clb_stat)
 
-        if self.datatype == shared.DataType.XML.name:
-            self.cb_text = wx.CheckBox(self, label=parent.parent.ctitels[4].join((" ", " -")))
-            self.t_text = wx.TextCtrl(self, value="", size=(153, -1))
-            self.Bind(wx.EVT_TEXT, self.on_text, self.t_text)
-        elif self.datatype == shared.DataType.SQL.name:
+        if self.parent.parent.parent.use_separate_subject:
             self.cb_text = wx.CheckBox(self, label='zoek in    -')
             self.t_text = wx.TextCtrl(self, value="", size=(153, -1))
             self.Bind(wx.EVT_TEXT, self.on_text, self.t_text)
@@ -1397,6 +1390,10 @@ class SelectOptionsDialog(wx.Dialog):
             self.rb_or_2 = wx.RadioButton(self, label="of")
             self.t_text_2 = wx.TextCtrl(self, value="", size=(153, -1))
             self.Bind(wx.EVT_TEXT, self.on_text, self.t_text_2)
+        else:
+            self.cb_text = wx.CheckBox(self, label=parent.parent.ctitels[4].join((" ", " -")))
+            self.t_text = wx.TextCtrl(self, value="", size=(153, -1))
+            self.Bind(wx.EVT_TEXT, self.on_text, self.t_text)
 
         self.cb_arch = wx.CheckBox(self, label="Archief")
         self.rb_aonly = wx.RadioButton(self, label="Alleen gearchiveerd", style=wx.RB_GROUP)
@@ -1434,11 +1431,7 @@ class SelectOptionsDialog(wx.Dialog):
 
         boxv_text = wx.BoxSizer(wx.VERTICAL)
         box_text = wx.BoxSizer(wx.HORIZONTAL)
-        if self.datatype == shared.DataType.XML.name:
-            box_text.Add(wx.StaticText(self, label="zoek naar:", size=(70, -1)), 0,
-                         wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 10)
-            box_text.Add(self.t_text, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 5)
-        elif self.datatype == shared.DataType.SQL.name:
+        if self.parent.parent.parent.use_separate_subject:
             box_text.Add(wx.StaticText(self, label=self.parent.parent.ctitels[4] + ':',
                                        size=(70, -1)), 0,
                          wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 10)
@@ -1452,6 +1445,10 @@ class SelectOptionsDialog(wx.Dialog):
                                        size=(70, -1)), 0,
                          wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 10)
             box_text.Add(self.t_text_2, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 5)
+        else:
+            box_text.Add(wx.StaticText(self, label="zoek naar:", size=(70, -1)), 0,
+                         wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 10)
+            box_text.Add(self.t_text, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 5)
         boxv_text.Add(box_text, 0)
 
         box_arch = wx.BoxSizer(wx.HORIZONTAL)

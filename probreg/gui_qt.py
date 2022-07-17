@@ -335,8 +335,6 @@ class PageGui(qtw.QFrame):
         super().__init__(parent)
         if not self.master.is_text_page:
             return
-        print('in Page.init, page is', self, 'is_text_page:', self.master.is_text_page,
-                'use_rt:', self.master.parent.parent.use_rt)
         self.actiondict = collections.OrderedDict()
         self.text1 = self.create_text_field()
         if self.master.parent.parent.use_rt:
@@ -460,8 +458,6 @@ class PageGui(qtw.QFrame):
 
     def set_textarea_contents(self, data):
         "set the page text"
-        print('in Page, set_textarea_contents, page is', self, ', use_rt:',
-                self.master.parent.parent.use_rt)
         self.text1.set_contents(data)
 
     def get_textarea_contents(self):
@@ -1290,11 +1286,7 @@ class SelectOptionsDialog(qtw.QDialog):
             check.toggled.connect(functools.partial(self.on_checked, 'stat'))
             self.check_stats.addButton(check)
 
-        if self.datatype == shared.DataType.XML:
-            self.check_options.addButton(qtw.QCheckBox(parent.parent.ctitels[4] + '   -', self))
-            self.text_zoek = qtw.QLineEdit(self)
-            self.text_zoek.textChanged.connect(functools.partial(self.on_text, 'zoek'))
-        elif self.datatype == shared.DataType.SQL:
+        if self.parent.parent.parent.use_separate_subject:
             self.check_options.addButton(qtw.QCheckBox('zoek in   -', self))
             self.text_zoek = qtw.QLineEdit(self)
             self.text_zoek.textChanged.connect(functools.partial(self.on_text, 'zoek'))
@@ -1304,6 +1296,10 @@ class SelectOptionsDialog(qtw.QDialog):
                 self.radio_id2.addButton(radio)
             self.text_zoek2 = qtw.QLineEdit(self)
             self.text_zoek2.textChanged.connect(functools.partial(self.on_text, 'zoek'))
+        else:
+            self.check_options.addButton(qtw.QCheckBox(parent.parent.ctitels[4] + '   -', self))
+            self.text_zoek = qtw.QLineEdit(self)
+            self.text_zoek.textChanged.connect(functools.partial(self.on_text, 'zoek'))
 
         self.check_options.addButton(qtw.QCheckBox("Archief    -", self))
         self.radio_arch = qtw.QButtonGroup(self)
@@ -1384,10 +1380,7 @@ class SelectOptionsDialog(qtw.QDialog):
         grid.addLayout(vbox, 3, 0)
 
         hbox = qtw.QHBoxLayout()
-        if self.datatype == shared.DataType.XML:
-            hbox.addWidget(qtw.QLabel('zoek naar:', self))
-            hbox.addWidget(self.text_zoek)
-        elif self.datatype == shared.DataType.SQL:
+        if self.parent.parent.parent.use_separate_subject:
             grid2 = qtw.QGridLayout()
             grid2.addWidget(qtw.QLabel(self.parent.parent.ctitels[4] + ":", self),
                             0, 0)
@@ -1400,6 +1393,9 @@ class SelectOptionsDialog(qtw.QDialog):
                             2, 0)
             grid2.addWidget(self.text_zoek2, 2, 1)
             hbox.addLayout(grid2)
+        else:
+            hbox.addWidget(qtw.QLabel('zoek naar:', self))
+            hbox.addWidget(self.text_zoek)
         grid.addLayout(hbox, 3, 2)
 
         vbox = qtw.QVBoxLayout()
@@ -1527,9 +1523,7 @@ class SelectOptionsDialog(qtw.QDialog):
                 sel_args["status"] = lst
         if self.check_options.buttons()[3].isChecked():
             selection = '(gefilterd)'
-            if self.datatype == shared.DataType.XML:
-                sel_args["titel"] = str(self.text_zoek.text())
-            elif self.datatype == shared.DataType.SQL:
+            if self.parent.parent.parent.use_separate_subject:
                 sel_args["titel"] = [('about', str(self.text_zoek.text()))]
                 if self.radio_id2.buttons()[0].isChecked():
                     sel_args["titel"].append(("and",))
@@ -1538,6 +1532,8 @@ class SelectOptionsDialog(qtw.QDialog):
                 else:
                     sel_args["titel"].append((""))
                 sel_args["titel"].append(('title', str(self.text_zoek2.text())))
+            else:
+                sel_args["titel"] = str(self.text_zoek.text())
 
         if self.check_options.buttons()[4].isChecked():
             if self.radio_arch.buttons()[0].isChecked():
@@ -1858,7 +1854,6 @@ class MainGui(qtw.QMainWindow):
         if LIN and old == -1:  # bij initialisatie en bij afsluiten - op Windows is deze altijd -1?
             return
         self.enable_all_other_tabs(True)
-        print('in on_page_changing, new page is', new)
         if 0 < new < 6:
             self.master.book.pages[new].vulp()
         elif new == 0 or new == 6:

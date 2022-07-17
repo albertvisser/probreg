@@ -273,6 +273,7 @@ class Page():
         self.parent.pagedata.read()
         if self.parent.newitem:
             # nieuwe entry maken in de tabel voor panel 0
+            # jamaar hier zit toch ook een verschil voor de verschillende datatypes?
             newindex = len(self.parent.data)  # + 1
             pagegui = self.parent.pages[1].gui
             itemdata = (pagegui.get_text('date'),
@@ -295,11 +296,11 @@ class Page():
             pagegui.set_item_text(item, 1, self.parent.pagedata.get_soorttext()[0].upper())
             pagegui.set_item_text(item, 2, self.parent.pagedata.get_statustext())
             pagegui.set_item_text(item, 3, self.parent.pagedata.updated)
-            if self.parent.parent.datatype == shared.DataType.XML:
-                pagegui.set_item_text(item, 4, self.parent.pagedata.titel)
-            elif self.parent.parent.datatype == shared.DataType.SQL:
+            if self.parent.parent.use_separate_subject:
                 pagegui.set_item_text(item, 4, self.parent.pagedata.over)
                 pagegui.set_item_text(item, 5, self.parent.pagedata.titel)
+            else:
+                pagegui.set_item_text(item, 4, self.parent.pagedata.titel)
 
     def enable_buttons(self, state=True):
         "buttons wel of niet bruikbaar maken"
@@ -352,10 +353,11 @@ class Page0(Page):
         self.sorted = (0, "A")
 
         widths = [94, 24, 146, 90, 400] if LIN else [64, 24, 114, 72, 292]
-        if self.parent.parent.datatype == shared.DataType.SQL:
-            widths[4] = 90 if LIN else 72
-            extra = 310 if LIN else 220
-            widths.append(extra)
+        if self.parent.parent.use_separate_subject:
+            # widths[4] = 90 if LIN else 72
+            # extra = 310 if LIN else 220
+            # widths.append(extra)
+            widths[4:] = [90, 310] if LIN else [72, 220]
 
         self.gui = gui.Page0Gui(parent, self, widths)
         self.gui.enable_buttons()
@@ -367,10 +369,10 @@ class Page0(Page):
 
         methode aan te roepen voorafgaand aan het tonen van de pagina
         """
-        # print('in Page0.vulp')
         self.saved_sortopts = None
-        if (self.parent.parent.datatype == shared.DataType.SQL
-                and self.parent.parent.filename):
+        # if (self.parent.parent.datatype == shared.DataType.SQL
+        #         and self.parent.parent.filename):
+        if self.parent.parent.work_with_user:
             if self.parent.parent.is_user:
                 self.saved_sortopts = dmls.SortOptions(self.parent.parent.filename)
                 test = self.saved_sortopts.load_options()
@@ -402,6 +404,15 @@ class Page0(Page):
                                              item[5],
                                              item[4],
                                              True if item[6] == 'arch' else False)
+                elif len(item) == 8:  # type == self.parent.parent.shared.DataType.MNG:
+                    self.parent.data[idx] = (item[0],
+                                             item[1],
+                                             ".".join((item[3][1], item[3][0])),
+                                             ".".join((item[2][1], item[2][0])),
+                                             item[5],
+                                             item[4],
+                                             item[6],
+                                             item[7])
                 elif len(item) == 10:  # type == self.parent.parent.shared.DataType.SQL:
                     self.parent.data[idx] = (item[0],
                                              item[1],
@@ -425,7 +436,6 @@ class Page0(Page):
         self.gui.enable_buttons()
         if self.gui.has_selection():
             self.parent.parent.enable_all_book_tabs(True)
-            print('in Page0.vulp(), current_item is', self.parent.current_item)
             self.gui.set_selection()
             self.gui.ensure_visible(self.parent.current_item)
         self.parent.parent.set_statusmessage(msg)
@@ -468,7 +478,7 @@ class Page0(Page):
         niet alleen selecteren op tekst(deel) maar ook op status, soort etc
         """
         args = self.sel_args, None
-        if self.parent.parent.datatype == shared.DataType.SQL:
+        if self.parent.parent.use_separate_subject:
             data = dmls.SelectOptions(self.parent.fnaam, self.parent.parent.user)
             args, sel_args = data.load_options(), {}
             for key, value in args.items():
@@ -594,7 +604,10 @@ class Page1(Page):
             self.gui.set_text('id', str(self.parent.pagedata.id))
             self.gui.set_text('date', self.parent.pagedata.datum)
             self.parch = self.parent.pagedata.arch
-            if self.parent.parent.datatype == shared.DataType.XML:
+            if self.parent.parent.use_separate_subject:
+                self.gui.set_text('proc', self.parent.pagedata.over)
+                self.gui.set_text('desc', self.parent.pagedata.titel)
+            else:
                 if self.parent.pagedata.titel is not None:
                     if " - " in self.parent.pagedata.titel:
                         hlp = self.parent.pagedata.titel.split(" - ", 1)
@@ -603,9 +616,6 @@ class Page1(Page):
                     self.gui.set_text('proc', hlp[0])
                     if len(hlp) > 1:
                         self.gui.set_text('desc', hlp[1])
-            elif self.parent.parent.datatype == shared.DataType.SQL:
-                self.gui.set_text('proc', self.parent.pagedata.over)
-                self.gui.set_text('desc', self.parent.pagedata.titel)
             self.gui.set_choice('stat', self.parent.pagedata.status)
             self.gui.set_choice('cat', self.parent.pagedata.soort)
 
@@ -651,12 +661,12 @@ class Page1(Page):
         wijzig = False
         procdesc = " - ".join((proc, desc))
         if procdesc != self.parent.pagedata.titel:
-            if self.parent.parent.datatype == shared.DataType.XML:
-                self.parent.pagedata.titel = procdesc
-            elif self.parent.parent.datatype == shared.DataType.SQL:
+            if self.parent.parent.use_separate_subject:
                 self.parent.pagedata.over = proc
                 self.parent.pagedata.add_event('Onderwerp gewijzigd in "{0}"'.format(proc))
                 self.parent.pagedata.titel = procdesc = desc
+            else:
+                self.parent.pagedata.titel = procdesc
             self.parent.pagedata.add_event('Titel gewijzigd in "{0}"'.format(procdesc))
             wijzig = True
         newstat, sel = self.gui.get_choice_data('stat')
@@ -1001,6 +1011,7 @@ class MainWindow():
         self.multiple_files = self.datatype == shared.DataType.XML
         self.multiple_projects = self.datatype == shared.DataType.SQL
         self.use_rt = self.datatype == shared.DataType.XML
+        self.use_separate_subject = self.datatype in (shared.DataType.SQL, shared.DataType.MNG)
         self.create_book()
         self.gui.create_menu()
         self.gui.create_actions()
@@ -1012,10 +1023,7 @@ class MainWindow():
             else:
                 self.startfile()
         elif self.datatype == shared.DataType.SQL:
-            if self.filename:
-                self.open_sql(do_sel=False)
-            else:
-                self.open_sql()
+            self.open_sql(do_sel=not bool(self.filename))
         elif self.datatype == shared.DataType.MNG:
             self.open_mongo()
         self.initializing = False
@@ -1048,7 +1056,6 @@ class MainWindow():
                 ("&View", []),
                 ("&Help", (("&About", self.about_help, 'F1', " Information about this program"),
                            ("&Keys", self.hotkey_help, 'Ctrl+H', " List of shortcut keys")))]
-        print('in get_menu_data, tabs:', self.book.tabs)
         for tabnum, tabtitle in self.book.tabs.items():
             data[3][1].append(('&{}'.format(tabtitle),
                                functools.partial(self.gui.go_to, int(tabnum)),
@@ -1057,7 +1064,7 @@ class MainWindow():
             data.pop(1)     # remove login menu
         if self.multiple_projects:
             data[0][1][0] = ("&Other project", self.open_sql, 'Ctrl+O', " Select a project")
-            data[0][1][1] = ("&New", self.new_file, 'Ctrl+N', " Create a new project")
+            data[0][1][1] = ("&New", self.new_project, 'Ctrl+N', " Create a new project")
         elif not self.multiple_files:
             data[0][1][:3] = []
             # data[0][1].pop(2)  # remove separator
@@ -1077,12 +1084,11 @@ class MainWindow():
         self.book.data = {}
         self.book.rereadlist = True
         self.lees_settings()
-        print('in create book na lees_settings: book.tabs is', self.book.tabs)
         self.book.ctitels = ["actie", " ", "status", "L.wijz."]
-        if self.datatype == shared.DataType.XML:
-            self.book.ctitels.append("titel")
-        elif self.datatype in (shared.DataType.SQL, shared.DataType.MNG):
+        if self.use_separate_subject:
             self.book.ctitels.extend(("betreft", "omschrijving"))
+        else:
+            self.book.ctitels.append("titel")
         self.book.current_tab = -1
         self.book.pages = []
         self.book.newitem = False
@@ -1111,9 +1117,6 @@ class MainWindow():
 
     def new_file(self, event=None):
         "Menukeuze: nieuw file"
-        if not self.multiple_files:
-            self.not_implemented_message()
-            return
         self.is_newfile = False
         # self.dirname = str(self.dirname)  # defaults to '.' so no need for `or os.getcwd()`
         fname = gui.get_save_filename(self.gui, start=self.dirname)
@@ -1138,6 +1141,10 @@ class MainWindow():
             self.dirname, self.filename = test.parent, test.name
             self.startfile()
 
+    def new_project(self, event=None):
+        "Menukeuze: nieuw project"
+        self.not_implemented_message()
+
     def open_sql(self, event=None, do_sel=True):
         "Menukeuze: open project"
         shared.log('in open_sql: %s', self.filename)
@@ -1160,7 +1167,7 @@ class MainWindow():
                 self.filename = "_basic"
             self.startfile()
 
-    def open_mongo(self, ebvent=None):
+    def open_mongo(self, event=None):
         "to be implemented"
 
     def print_something(self, event=None):
@@ -1196,7 +1203,7 @@ class MainWindow():
                 status = page.get_item_text(item, 2)
                 l_wijz = page.get_item_text(item, 3)
                 titel = page.get_item_text(item, 4)
-                if self.datatype == shared.DataType.SQL:
+                if self.use_separate_subject:
                     over = titel
                     titel = page.get_item_text(item, 5)
                     l_wijz = l_wijz[:19]
