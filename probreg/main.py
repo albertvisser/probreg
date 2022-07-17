@@ -258,7 +258,7 @@ class Page():
         if self.parent.current_tab >= 3 and self.parent.pagedata.status == '0':
             self.parent.pagedata.status = '1'
             sel = [y for x, y in self.parent.stats.items() if y[1] == '1'][0]
-            self.parent.pagedata.add_event('Status gewijzigd in "{0}"'.format(sel[0])))
+            self.parent.pagedata.add_event('Status gewijzigd in "{0}"'.format(sel[0]))
 
         # self.parent.pagedata.id onthouden voor de nieuwe startpositie
         if self.parent.pagedata:
@@ -997,20 +997,21 @@ class MainWindow():
         if not self.work_with_user:
             self.user = 1  # pretend user
             self.is_user = self.is_admin = True  # force editability for XML mode
+        self.multiple_files = self.multiple_projects = False
+        self.multiple_files = self.datatype == shared.DataType.XML
+        self.multiple_projects = self.datatype == shared.DataType.SQL
+        self.use_rt = self.datatype == shared.DataType.XML
         self.create_book()
         self.gui.create_menu()
         self.gui.create_actions()
         self.create_book_pages()
 
-        self.multiple_files = self.multiple_projects = False
         if self.datatype == shared.DataType.XML:
-            self.multiple_files = True
             if self.filename == "":
                 self.open_xml()
             else:
                 self.startfile()
         elif self.datatype == shared.DataType.SQL:
-            self.multiple_projects = True
             if self.filename:
                 self.open_sql(do_sel=False)
             else:
@@ -1047,6 +1048,7 @@ class MainWindow():
                 ("&View", []),
                 ("&Help", (("&About", self.about_help, 'F1', " Information about this program"),
                            ("&Keys", self.hotkey_help, 'Ctrl+H', " List of shortcut keys")))]
+        print('in get_menu_data, tabs:', self.book.tabs)
         for tabnum, tabtitle in self.book.tabs.items():
             data[3][1].append(('&{}'.format(tabtitle),
                                functools.partial(self.gui.go_to, int(tabnum)),
@@ -1056,7 +1058,7 @@ class MainWindow():
         if self.multiple_projects:
             data[0][1][0] = ("&Other project", self.open_sql, 'Ctrl+O', " Select a project")
             data[0][1][1] = ("&New", self.new_file, 'Ctrl+N', " Create a new project")
-        elif not self.multiple_filenames:
+        elif not self.multiple_files:
             data[0][1][:3] = []
             # data[0][1].pop(2)  # remove separator
             # data[0][1].pop(1)  # remove file - new
@@ -1075,7 +1077,7 @@ class MainWindow():
         self.book.data = {}
         self.book.rereadlist = True
         self.lees_settings()
-        # print('in create book na lees_settings: book.tabs is', self.book.tabs)
+        print('in create book na lees_settings: book.tabs is', self.book.tabs)
         self.book.ctitels = ["actie", " ", "status", "L.wijz."]
         if self.datatype == shared.DataType.XML:
             self.book.ctitels.append("titel")

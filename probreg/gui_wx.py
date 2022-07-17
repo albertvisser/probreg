@@ -368,16 +368,11 @@ class PageGui(wx.Panel):
         self.parent = parent
         self.master = master
         super().__init__(parent)
-        self.use_rt = None
         if not self.master.is_text_page:
             return
-        if self.parent.parent.datatype == shared.DataType.XML.name:
-            self.use_rt = True
-        elif self.parent.parent.datatype == shared.DataType.SQL.name:
-            self.use_rt = False
         self.actiondict = collections.OrderedDict()
         self.text1 = self.create_text_field()
-        if self.use_rt:
+        if self.master.parent.parent.use_rt:
             self.create_toolbar(textfield=self.text1)
         # if wants_chars:
         #     wx.Panel.__init__(self, parent, id_, style=wx.WANTS_CHARS)
@@ -405,7 +400,7 @@ class PageGui(wx.Panel):
         if not parent:
             parent = self
         high = 330 if LIN else 430
-        if self.use_rt:
+        if self.master.parent.parent.use_rt:
             cls = EditorPanelRt
         else:
             cls = EditorPanel
@@ -510,7 +505,7 @@ class PageGui(wx.Panel):
         "layout page"
         vsizer = wx.BoxSizer(wx.VERTICAL)
         # self.toolbar = wx.StaticText(self, label="Hello this is a placeholder for a toolbar")
-        if self.use_rt:
+        if self.master.parent.parent.use_rt:
             vsizer.Add(self.toolbar, 0, wx.EXPAND)
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
         hsizer.Add(self.text1, 1, wx.ALL | wx.EXPAND, 4)
@@ -555,7 +550,7 @@ class PageGui(wx.Panel):
 
     def enable_toolbar(self, value):
         "make the toolbar accessible (or not)"
-        if self.use_rt:
+        if self.master.parent.parent.use_rt:
             self.toolbar.Enable(value)
 
     def set_text_readonly(self, value):
@@ -1019,7 +1014,7 @@ class Page6Gui(PageGui):
         #                                  style=wx.TE_MULTILINE |        # wx.TE_PROCESS_TAB |
         #                                        wx.TE_RICH2 | wx.TE_WORDWRAP)
         # self.progress_text.Bind(wx.EVT_TEXT, self.master.on_text)
-        if self.use_rt:
+        if self.master.parent.parent.use_rt:
             super().create_toolbar(parent=self.textpanel, textfield=self.progress_text)
 
         self.pnl.SplitHorizontally(self.progress_list, self.textpanel)  # self.progress_text)

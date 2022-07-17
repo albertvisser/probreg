@@ -237,7 +237,7 @@ class Settings:
         de id's bepalen de volgorde in de listboxen en de codes worden in de xml opgeslagen
     """
     def __init__(self, fnaam=""):
-        self.kop = {x: y[0] for x, y in kopdict.items()}
+        self.kop = {x: (y[0],) for x, y in kopdict.items()}
         self.stat = {x: (y[0], y[1]) for x, y in statdict.items()}
         self.cat = {x: (y[0], y[1]) for x, y in catdict.items()}
         self.imagecount = 0

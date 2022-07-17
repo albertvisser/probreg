@@ -333,12 +333,13 @@ class PageGui(qtw.QFrame):
         self.parent = parent
         self.master = master
         super().__init__(parent)
-        self.use_rt = self.parent.parent.datatype == shared.DataType.XML.name
         if not self.master.is_text_page:
             return
+        print('in Page.init, page is', self, 'is_text_page:', self.master.is_text_page,
+                'use_rt:', self.master.parent.parent.use_rt)
         self.actiondict = collections.OrderedDict()
         self.text1 = self.create_text_field()
-        if self.use_rt:
+        if self.master.parent.parent.use_rt:
             self.create_toolbar(textfield=self.text1)
         self.save_button = qtw.QPushButton('Sla wijzigingen op (Ctrl-S)', self)
         self.save_button.clicked.connect(self.master.savep)
@@ -416,7 +417,7 @@ class PageGui(qtw.QFrame):
     def doelayout(self):
         "layout page"
         sizer0 = qtw.QVBoxLayout()
-        if self.use_rt:
+        if self.master.parent.parent.use_rt:
             sizer1 = qtw.QVBoxLayout()
             sizer1.addWidget(self.toolbar)
             sizer0.addLayout(sizer1)
@@ -459,6 +460,8 @@ class PageGui(qtw.QFrame):
 
     def set_textarea_contents(self, data):
         "set the page text"
+        print('in Page, set_textarea_contents, page is', self, ', use_rt:',
+                self.master.parent.parent.use_rt)
         self.text1.set_contents(data)
 
     def get_textarea_contents(self):
@@ -467,7 +470,7 @@ class PageGui(qtw.QFrame):
 
     def enable_toolbar(self, value):
         "make the toolbar accessible (or not)"
-        if self.use_rt:
+        if self.master.parent.parent.use_rt:
             self.toolbar.setEnabled(value)
 
     def set_text_readonly(self, value):
@@ -941,7 +944,7 @@ class Page6Gui(PageGui):
         self.progress_text = super().create_text_field()
         sizer0 = qtw.QHBoxLayout()
         sizer1 = qtw.QVBoxLayout()
-        if self.use_rt:
+        if self.master.parent.parent.use_rt:
             super().create_toolbar(textfield=self.progress_text)
             sizer1.addWidget(self.toolbar)
         sizer1.addWidget(self.progress_text)
@@ -1855,6 +1858,7 @@ class MainGui(qtw.QMainWindow):
         if LIN and old == -1:  # bij initialisatie en bij afsluiten - op Windows is deze altijd -1?
             return
         self.enable_all_other_tabs(True)
+        print('in on_page_changing, new page is', new)
         if 0 < new < 6:
             self.master.book.pages[new].vulp()
         elif new == 0 or new == 6:
