@@ -51,6 +51,10 @@ def test_get_nieuwetitel(monkeypatch, capsys):
     assert dmlm.get_nieuwetitel('', 2020) == '2020-0001'
 
 def test_get_acties(monkeypatch, capsys):
+    def mock_find(self, *args, **kwargs):
+        print('called collection.find() for selection', args[0])
+    monkeypatch.setattr(MockColl, 'find', mock_find)
+    monkeypatch.setattr(dmlm, 'coll', MockColl())
     with pytest.raises(dmlm.DataError) as excinfo:
         dmlm.get_acties('', arch='x')
     assert str(excinfo.value) == ("Foutieve waarde voor archief opgegeven "
@@ -71,34 +75,50 @@ def test_get_acties(monkeypatch, capsys):
         dmlm.get_acties('', select={'idgt': 'y', 'id': 'of'})
     assert str(excinfo.value) == "Operator alleen opgeven bij twee grenswaarden voor id"
 
-    assert dmlm.get_acties('', select={'idlt': 'x'}) == '{"nummer": {"lt": "x"}, "arch": false}'
-    assert dmlm.get_acties('', select={'idgt': 'y'}) == '{"nummer": {"gt": "y"}, "arch": false}'
-    assert dmlm.get_acties('', select={'idlt': 'x', 'id': 'en', 'idgt': 'y'}) == ('{"nummer":'
-            ' {"lt": "x", "gt": "y"}, "arch": false}')
-    assert dmlm.get_acties('', select={'idlt': 'x', 'id': 'of', 'idgt': 'y'}) == ('{"nummer":'
-            ' {"or": {"lt": "x", "gt": "y"}}, "arch": false}')
+    dmlm.get_acties('', select={'idlt': 'x'})
+    assert capsys.readouterr().out == ('called collection.find() for selection'
+            " {'nummer': {'lt': 'x'}, 'arch': False}\n")
+    dmlm.get_acties("", select={'idgt': 'y'})
+    assert capsys.readouterr().out == ('called collection.find() for selection'
+            " {'nummer': {'gt': 'y'}, 'arch': False}\n")
+    dmlm.get_acties("", select={'idlt': 'x', 'id': 'en', 'idgt': 'y'})
+    assert capsys.readouterr().out == ('called collection.find() for selection'
+            " {'nummer': {'lt': 'x', 'gt': 'y'}, 'arch': False}\n")
+    dmlm.get_acties("", select={'idlt': 'x', 'id': 'of', 'idgt': 'y'})
+    assert capsys.readouterr().out == ('called collection.find() for selection'
+            " {'nummer': {'or': {'lt': 'x', 'gt': 'y'}}, 'arch': False}\n")
 
-    assert dmlm.get_acties('', select={'soort': '1'}) == '{"soort": "1", "arch": false}'
-    assert dmlm.get_acties('', select={'status': '1'}) == '{"status": "1", "arch": false}'
-    assert dmlm.get_acties('', select={'titel': 'x'}) == ('{"titel": {"regex": "\.*x\.*"},'
-                                                          ' "arch": false}')
+    dmlm.get_acties("", select={'soort': '1'})
+    assert capsys.readouterr().out == ('called collection.find() for selection'
+            " {'soort': '1', 'arch': False}\n")
+    dmlm.get_acties("", select={'status': '1'})
+    assert capsys.readouterr().out == ('called collection.find() for selection'
+            " {'status': '1', 'arch': False}\n")
+    dmlm.get_acties("", select={'titel': 'x'})
+    assert capsys.readouterr().out == ('called collection.find() for selection'
+            " {'titel': {'regex': '\\\\.*x\\\\.*'}, 'arch': False}\n")
+    dmlm.get_acties("", select={'onderwerp': 'x'})
+    assert capsys.readouterr().out == ('called collection.find() for selection'
+            " {'onderwerp': {'regex': '\\\\.*x\\\\.*'}, 'arch': False}\n")
     with pytest.raises(dmlm.DataError) as excinfo:
         dmlm.get_acties('', select={'x': 'y'})
     assert str(excinfo.value) == "Foutief selectie-argument opgegeven"
 
-    # bij zoeklogica doorgeven aan momgodb heeft uitkomst testen niet zoveel zin, kijken naar
-    # output van gesimuleerd database commando wel
-    result = [('2022-0001', 'vandaag', 'nieuw', 'idee', 'iets', 'vandaag', ''),
-              ('2022-0002', 'vandaag', 'nieuw', 'idee', 'iets', 'vandaag', '')]
     # alles dat er is
-    assert dmlm.get_acties('', arch='alles') == result
-    assert dmlm.get_acties('', select={}, arch='alles') == result
+    dmlm.get_acties('', arch='alles')
+    assert capsys.readouterr().out == 'called collection.find() for selection {}\n'
+    dmlm.get_acties('', select={}, arch='alles')
+    assert capsys.readouterr().out == 'called collection.find() for selection {}\n'
     # alles dat niet gearchiveerd is
-    assert dmlm.get_acties('', arch='') == '{"arch": false}'
-    assert dmlm.get_acties('', select={}, arch='') == '{"arch": false}'
+    dmlm.get_acties('', arch='')
+    assert capsys.readouterr().out == "called collection.find() for selection {'arch': False}\n"
+    dmlm.get_acties('', select={}, arch='')
+    assert capsys.readouterr().out == "called collection.find() for selection {'arch': False}\n"
     # alles dat gearchiveerd is
-    assert dmlm.get_acties('', arch='arch') == '{"arch": true}'
-    assert dmlm.get_acties('', select={}, arch='arch') == '{"arch": true}'
+    dmlm.get_acties('', arch='arch')
+    assert capsys.readouterr().out == "called collection.find() for selection {'arch': True}\n"
+    dmlm.get_acties('', select={}, arch='arch')
+    assert capsys.readouterr().out == "called collection.find() for selection {'arch': True}\n"
 
 def test_settings(monkeypatch, capsys):
     monkeypatch.setattr(dmlm.Settings, 'read', lambda x: False)

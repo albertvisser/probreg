@@ -96,9 +96,9 @@ def get_acties(fnaam, select=None, arch="", user=None):
     #             break
     #     if keyfout:
     #         raise DataError("Foutief selectie-argument opgegeven")
-    selections = []
+    selections = {}
 
-    idclause = ''
+    select_ids = {}
     item_lt = select.pop('idlt', '')
     enof = select.pop('id', '')
     item_gt = select.pop('idgt', '')
@@ -109,53 +109,54 @@ def get_acties(fnaam, select=None, arch="", user=None):
     if all((item_lt, item_gt)) and not enof:
         raise DataError("Geen operator opgegeven bij twee grenswaarden voor id")
     if item_lt:
-        idclause += f'"lt": "{item_lt}"'
+        # idclause += f'"lt": "{item_lt}"'
+        select_ids['lt'] = item_lt
     if item_gt:
-        if item_lt:
-            idclause += ', '
-        idclause += f'"gt": "{item_gt}"'
-    if idclause:
-        idclause = idclause.join(('{', '}'))
+        # if item_lt:
+        #     idclause += ', '
+        # idclause += f'"gt": "{item_gt}"'
+        select_ids["gt"] = item_gt
+    if select_ids:
+        # idclause = idclause.join(('{', '}'))
         if enof == 'of':
-            idclause = idclause.join(('{"or": ', '}'))
-        idclause = '"nummer": ' + idclause
-        selections.append(idclause)
+            # idclause = idclause.join(('{"or": ', '}'))
+            select_ids = {"or": select_ids}
+        # idclause = '"nummer": ' + idclause
+        # selections.append(idclause)
+        selections["nummer"] = select_ids
 
-    soortclause = select.pop('soort', '')
-    if soortclause:
-        soortclause = '"soort": "' + soortclause + '"'
-        selections.append(soortclause)
+    soortsel = select.pop('soort', '')
+    if soortsel:
+        # soortsel = '"soort": "' + soortclause + '"'
+        # selections.append(soortsel)
+        selections['soort'] = soortsel
 
-    statclause = select.pop('status', '')
-    if statclause:
-        statclause = '"status": "' + statclause + '"'
-        selections.append(statclause)
+    statsel = select.pop('status', '')
+    if statsel:
+        # statsel = '"status": "' + statclause + '"'
+        # selections.append(statsel)
+        selections['status'] = statsel
 
-    textclause = select.pop('titel', '')
-    if textclause:
-        textclause = '"titel": {"regex": "\.*' + textclause + '\.*"}'
-        selections.append(textclause)
-    # TODO ook op onderwerp kunnen zoeken
+    textsel = select.pop('titel', '')
+    if textsel:
+        # textsel = '"titel": {"regex": "\.*' + textclause + '\.*"}'
+        # selections.append(textsel)
+        selections['titel'] = {"regex": "\.*" + textsel + "\.*"}
+    subjectsel = select.pop('onderwerp', '')
+    if subjectsel:
+        selections['onderwerp'] = {"regex": "\.*" + subjectsel + "\.*"}
 
     if select:
         raise DataError("Foutief selectie-argument opgegeven")
 
-    archclause = '"arch": true' if arch == "arch" else '"arch": false' if arch == "" else ''
-    if archclause:
-        selections.append(archclause)
+    # archsel = '"arch": true' if arch == "arch" else '"arch": false' if arch == "" else ''
+    # if archsel:
+    #     selections.append(archsel)
+    archsel = True if arch == 'arch' else False if arch == '' else None
+    if archsel is not None:
+        selections['arch'] = archsel
 
-    if selections:
-        selections = '{' + ', '.join(selections) + '}'
-        return selections
-
-    # sett = Settings(fnaam) - heb ik dit nodig?
-    # zoeken gaat t.z.t. met mongodb, nu maar even net doen alsof
-    # TODO: afmaken
-    # ik wil ook een rubriek 'onderwerp' teruggeven net als bij django, als ik dan status en soort
-    # in twee rubrieken doorgeef heb ik net zoveel velden als de django versie
-    # of ik moet dat daar ook anders doen
-    lijst = [('2022-0001', 'vandaag', 'nieuw', 'idee', 'iets', 'vandaag', ''),
-             ('2022-0002', 'vandaag', 'nieuw', 'idee', 'iets', 'vandaag', '')]
+    lijst = coll.find(selections)
     return lijst
 
 
@@ -214,7 +215,7 @@ class Actie:
         self.imagecount = int(self.settings.imagecount)
         self.imagelist = []
         self.actie_id, self.exists = actiekey, False
-        self.datum = self.updated = self.soort = self.titel = ''
+        self.datum = self.updated = self.soort = self.onderwerp = self.titel = ''
         self.status, self.arch = '0', False
         self.melding = ''
         self.events = []
@@ -245,6 +246,7 @@ class Actie:
         self.status = actie['status']
         self.soort = actie['soort']
         self.updated = actie['bijgewerkt']
+        self.onderwerp = actie['onderwerp']
         self.titel = actie['titel']
         self.melding = actie['melding']
         self.stand = ''
@@ -292,6 +294,7 @@ class Actie:
                                                           'status': self.status,
                                                           'soort': self.soort,
                                                           'bijgewerkt': self.updated,
+                                                          'onderwerp': self.onderwerp,
                                                           'titel': self.titel,
                                                           'melding': self.melding,
                                                           'events': self.events}})
