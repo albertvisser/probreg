@@ -104,7 +104,7 @@ def test_settings(monkeypatch, capsys):
     monkeypatch.setattr(dmlm.Settings, 'read', lambda x: False)
     testobj = dmlm.Settings()
     assert not testobj.exists
-    assert testobj.kop == {x: y[0] for x, y in dmlm.kopdict.items()}
+    assert testobj.kop == {x: (y[0],) for x, y in dmlm.kopdict.items()}
     assert testobj.stat == {x: (y[0], y[1]) for x, y in dmlm.statdict.items()}
     assert testobj.cat == {x: (y[0], y[1]) for x, y in dmlm.catdict.items()}
     assert testobj.imagecount == 0
@@ -123,7 +123,7 @@ def test_settings_read(monkeypatch, capsys):
     monkeypatch.setattr(dmlm, 'coll', MockColl())
     testobj = dmlm.Settings()  # read wordt uitgevoerd tijdens __init__
     assert not testobj.exists
-    assert testobj.kop == {x: y[0] for x, y in dmlm.kopdict.items()}
+    assert testobj.kop == {x: (y[0],) for x, y in dmlm.kopdict.items()}
     assert testobj.stat == {x: (y[0], y[1]) for x, y in dmlm.statdict.items()}
     assert testobj.cat == {x: (y[0], y[1]) for x, y in dmlm.catdict.items()}
     assert testobj.imagecount == 0
@@ -134,7 +134,7 @@ def test_settings_read(monkeypatch, capsys):
     testobj = dmlm.Settings()  # read wordt uitgevoerd tijdens __init__
     assert testobj.exists
     assert testobj.settings_id == 100
-    assert testobj.kop == {0: 'Begin'}
+    assert testobj.kop == {0: ('Begin',)}
     assert testobj.stat == {0: ('Started', 1)}
     assert testobj.cat == {'U': ('Unknown', 1)}
     assert testobj.imagecount == 1
