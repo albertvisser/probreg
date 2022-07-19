@@ -363,18 +363,19 @@ class Page0(Page):
         self.gui.enable_buttons()
 
         self.sort_via_options = False
+        self.saved_sortopts = None
+        if self.parent.parent.work_with_user and self.parent.parent.is_user:
+            self.saved_sortopts = dmls.SortOptions(self.parent.parent.filename)
 
     def vulp(self):
         """te tonen gegevens invullen in velden e.a. initialisaties
 
         methode aan te roepen voorafgaand aan het tonen van de pagina
         """
-        self.saved_sortopts = None
         # if (self.parent.parent.datatype == shared.DataType.SQL
         #         and self.parent.parent.filename):
         if self.parent.parent.work_with_user:
-            if self.parent.parent.is_user:
-                self.saved_sortopts = dmls.SortOptions(self.parent.parent.filename)
+            if self.saved_sortopts:
                 test = self.saved_sortopts.load_options()
                 test = bool(test)
                 self.sort_via_options = test
@@ -515,16 +516,16 @@ class Page0(Page):
         2x4 comboboxjes waarin je de volgorde van de rubrieken en de sorteervolgorde
         per rubriek kunt aangeven"""
         sortopts, sortlist = {}, []
-        if self.parent.parent.datatype == shared.DataType.SQL:
+        if self.saved.sortopts:
             sortopts = self.saved_sortopts.load_options()
-            try:
-                sortlist = [x[0] for x in dmls.SORTFIELDS]
-            except AttributeError:
-                pass
+            # try:
+            sortlist = [x[0] for x in dmls.SORTFIELDS]
+            # except AttributeError:
+            #     pass
         else:
             gui.show_message(self.gui, 'Sorry, multi-column sorteren werkt nog niet')
             return
-        if not sortlist:
+        if not sortlist:  # kan dit?
             sortlist = [x for x in self.parent.ctitels]
             sortlist[1] = "Soort"
         sortlist.insert(0, "(geen)")
@@ -781,7 +782,7 @@ class Page6(Page):
             if len(short_text) < 80:
                 short_text = short_text[:80] + "..."
             if self.parent.parent.datatype == shared.DataType.XML:
-                short_text = short_text.encode('latin-1')
+                short_text = short_text.encode('latin-1')       #FIXME: is dit nodig?
             self.gui.set_listitem_text(idx + 1, "{} - {}".format(self.event_list[idx], short_text))
             self.gui.set_listitem_data(idx + 1)
         wijzig = False
@@ -1010,6 +1011,7 @@ class MainWindow():
         self.multiple_files = self.multiple_projects = False
         self.multiple_files = self.datatype == shared.DataType.XML
         self.multiple_projects = self.datatype == shared.DataType.SQL
+        self.use_text_panels = self.datatype != shared.DataType.MNG
         self.use_rt = self.datatype == shared.DataType.XML
         self.use_separate_subject = self.datatype in (shared.DataType.SQL, shared.DataType.MNG)
         self.create_book()
@@ -1078,7 +1080,7 @@ class MainWindow():
         self.book = self.gui.get_bookwidget()
         self.book.parent = self
         self.book.fnaam = ""
-        if self.filename and self.datatype == shared.DataType.SQL:
+        if self.filename and self.multiple_projects:  # datatype == shared.DataType.SQL:
             self.book.fnaam = self.filename
         self.book.current_item = None
         self.book.data = {}
@@ -1099,7 +1101,7 @@ class MainWindow():
         "add the pages to the tabbed widget"
         self.book.pages.append(Page0(self.book))
         self.book.pages.append(Page1(self.book))
-        if self.datatype != shared.DataType.MNG:
+        if self.use_text_panels:
             self.book.pages.append(Page(self.book, 2))
             self.book.pages.append(Page(self.book, 3))
             self.book.pages.append(Page(self.book, 4))
@@ -1239,7 +1241,8 @@ class MainWindow():
         elif self.book.current_tab == 6:
             events = []
             for idx, data in enumerate(self.book.pages[6].event_list):
-                if self.datatype == shared.DataType.SQL:
+                # if self.datatype == shared.DataType.SQL:
+                if len(datum) > 18:
                     data = data[:19]
                 events.append((data, self.book.pages[6].event_data[idx]))
             self.printdict['events'] = events
@@ -1471,7 +1474,8 @@ class MainWindow():
     def save_startitem_on_exit(self):
         "bijwerken geselecteerde actie om te onthouden voor de volgende keer"
         data = shared.Settings[self.datatype](self.book.fnaam)
-        if self.datatype == shared.DataType.XML:
+        # if self.datatype == shared.DataType.XML:
+        if getattr(data, 'startitem'):
             data.startitem = self.book.pagedata.id
             data.write()
 

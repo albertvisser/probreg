@@ -1158,7 +1158,8 @@ class Page6Gui(PageGui):
             text = tekst_plat or ""
         text = text if len(text) < 80 else text[:80] + "..."
         index = self.progress_list.InsertItem(sys.maxsize, datum)
-        if self.parent.parent.datatype == shared.DataType.SQL.name:
+        # if self.parent.parent.datatype == shared.DataType.SQL:
+        if len(datum) > 18:
             datum = datum[:19]
         self.progress_list.SetItem(index, 0, "{} - {}".format(datum, text))
                 # datum, text.encode('latin-1')))
@@ -1342,9 +1343,9 @@ class SortOptionsDialog(wx.Dialog):
             show_message(self, 'U heeft niets gewijzigd')
             return False
         self.parent.master.sort_via_options = via_options
-        if via_options and self.parent.parent.parent.datatype == shared.DataType.SQL.name:
-            if self.parent.saved_sortopts:      # alleen SQL versie
-                self.parent.saved_sortopts.save_options(new_sortopts)
+        # if via_options and self.parent.parent.parent.datatype == shared.DataType.SQL.name:
+        if self.parent.saved_sortopts:      # alleen SQL versie
+            self.parent.saved_sortopts.save_options(new_sortopts)
         return True
 
 
@@ -1356,7 +1357,7 @@ class SelectOptionsDialog(wx.Dialog):
     'id': 'and', 'idgt': '2005-0019'}"""
     def __init__(self, parent, args):
         self.parent = parent
-        self.datatype = self.parent.parent.parent.datatype
+        # self.datatype = self.parent.parent.parent.datatype
         sel_args, self._data = args
         wx.Dialog.__init__(self, parent, -1, title="Selecteren",
                            ## size=(250,  250),  pos=wx.DefaultPosition,
@@ -1842,10 +1843,9 @@ class MainGui(wx.Frame):
         if old == -1:
             pass
         elif self.master.book.fnaam == "":
-            # nog geen bestand gekozen
-            if self.master.datatype == shared.DataType.XML.name:
+            if self.master.multiple_files:  # datatype == shared.DataType.XML.name:
                 wat = 'bestand'
-            elif self.master.datatype == shared.DataType.SQL.name:
+            elif self.master.multiple_projects:  # datatype == shared.DataType.SQL.name:
                 wat = 'project'
             msg = "Kies eerst een {} om mee te werken".format(wat)
             mag_weg = False

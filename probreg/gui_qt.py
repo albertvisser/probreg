@@ -760,7 +760,7 @@ class Page1Gui(PageGui):
         sizery.addWidget(self.archive_button)
         sizery.addStretch()
         sizer1.addLayout(sizery, row, 1)
-        if self.parent.parent.datatype == shared.DataType.MNG:
+        if not self.parent.parent.use_text_panels:
             row += 1
             sizer1.addWidget(qtw.QLabel("Samenvatting van het issue:", self), row, 0)
             sizery = qtw.QHBoxLayout()
@@ -792,7 +792,7 @@ class Page1Gui(PageGui):
         self.proc_entry.clear()
         self.desc_entry.clear()
         self.archive_text.setText("")
-        if self.parent.parent.datatype == shared.DataType.MNG:
+        if not self.parent.parent.use_text_panels:
             self.summary_entry.clear()
         self.cat_choice.setCurrentIndex(0)
         self.stat_choice.setCurrentIndex(0)
@@ -877,13 +877,13 @@ class Page1Gui(PageGui):
         self.desc_entry.setEnabled(state)
         self.cat_choice.setEnabled(state)
         self.stat_choice.setEnabled(state)
-        if self.parent.parent.datatype == shared.DataType.MNG:
-            self.summary_entry.setEnabled(state)
         if self.master.parent.newitem or not self.master.parent.parent.is_user:
             # archiveren niet mogelijk bij nieuw item of als de user niet is ingelogd (?)
             self.archive_button.setEnabled(False)
         else:
             self.archive_button.setEnabled(True)
+        if not self.parent.parent.use_text_panels:
+            self.summary_entry.setEnabled(state)
 
     def clear_stats(self):
         "initialize status choices"
@@ -1250,7 +1250,7 @@ class SelectOptionsDialog(qtw.QDialog):
     """
     def __init__(self, parent, args):
         self.parent = parent
-        self.datatype = self.parent.parent.parent.datatype
+        # self.datatype = self.parent.parent.parent.datatype
         sel_args, self._data = args
         super().__init__(parent)
         self.setWindowTitle("Selecteren")
@@ -1908,14 +1908,14 @@ class MainGui(qtw.QMainWindow):
         "focus geven aan de gekozen tab"
         widgets = [self.master.book.pages[0].gui.p0list,
                    self.master.book.pages[1].gui.proc_entry]
-        if self.master.datatype == shared.DataType.MNG:
-            lasttab = 2
-        else:
+        if self.parent.parent.use_text_panels:
             widgets.extend([self.master.book.pages[2].gui.text1,
                              self.master.book.pages[3].gui.text1,
                              self.master.book.pages[4].gui.text1,
                              self.master.book.pages[5].gui.text1])
             lasttab = 6
+        else:
+            lasttab = 2
         widgets.append(self.master.book.pages[lasttab].gui.progress_list)
         widgets[tabno].setFocus()
 
