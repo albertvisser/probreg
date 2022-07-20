@@ -975,7 +975,7 @@ class MainWindow():
         shared.log('fnaam is %s', fnaam)
         self.projnames = dmls.get_projnames()
         if fnaam:
-            if fnaam == 'xml' or os.path.exists(fnaam):
+            if fnaam == 'xml' or (os.path.exists(fnaam) and os.path.isfile(fnaam)):
                 self.datatype = shared.DataType.XML
                 if fnaam != 'xml':
                     test = pathlib.Path(fnaam)

@@ -447,7 +447,7 @@ class PageGui(qtw.QFrame):
     def enable_buttons(self, state=True):
         "buttons wel of niet bruikbaar maken"
         self.save_button.setEnabled(state)
-        print(self.parent.count())
+        # print(self.parent.count())
         if self.parent.current_tab < self.parent.count() - 1:
             self.saveandgo_button.setEnabled(state)
         self.cancel_button.setEnabled(state)
@@ -692,10 +692,9 @@ class Page1Gui(PageGui):
         self.archive_button = qtw.QPushButton("Archiveren", self)
         self.archive_button.clicked.connect(self.master.archiveer)
 
-        # if self.parent.parent.datatype == shared.DataType.MNG:
-        # niet onder conditie zodat dit altijd aanwezig is
-        self.summary_entry = qtw.QTextEdit(self)
-        self.summary_entry.textChanged.connect(self.master.on_text)
+        if not self.parent.parent.use_text_panels:
+            self.summary_entry = qtw.QTextEdit(self)
+            self.summary_entry.textChanged.connect(self.master.on_text)
 
         self.save_button = qtw.QPushButton('Sla wijzigingen op (Ctrl-S)', self)
         self.save_button.clicked.connect(self.master.savep)
@@ -854,8 +853,7 @@ class Page1Gui(PageGui):
 
     def set_oldbuf(self):
         "get fieldvalues for comparison of entry was changed"
-        return (self.proc_entry.text(), self.desc_entry.text(), self.summary_entry.toPlainText(),
-                int(self.stat_choice.currentIndex()), int(self.cat_choice.currentIndex()))
+        return self.get_fieldvalues()
 
     def get_field_text(self, entry_type):
         "return a screen field's value"
@@ -908,8 +906,15 @@ class Page1Gui(PageGui):
     def build_newbuf(self):
         """read widget contents into the compare buffer
         """
-        return (self.proc_entry.text(), self.desc_entry.text(), self.summary_entry.toPlainText(),
-                int(self.stat_choice.currentIndex()), int(self.cat_choice.currentIndex()))
+        return self.get_fieldvalues()
+
+    def get_fieldvalues(self):
+        "collect values of the fields that can be changed"
+        fields = [self.proc_entry.text(), self.desc_entry.text(),
+                int(self.stat_choice.currentIndex()), int(self.cat_choice.currentIndex())]
+        if not self.parent.parent.use_text_panels:
+            fields.append(self.summary_entry.toPlainText())
+        return fields
 
 
 class Page6Gui(PageGui):
@@ -1908,7 +1913,7 @@ class MainGui(qtw.QMainWindow):
         "focus geven aan de gekozen tab"
         widgets = [self.master.book.pages[0].gui.p0list,
                    self.master.book.pages[1].gui.proc_entry]
-        if self.parent.parent.use_text_panels:
+        if self.master.use_text_panels:
             widgets.extend([self.master.book.pages[2].gui.text1,
                              self.master.book.pages[3].gui.text1,
                              self.master.book.pages[4].gui.text1,
