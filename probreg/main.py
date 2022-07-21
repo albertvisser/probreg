@@ -1475,7 +1475,7 @@ class MainWindow():
         "bijwerken geselecteerde actie om te onthouden voor de volgende keer"
         data = shared.Settings[self.datatype](self.book.fnaam)
         # if self.datatype == shared.DataType.XML:
-        if getattr(data, 'startitem'):
+        if getattr(data, 'startitem') and self.book.pagedata:
             data.startitem = self.book.pagedata.id
             data.write()
 
