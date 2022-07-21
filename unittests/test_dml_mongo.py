@@ -244,8 +244,8 @@ def test_actie_nieuw(monkeypatch, capsys):
 def test_actie_read(monkeypatch, capsys):
     def mock_find_one(self, *args, **kwargs):
         return {'_id': 100, 'jaar': '2020', 'nummer': '0001', 'gemeld': 'vandaag', 'status': 0,
-                'soort': 'A', 'bijgewerkt': 'ook vandaag', 'titel': 'whatever', 'melding': 'dit',
-                'events': [('zonet', 'iets'), ('straks', 'nog iets')]}
+                'soort': 'A', 'bijgewerkt': 'ook vandaag', 'onderwerp': 'it', 'titel': 'whatever',
+                'melding': 'dit', 'events': [('zonet', 'iets'), ('straks', 'nog iets')]}
     def mock_find_none(self, *args, **kwargs):
         return None
     monkeypatch.setattr(dmlm, 'Settings', MockSettings)
@@ -290,6 +290,7 @@ def test_actie_write(monkeypatch, capsys):
     testobj.status = 0
     testobj.soort = 'A'
     testobj.updated = 'ook vandaag'
+    testobj.onderwerp = 'it'
     testobj.titel = 'whatever'
     testobj.melding = 'dit'
     testobj.events = [('zonet', 'iets'), ('straks', 'nog iets')]
@@ -300,7 +301,7 @@ def test_actie_write(monkeypatch, capsys):
         'called Settings.write()\n'
         "called coll.update_one() with args ({'_id': '5'}, {'$set': {'jaar': '2020',"
         " 'nummer': '0001', 'gemeld': 'vandaag', 'status': 0, 'soort': 'A',"
-        " 'bijgewerkt': 'ook vandaag', 'titel': 'whatever', 'melding': 'dit',"
+        " 'bijgewerkt': 'ook vandaag', 'onderwerp': 'it', 'titel': 'whatever', 'melding': 'dit',"
         " 'events': [('zonet', 'iets'), ('straks', 'nog iets')]}})\n")
     testobj = dmlm.Actie('', '1')
     testobj.actie_id = '10'
@@ -310,6 +311,7 @@ def test_actie_write(monkeypatch, capsys):
     testobj.status = 0
     testobj.soort = 'A'
     testobj.updated = 'ook vandaag'
+    testobj.onderwerp = 'it'
     testobj.titel = 'whatever'
     testobj.melding = 'dit'
     testobj.events = [('zonet', 'iets'), ('straks', 'nog iets')]
@@ -319,7 +321,7 @@ def test_actie_write(monkeypatch, capsys):
         'called Settings.write()\n'
         "called coll.update_one() with args ({'_id': '10'}, {'$set': {'jaar': '2020',"
         " 'nummer': '0001', 'gemeld': 'vandaag', 'status': 0, 'soort': 'A',"
-        " 'bijgewerkt': 'ook vandaag', 'titel': 'whatever', 'melding': 'dit',"
+        " 'bijgewerkt': 'ook vandaag', 'onderwerp': 'it', 'titel': 'whatever', 'melding': 'dit',"
         " 'events': [('zonet', 'iets'), ('straks', 'nog iets')]}})\n")
 
 def test_actie_get_statustext(monkeypatch, capsys):
