@@ -154,10 +154,11 @@ def get_acties(fnaam, select=None, arch="", user=None):
     #     selections.append(archsel)
     archsel = True if arch == 'arch' else False if arch == '' else None
     if archsel is not None:
-        selections['arch'] = archsel
+        selections['archived'] = archsel
 
     lijst = coll.find(selections)
-    return lijst
+    return [('-'.join((x['jaar'], x['nummer'])), x['gemeld'], x['soort'], x['status'],
+            x['bijgewerkt'], x['onderwerp'], x['titel'], x['archived']) for x in lijst]
 
 
 class Settings:
@@ -214,8 +215,8 @@ class Actie:
         self.settings = Settings(fnaam)
         self.imagecount = int(self.settings.imagecount)
         self.imagelist = []
-        self.actie_id, self.exists = actiekey, False
-        self.datum = self.updated = self.soort = self.onderwerp = self.titel = ''
+        self.id, self.exists = actiekey, False
+        self.datum = self.updated = self.soort = self.over = self.titel = ''
         self.status, self.arch = '0', False
         self.melding = ''
         self.events = []
@@ -232,24 +233,27 @@ class Actie:
     def nieuw(self):
         "nieuwe actie initialiseren"
         now = dt.datetime.today()
-        self.nummer = get_nieuwetitel(self.fn, now.year)
+        self.id = get_nieuwetitel(self.fn, now.year)
         self.datum = now.isoformat(' ')[:19]
+        self.arch = False
 
     def read(self):
         "gegevens lezen van een bepaalde actie"
         self.exists = False
-        actie = coll.find_one({'_id': self.actie_id})
+        jaar, nummer = self.id.split('-')
+        # actie = coll.find_one({'_id': self.actie_id})
+        actie = coll.find_one({'jaar': jaar, 'nummer': nummer})
         if actie is None:
             raise DataError('Actie object does not exist')
-        self.nummer = '-'.join((actie['jaar'], actie['nummer']))
+        # self.id = '-'.join((actie['jaar'], actie['nummer']))
         self.datum = actie['gemeld']
         self.status = actie['status']
         self.soort = actie['soort']
         self.updated = actie['bijgewerkt']
-        self.onderwerp = actie['onderwerp']
+        self.over = actie['onderwerp']
         self.titel = actie['titel']
         self.melding = actie['melding']
-        self.stand = ''
+        self.arch = actie['archived']
         self.events = actie['events']
         self.imagelist = []
         self.exists = True
@@ -282,21 +286,21 @@ class Actie:
 
     def write(self):
         "actiegegevens terugschrijven"
+        jaar, nummer = self.id.split('-')
         if not self.exists:
-            self.actie_id = coll.insert_one({}).inserted_id
+            self.actie_id = coll.insert_one({'jaar': jaar, 'nummer': nummer}).inserted_id
             self.exists = True
         self.settings.imagecount = str(self.imagecount)  # moet dit niet parent.parent.imagecount zijn?
         self.settings.startitem = str(self.actie_id)
         self.settings.write()
-        jaar, nummer = self.nummer.split('-')
-        coll.update_one({'_id': self.actie_id}, {'$set': {'jaar': jaar, 'nummer': nummer,
-                                                          'gemeld': self.datum,
+        coll.update_one({'_id': self.actie_id}, {'$set': {'gemeld': self.datum,
                                                           'status': self.status,
                                                           'soort': self.soort,
                                                           'bijgewerkt': self.updated,
-                                                          'onderwerp': self.onderwerp,
+                                                          'onderwerp': self.over,
                                                           'titel': self.titel,
                                                           'melding': self.melding,
+                                                          'archived': self.arch,
                                                           'events': self.events}})
 
     def cleanup(self):

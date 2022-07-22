@@ -53,6 +53,7 @@ def test_get_nieuwetitel(monkeypatch, capsys):
 def test_get_acties(monkeypatch, capsys):
     def mock_find(self, *args, **kwargs):
         print('called collection.find() for selection', args[0])
+        return []
     monkeypatch.setattr(MockColl, 'find', mock_find)
     monkeypatch.setattr(dmlm, 'coll', MockColl())
     with pytest.raises(dmlm.DataError) as excinfo:
@@ -75,31 +76,32 @@ def test_get_acties(monkeypatch, capsys):
         dmlm.get_acties('', select={'idgt': 'y', 'id': 'of'})
     assert str(excinfo.value) == "Operator alleen opgeven bij twee grenswaarden voor id"
 
+    # niet geïnteresseerd in het resultaat, wel in het vertalen van de zoekargumenten
     dmlm.get_acties('', select={'idlt': 'x'})
     assert capsys.readouterr().out == ('called collection.find() for selection'
-            " {'nummer': {'lt': 'x'}, 'arch': False}\n")
+            " {'nummer': {'lt': 'x'}, 'archived': False}\n")
     dmlm.get_acties("", select={'idgt': 'y'})
     assert capsys.readouterr().out == ('called collection.find() for selection'
-            " {'nummer': {'gt': 'y'}, 'arch': False}\n")
+            " {'nummer': {'gt': 'y'}, 'archived': False}\n")
     dmlm.get_acties("", select={'idlt': 'x', 'id': 'en', 'idgt': 'y'})
     assert capsys.readouterr().out == ('called collection.find() for selection'
-            " {'nummer': {'lt': 'x', 'gt': 'y'}, 'arch': False}\n")
+            " {'nummer': {'lt': 'x', 'gt': 'y'}, 'archived': False}\n")
     dmlm.get_acties("", select={'idlt': 'x', 'id': 'of', 'idgt': 'y'})
     assert capsys.readouterr().out == ('called collection.find() for selection'
-            " {'nummer': {'or': {'lt': 'x', 'gt': 'y'}}, 'arch': False}\n")
+            " {'nummer': {'or': {'lt': 'x', 'gt': 'y'}}, 'archived': False}\n")
 
     dmlm.get_acties("", select={'soort': '1'})
     assert capsys.readouterr().out == ('called collection.find() for selection'
-            " {'soort': '1', 'arch': False}\n")
+            " {'soort': '1', 'archived': False}\n")
     dmlm.get_acties("", select={'status': '1'})
     assert capsys.readouterr().out == ('called collection.find() for selection'
-            " {'status': '1', 'arch': False}\n")
+            " {'status': '1', 'archived': False}\n")
     dmlm.get_acties("", select={'titel': 'x'})
     assert capsys.readouterr().out == ('called collection.find() for selection'
-            " {'titel': {'regex': '\\\\.*x\\\\.*'}, 'arch': False}\n")
+            " {'titel': {'regex': '\\\\.*x\\\\.*'}, 'archived': False}\n")
     dmlm.get_acties("", select={'onderwerp': 'x'})
     assert capsys.readouterr().out == ('called collection.find() for selection'
-            " {'onderwerp': {'regex': '\\\\.*x\\\\.*'}, 'arch': False}\n")
+            " {'onderwerp': {'regex': '\\\\.*x\\\\.*'}, 'archived': False}\n")
     with pytest.raises(dmlm.DataError) as excinfo:
         dmlm.get_acties('', select={'x': 'y'})
     assert str(excinfo.value) == "Foutief selectie-argument opgegeven"
@@ -111,14 +113,14 @@ def test_get_acties(monkeypatch, capsys):
     assert capsys.readouterr().out == 'called collection.find() for selection {}\n'
     # alles dat niet gearchiveerd is
     dmlm.get_acties('', arch='')
-    assert capsys.readouterr().out == "called collection.find() for selection {'arch': False}\n"
+    assert capsys.readouterr().out == "called collection.find() for selection {'archived': False}\n"
     dmlm.get_acties('', select={}, arch='')
-    assert capsys.readouterr().out == "called collection.find() for selection {'arch': False}\n"
+    assert capsys.readouterr().out == "called collection.find() for selection {'archived': False}\n"
     # alles dat gearchiveerd is
     dmlm.get_acties('', arch='arch')
-    assert capsys.readouterr().out == "called collection.find() for selection {'arch': True}\n"
+    assert capsys.readouterr().out == "called collection.find() for selection {'archived': True}\n"
     dmlm.get_acties('', select={}, arch='arch')
-    assert capsys.readouterr().out == "called collection.find() for selection {'arch': True}\n"
+    assert capsys.readouterr().out == "called collection.find() for selection {'archived': True}\n"
 
 def test_settings(monkeypatch, capsys):
     monkeypatch.setattr(dmlm.Settings, 'read', lambda x: False)
@@ -218,7 +220,7 @@ def test_actie(monkeypatch, capsys):
     monkeypatch.setattr(dmlm.Actie, 'nieuw', mock_nieuw)
     testobj = dmlm.Actie('', '0')
     assert testobj.imagecount == 1
-    assert testobj.actie_id == '0'
+    assert testobj.id == '0'
     assert (testobj.imagelist, testobj.events) == ([], [])
     assert (testobj.datum, testobj.updated, testobj.soort, testobj.titel) == ('', '', '', '')
     assert (testobj.status, testobj.arch) == ('0', False)
@@ -226,7 +228,7 @@ def test_actie(monkeypatch, capsys):
     assert capsys.readouterr().out == 'called Actie.nieuw()\n'
     testobj = dmlm.Actie('', 'x')
     assert testobj.imagecount == 1
-    assert testobj.actie_id == 'x'
+    assert testobj.id == 'x'
     assert (testobj.imagelist, testobj.events) == ([], [])
     assert (testobj.datum, testobj.updated, testobj.soort, testobj.titel) == ('', '', '', '')
     assert (testobj.status, testobj.arch) == ('0', False)
@@ -238,33 +240,36 @@ def test_actie_nieuw(monkeypatch, capsys):
     monkeypatch.setattr(dmlm, 'Settings', MockSettings)
     monkeypatch.setattr(dmlm, 'get_nieuwetitel', lambda y, x: str(x) + '-0001')
     testobj = dmlm.Actie('', '0')  # gaat nieuw() uitvoeren
-    assert testobj.nummer == '2020-0001'
+    assert testobj.id == '2020-0001'
     assert testobj.datum == '2020-01-01 00:00:00'
+    assert not testobj.arch
 
 def test_actie_read(monkeypatch, capsys):
     def mock_find_one(self, *args, **kwargs):
         return {'_id': 100, 'jaar': '2020', 'nummer': '0001', 'gemeld': 'vandaag', 'status': 0,
                 'soort': 'A', 'bijgewerkt': 'ook vandaag', 'onderwerp': 'it', 'titel': 'whatever',
-                'melding': 'dit', 'events': [('zonet', 'iets'), ('straks', 'nog iets')]}
+                'melding': 'dit', 'archived': True,
+                'events': [('zonet', 'iets'), ('straks', 'nog iets')]}
     def mock_find_none(self, *args, **kwargs):
         return None
     monkeypatch.setattr(dmlm, 'Settings', MockSettings)
     monkeypatch.setattr(MockColl, 'find_one', mock_find_one)
     monkeypatch.setattr(dmlm, 'coll', MockColl())
-    testobj = dmlm.Actie('', '1')  # read is executed during __init__
+    testobj = dmlm.Actie('', '2020-0001')  # read is executed during __init__
     assert testobj.exists
-    assert testobj.nummer == '2020-0001'
+    assert testobj.id == '2020-0001'
     assert testobj.datum == 'vandaag'
     assert testobj.status == 0
     assert testobj.soort == 'A'
     assert testobj.updated == 'ook vandaag'
     assert testobj.titel == 'whatever'
     assert testobj.melding == 'dit'
+    assert testobj.arch
     assert testobj.events == [('zonet', 'iets'), ('straks', 'nog iets')]
     monkeypatch.setattr(MockColl, 'find_one', mock_find_none)
     monkeypatch.setattr(dmlm, 'coll', MockColl())
     with pytest.raises(dmlm.DataError) as excinfo:
-        testobj = dmlm.Actie('', '1')  # read is executed during __init__
+        testobj = dmlm.Actie('', '1-1')  # read is executed during __init__
     assert str(excinfo.value) == 'Actie object does not exist'
 
 def test_actie_write(monkeypatch, capsys):
@@ -285,43 +290,45 @@ def test_actie_write(monkeypatch, capsys):
     monkeypatch.setattr(dmlm, 'coll', MockColl())
     testobj = dmlm.Actie('', '0')
     testobj.exists = False
-    testobj.nummer = '2020-0001'
+    testobj.id = '2020-0001'
     testobj.datum = 'vandaag'
     testobj.status = 0
     testobj.soort = 'A'
     testobj.updated = 'ook vandaag'
-    testobj.onderwerp = 'it'
+    testobj.over = 'it'
     testobj.titel = 'whatever'
     testobj.melding = 'dit'
+    testobj.arch = False
     testobj.events = [('zonet', 'iets'), ('straks', 'nog iets')]
     testobj.write()
     assert testobj.settings.startitem == '5'
     assert capsys.readouterr().out == ('called Actie.nieuw()\n'
-        "called coll.insert_one() with args ({},)\n"
+        "called coll.insert_one() with args ({'jaar': '2020', 'nummer': '0001'},)\n"
         'called Settings.write()\n'
-        "called coll.update_one() with args ({'_id': '5'}, {'$set': {'jaar': '2020',"
-        " 'nummer': '0001', 'gemeld': 'vandaag', 'status': 0, 'soort': 'A',"
-        " 'bijgewerkt': 'ook vandaag', 'onderwerp': 'it', 'titel': 'whatever', 'melding': 'dit',"
+        "called coll.update_one() with args ({'_id': '5'}, {'$set': {'gemeld': 'vandaag',"
+        " 'status': 0, 'soort': 'A', 'bijgewerkt': 'ook vandaag',"
+        " 'onderwerp': 'it', 'titel': 'whatever', 'melding': 'dit', 'archived': False,"
         " 'events': [('zonet', 'iets'), ('straks', 'nog iets')]}})\n")
     testobj = dmlm.Actie('', '1')
     testobj.actie_id = '10'
     testobj.exists = True
-    testobj.nummer = '2020-0001'
+    testobj.id = '2020-0001'
     testobj.datum = 'vandaag'
     testobj.status = 0
     testobj.soort = 'A'
     testobj.updated = 'ook vandaag'
-    testobj.onderwerp = 'it'
+    testobj.over = 'it'
     testobj.titel = 'whatever'
     testobj.melding = 'dit'
+    testobj.arch = True
     testobj.events = [('zonet', 'iets'), ('straks', 'nog iets')]
     testobj.write()
     assert testobj.settings.startitem == '10'
     assert capsys.readouterr().out == ('called Actie.read()\n'
         'called Settings.write()\n'
-        "called coll.update_one() with args ({'_id': '10'}, {'$set': {'jaar': '2020',"
-        " 'nummer': '0001', 'gemeld': 'vandaag', 'status': 0, 'soort': 'A',"
-        " 'bijgewerkt': 'ook vandaag', 'onderwerp': 'it', 'titel': 'whatever', 'melding': 'dit',"
+        "called coll.update_one() with args ({'_id': '10'}, {'$set': {'gemeld': 'vandaag',"
+        " 'status': 0, 'soort': 'A', 'bijgewerkt': 'ook vandaag',"
+        " 'onderwerp': 'it', 'titel': 'whatever', 'melding': 'dit', 'archived': True,"
         " 'events': [('zonet', 'iets'), ('straks', 'nog iets')]}})\n")
 
 def test_actie_get_statustext(monkeypatch, capsys):
