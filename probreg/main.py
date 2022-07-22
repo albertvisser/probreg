@@ -428,10 +428,10 @@ class Page0(Page):
                 elif len(item) == 8:  # type == self.parent.parent.shared.DataType.MNG:
                     self.parent.data[idx] = (item[0],
                                              item[1],
-                                             ".".join((item[3][1], item[3][0])),
-                                             ".".join((item[2][1], item[2][0])),
-                                             item[5],
+                                             '.'.join((item[2], item[2])),
+                                             '.'.join((item[3], item[3])),
                                              item[4],
+                                             item[5],
                                              item[6],
                                              item[7])
                 elif len(item) == 10:  # type == self.parent.parent.shared.DataType.SQL:
