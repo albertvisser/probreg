@@ -12,6 +12,7 @@ import probreg.gui as gui
 import probreg.shared as shared   # import DataError, et_projnames
 import probreg.dml_django as dmls
 import probreg.dml_xml as dmlx
+import probreg.dml_mongo as dmlm
 LIN = True if os.name == 'posix' else False
 
 
@@ -176,7 +177,29 @@ class Page():
             newbuf = self.gui.build_newbuf()
         ok_to_leave = True
         if self.parent.current_tab == 0:
-            pass
+            if self.parent.parent.exiting:
+                pass
+            # overgenomen uit wx versie on_page_changing
+            elif self.parent.fnaam == "":
+                wat = ''
+                if self.parent.multiple_files:  # datatype == shared.DataType.XML.name:
+                    wat = 'bestand'
+                elif self.parent.multiple_projects:  # datatype == shared.DataType.SQL.name:
+                    wat = 'project'
+                if wat:
+                    msg = "Kies eerst een {} om mee te werken".format(wat)
+                    ok_to_leave = False
+            elif not self.parent.data and not self.parent.newitem:
+                # bestand bevat nog geen gegevens en we zijn nog niet bezig met de eerste opvoeren
+                msg = "Voer eerst één of meer acties op"
+                ok_to_leave = False
+            elif self.parent.current_item == -1 and not self.parent.newitem:
+                # geen actie geselecteerd en we zijn niet bezig met een nieuwe
+                msg = "Selecteer eerst een actie"
+                ok_to_leave = False
+            # mag_weg = self.parent.book.pages[self.parent.book.current_tab].leavep()
+            if not ok_to_leave:
+                gui.show_message(self.parent, msg, "Navigatie niet toegestaan")
         elif self.parent.changed_item:
             message = "\n".join(("De gegevens op de pagina zijn gewijzigd, ",
                                  "wilt u de wijzigingen opslaan voordat u verder gaat?"))
@@ -315,28 +338,25 @@ class Page():
 
     def goto_next(self, *args):
         "naar de volgende pagina gaan"
-        if not self.leavep():
-            return
-        next = self.parent.current_tab + 1
-        if next >= len(self.parent.pages):
-            next = 0
-        self.parent.parent.gui.set_page(next)
+        if self.leavep():
+            next = self.parent.current_tab + 1
+            if next >= len(self.parent.pages):
+                next = 0
+            self.parent.parent.gui.set_page(next)
 
     def goto_prev(self, *args):
         "naar de vorige pagina gaan"
-        if not self.leavep():
-            return
-        next = self.parent.current_tab - 1
-        if next < 0:
-            next = len(self.parent.pages) - 1
-        self.parent.parent.gui.set_page(next)
+        if self.leavep():
+            next = self.parent.current_tab - 1
+            if next < 0:
+                next = len(self.parent.pages) - 1
+            self.parent.parent.gui.set_page(next)
 
     def goto_page(self, page_num, check=True):
         "naar de aangegeven pagina gaan"
-        if check and not self.leavep():
-            return
-        if 0 <= page_num <= len(self.parent.pages):
-            self.parent.parent.gui.set_page(page_num)
+        if not check or self.leavep():
+            if 0 <= page_num <= len(self.parent.pages):
+                self.parent.parent.gui.set_page(page_num)
 
     def get_textarea_contents(self):
         "get the page text"
@@ -995,11 +1015,13 @@ class MainWindow():
         self.gui = gui.MainGui(self)
         if not self.datatype:
             self.filename = ''
-            choice = gui.get_choice_item(None, 'Select Mode', ['XML', 'SQL'])
+            choice = gui.get_choice_item(None, 'Select Mode', ['XML', 'SQL', 'MNG'])
             if choice == 'XML':
                 self.datatype = shared.DataType.XML
             elif choice == 'SQL':
                 self.datatype = shared.DataType.SQL
+            elif choice == 'MNG':
+                self.datatype = shared.DataType.MNG
             else:
                 raise SystemExit('No datatype selected')
         self.user = None    # start without user
@@ -1171,6 +1193,8 @@ class MainWindow():
 
     def open_mongo(self, event=None):
         "to be implemented"
+        self.filename = 'default'
+        self.startfile()
 
     def print_something(self, event=None):
         """callback voor ctrl-P(rint)
@@ -1535,12 +1559,5 @@ class MainWindow():
 
 def main(arg=None):
     "opstart routine"
-    # if arg is None:
-    #     version = shared.DataType.SQL
-    # else:
-    #     version = shared.DataType.XML
-    # try:
     frame = MainWindow(None, arg)  # , version)
     frame.gui.go()
-    # except ValueError as err:
-    #     print(err)

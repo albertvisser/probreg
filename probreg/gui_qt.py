@@ -18,9 +18,11 @@ sortorder = {shared.Order.A.name: core.Qt.AscendingOrder,
 xmlfilter = "XML files (*.xml);;all files (*.*)"
 
 
-def show_message(win, message):
+def show_message(win, message, title=''):
     "present a message and wait for the user to confirm (having read it or whatever)"
-    qtw.QMessageBox.information(win, shared.app_title, message)
+    if not title:
+        title = shared.app_title
+    qtw.QMessageBox.information(win, title, message)
 
 
 def get_open_filename(win, start=pathlib.Path.cwd()):

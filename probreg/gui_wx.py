@@ -19,9 +19,11 @@ HERE = os.path.abspath(os.path.dirname(__file__))
 xmlfilter = "XML files (*.xml)|*.xml|all files (*.*)|*.*"
 
 
-def show_message(win, message):
+def show_message(win, message, title=''):
     "present a message and wait for the user to confirm (having read it or whatever)"
-    wx.MessageBox(message, shared.app_title, parent=win)
+    if not title:
+        title = shared.app_title
+    wx.MessageBox(message, title, parent=win)
 
 
 def get_open_filename(win, start=pathlib.Path.cwd()):
