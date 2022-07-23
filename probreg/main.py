@@ -220,6 +220,8 @@ class Page():
         self.enable_buttons(False)
         if self.parent.current_tab <= 1 or self.parent.current_tab == 6:
             return False
+        if self.parent.current_tab == 2 and not self.parent.parent.use_text_panels:
+            return False
         text = self.gui.get_textarea_contents()
         event_text = ''
         if self.parent.current_tab == 2 and text != self.parent.pagedata.melding:
@@ -372,12 +374,14 @@ class Page0(Page):
         self.sel_args = {}
         self.sorted = (0, "A")
 
-        widths = [94, 24, 146, 90, 400] if LIN else [64, 24, 114, 72, 292]
+        # widths = [94, 24, 146, 90, 400] if LIN else [64, 24, 114, 72, 292]
+        widths = [122, 24, 146, 100] if LIN else [64, 24, 114, 72]
         if self.parent.parent.use_separate_subject:
             # widths[4] = 90 if LIN else 72
             # extra = 310 if LIN else 220
             # widths.append(extra)
-            widths[4:] = [90, 310] if LIN else [72, 220]
+            # widths[4:] = [90, 310] if LIN else [72, 220]
+            widths.append(90 if LIN else 72)
 
         self.gui = gui.Page0Gui(parent, self, widths)
         self.gui.enable_buttons()
@@ -639,6 +643,8 @@ class Page1(Page):
                         self.gui.set_text('desc', hlp[1])
             self.gui.set_choice('stat', self.parent.pagedata.status)
             self.gui.set_choice('cat', self.parent.pagedata.soort)
+            if not self.parent.parent.use_text_panels:
+                self.gui.set_text('summary', self.parent.pagedata.melding)
 
         self.oldbuf = self.gui.set_oldbuf()
         if self.parch:
@@ -705,6 +711,13 @@ class Page1(Page):
             hlp = "gearchiveerd" if self.parch else "herleefd"
             self.parent.pagedata.add_event("Actie {0}".format(hlp))
             wijzig = True
+        if not self.parent.parent.use_text_panels:
+            new_summary = self.gui.get_text('summary')
+            # of text = self.gui.get_textarea_contents()
+            if new_summary != self.parent.pagedata.melding:
+                self.parent.pagedata.melding = new_summary
+                self.parent.pagedata.add_event("Meldingtekst aangepast")
+                wijzig = True
         if wijzig:
             self.update_actie()
             # teksten op panel 0 bijwerken - verplaatst naar update_actie
