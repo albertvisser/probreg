@@ -106,7 +106,10 @@ class Page():
             self.enable_buttons(state)
             text = self.parent.tabs[self.parent.current_tab].split(None, 1)
             if self.parent.pagedata:
-                text = str(self.parent.pagedata.id) + ' ' + self.parent.pagedata.titel
+                text = self.parent.pagedata.titel
+                if self.parent.parent.use_separate_subject:
+                    text = f'{self.parent.pagedata.over} - {text}'
+                text = f'{self.parent.pagedata.id} {text}'
         self.parent.parent.set_windowtitle("{} | {}".format(self.parent.parent.title, text))
         self.parent.parent.set_statusmessage()
         if 1 < self.parent.current_tab < self.parent.count() - 1:
@@ -158,7 +161,7 @@ class Page():
                 self.parent.parent.gui.enable_book_tabs(True, tabfrom=1)
             self.parent.pagedata = shared.Actie[self.parent.parent.datatype](self.parent.fnaam, 0,
                                                                              self.parent.parent.user)
-            self.parent.pagedata.events.append((shared.get_dts(), 'Actie opgevoerd'))
+            self.parent.pagedata.add_event('Actie opgevoerd')
             self.parent.parent.imagelist = self.parent.pagedata.imagelist
             if self.parent.current_tab == 1:
                 self.vulp()  # om de velden leeg te maken
@@ -256,7 +259,7 @@ class Page():
     def restorep(self, *args):
         "oorspronkelijke (laatst opgeslagen) inhoud van de pagina herstellen"
         # reset font - are these also needed: case? indent? linespacing? paragraphspacing?
-        if self.parent.current_tab > 1:
+        if self.parent.current_tab > 1 and self.parent.parent.use_rt:
             self.gui.reset_font()
         self.vulp()
 
@@ -404,8 +407,10 @@ class Page0(Page):
                 test = bool(test)
                 self.sort_via_options = test
                 value = not test
+                self.selection = 'volgens user gedefinieerde selectie'
             else:
                 value = False
+                self.selection = ''
             self.gui.enable_sorting(value)
 
         self.seltitel = 'alle meldingen ' + self.selection
@@ -775,8 +780,6 @@ class Page6(Page):
         super().vulp()
         self.initializing = True
         self.gui.init_textfield()
-        # self.progress_text.clear()
-        # self.progress_text.setReadOnly(True)
 
         if self.parent.pagedata:
             self.event_list = [x[0] for x in self.parent.pagedata.events]
@@ -794,7 +797,7 @@ class Page6(Page):
                 self.gui.add_item_to_list(idx, datum)
         if self.parent.parent.work_with_user:
             self.gui.set_list_callback()
-        # self.gui.clear_textfield() - zit al in init_textfield
+        self.gui.clear_textfield()
         self.oldbuf = (self.old_list, self.old_data)
         self.oldtext = ''
         self.initializing = False
@@ -990,11 +993,8 @@ class CatOptions:
 
 class MainWindow():
     """Hoofdscherm met menu, statusbalk, notebook en een "quit" button"""
-    def __init__(self, parent, fnaam="", version=None):
-        # if not version:
-        #     raise ValueError('No data method specified')
+    def __init__(self, parent, fnaam=""):
         self.parent = parent
-        self.datatype = version
         self.dirname, self.filename = '', ''
         self.title = 'Actieregistratie'
         self.initializing = True
@@ -1037,13 +1037,13 @@ class MainWindow():
                 self.datatype = shared.DataType.MNG
             else:
                 raise SystemExit('No datatype selected')
-        self.user = None    # start without user
-        self.is_user = self.is_admin = False
         self.work_with_user = self.datatype == shared.DataType.SQL
-        if not self.work_with_user:
-            self.user = 1  # pretend user
-            self.is_user = self.is_admin = True  # force editability for XML mode
-        self.multiple_files = self.multiple_projects = False
+        if self.work_with_user:
+            self.user = None                        # start without user
+            self.is_user = self.is_admin = False
+        else:
+            self.user = 1                           # pretend user
+            self.is_user = self.is_admin = True     # force editability
         self.multiple_files = self.datatype == shared.DataType.XML
         self.multiple_projects = self.datatype == shared.DataType.SQL
         self.use_text_panels = self.datatype != shared.DataType.MNG
@@ -1572,5 +1572,5 @@ class MainWindow():
 
 def main(arg=None):
     "opstart routine"
-    frame = MainWindow(None, arg)  # , version)
+    frame = MainWindow(None, arg)
     frame.gui.go()

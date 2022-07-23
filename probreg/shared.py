@@ -41,7 +41,7 @@ def log(msg, *args, **kwargs):
 
 def get_dts():
     "routine om een geformatteerd date/time stamp te verkrijgen"
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return datetime.now().strftime("%d-%m-%Y %H:%M:%S")
 
 
 def data2str(data):

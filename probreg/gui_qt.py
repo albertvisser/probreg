@@ -119,7 +119,9 @@ class EditorPanel(qtw.QTextEdit):
 
     def get_contents(self):
         "return contents from editor"
-        return self.toHtml()
+        if self.parent.use_rt:
+            return self.toHtml()
+        return self.toPlainText()
 
     def text_bold(self):
         "selectie vet maken"
