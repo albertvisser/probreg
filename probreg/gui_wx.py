@@ -869,6 +869,8 @@ class Page1Gui(PageGui):
         self.proc_entry.SetValue("")
         self.desc_entry.SetValue("")
         self.archive_text.SetLabel("")
+        if not self.parent.parent.use_text_panels:
+            self.summary_entry.SetValue('')
         self.cat_choice.SetSelection(0)
         self.stat_choice.SetSelection(0)
 
@@ -884,6 +886,8 @@ class Page1Gui(PageGui):
             self.desc_entry.SetValue(value)
         elif fieldtype == 'arch':
             self.archive_text.SetLabel(value)
+        elif fieldtype == 'summary':
+            self.summary_entry.SetValue(value)
 
     def get_text(self, fieldtype):
         "get textfield value"
@@ -895,6 +899,8 @@ class Page1Gui(PageGui):
             value = str(self.proc_entry.GetValue())
         elif fieldtype == 'desc':
             value = str(self.desc_entry.GetValue())
+        elif fieldtype == 'summary':
+            value = self.summary_entry.GetValue()
         return value
 
     def set_choice(self, fieldtype, value):

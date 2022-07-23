@@ -811,7 +811,7 @@ class Page1Gui(PageGui):
         elif fieldtype == 'arch':
             self.archive_text.setText(value)
         elif fieldtype == 'summary':
-            self.archive_text.setText(value)
+            self.summary_entry.setPlainText(value)
 
     def get_text(self, fieldtype):
         "get textfield value"
@@ -824,7 +824,7 @@ class Page1Gui(PageGui):
         elif fieldtype == 'desc':
             value = str(self.desc_entry.text())
         elif fieldtype == 'summary':
-            value = str(self.desc_entry.text())
+            value = str(self.summary_entry.toPlainText())
         return value
 
     def set_choice(self, fieldtype, value):
