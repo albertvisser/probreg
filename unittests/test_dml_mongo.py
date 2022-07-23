@@ -306,7 +306,7 @@ def test_actie_write(monkeypatch, capsys):
     testobj.write()
     assert testobj.settings.startitem == '5'
     assert capsys.readouterr().out == ('called Actie.nieuw()\n'
-        "called coll.insert_one() with args ({'jaar': '2020', 'nummer': '0001'},)\n"
+        "called coll.insert_one() with args ({'jaar': 2020, 'nummer': 1},)\n"
         'called Settings.write()\n'
         "called coll.update_one() with args ({'_id': '5'}, {'$set': {'gemeld': 'vandaag',"
         " 'status': 0, 'soort': 'A', 'bijgewerkt': '2020-01-01 00:00:00',"

@@ -58,7 +58,7 @@ def get_nieuwetitel(fnaam, jaar=None):
         action = last_action + 1
     else:
         action = 1
-    return f'{jaar}-{action:04}'
+    return f'{jaar:04}-{action:04}'
 
 
 def get_acties(fnaam, select=None, arch="", user=None):
@@ -157,7 +157,7 @@ def get_acties(fnaam, select=None, arch="", user=None):
         selections['archived'] = archsel
 
     lijst = coll.find(selections)
-    return [('-'.join((x['jaar'], x['nummer'])), x['gemeld'], x['soort'], x['status'],
+    return [(f'{x["jaar"]:04}-{x["nummer"]:04}', x['gemeld'], x['soort'], x['status'],
             x['bijgewerkt'], x['onderwerp'], x['titel'], x['archived']) for x in lijst]
 
 
@@ -240,7 +240,7 @@ class Actie:
     def read(self):
         "gegevens lezen van een bepaalde actie"
         self.exists = False
-        jaar, nummer = self.id.split('-')
+        jaar, nummer = [int(x) for x in self.id.split('-')]
         # actie = coll.find_one({'_id': self.actie_id})
         actie = coll.find_one({'jaar': jaar, 'nummer': nummer})
         if actie is None:
@@ -286,7 +286,7 @@ class Actie:
 
     def write(self):
         "actiegegevens terugschrijven"
-        jaar, nummer = self.id.split('-')
+        jaar, nummer = [int(x) for x in self.id.split('-')]
         if not self.exists:
             self.actie_id = coll.insert_one({'jaar': jaar, 'nummer': nummer}).inserted_id
             self.exists = True
