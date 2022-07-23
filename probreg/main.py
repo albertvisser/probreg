@@ -283,10 +283,16 @@ class Page():
         self.parent.pagedata.imagecount = self.parent.parent.imagecount
         self.parent.pagedata.imagelist = self.parent.parent.imagelist
         # aangenomen dat "gemeld" altijd "0" zal blijven en de eerstvolgende status "1"
-        if self.parent.current_tab >= 3 and self.parent.pagedata.status == '0':
-            self.parent.pagedata.status = '1'
-            sel = [y for x, y in self.parent.stats.items() if y[1] == '1'][0]
-            self.parent.pagedata.add_event('Status gewijzigd in "{0}"'.format(sel[0]))
+        # if self.parent.current_tab >= 3 and self.parent.pagedata.status == '0':
+        if self.parent.pagedata.status == '0':
+            if ((self.parent.parent.use_text_panels and self.parent.current_tab >= 3) or
+                (not self.parent.parent.use_text_panels and self.parent.current_tab == 2)):
+                self.parent.pagedata.status = '1'
+                sel = [y for x, y in self.parent.stats.items() if y[1] == '1'][0]
+                self.parent.pagedata.add_event('Status gewijzigd in "{0}"'.format(sel[0]))
+                # TODO als dit op panel 2 gebeurt, dus als not use_text_panels, dan moet
+                # het panel eigenlijk ververst worden want anders zien we de extra regel pas
+                # als we van het scherm af gaan en er weer naar toe gaan (maar is dat erg?)
 
         # self.parent.pagedata.id onthouden voor de nieuwe startpositie
         if self.parent.pagedata:
