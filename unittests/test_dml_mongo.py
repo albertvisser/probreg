@@ -21,6 +21,8 @@ class MockDatetime:
         return 'now'
     def today(*args):
         return FIXDATE
+    def now():
+        return FIXDATE
 
 class MockColl:
     def find(self, *args, **kwargs):
@@ -282,6 +284,7 @@ def test_actie_write(monkeypatch, capsys):
         return types.SimpleNamespace(inserted_id='5')
     def mock_update_one(self, *args):
         print('called coll.update_one() with args', args)
+    monkeypatch.setattr(dmlm.dt, 'datetime', MockDatetime)
     monkeypatch.setattr(dmlm, 'Settings', MockSettings)
     monkeypatch.setattr(dmlm.Actie, 'nieuw', mock_nieuw)
     monkeypatch.setattr(dmlm.Actie, 'read', mock_read)
@@ -294,7 +297,7 @@ def test_actie_write(monkeypatch, capsys):
     testobj.datum = 'vandaag'
     testobj.status = 0
     testobj.soort = 'A'
-    testobj.updated = 'ook vandaag'
+    # testobj.updated = 'ook vandaag'
     testobj.over = 'it'
     testobj.titel = 'whatever'
     testobj.melding = 'dit'
@@ -306,7 +309,7 @@ def test_actie_write(monkeypatch, capsys):
         "called coll.insert_one() with args ({'jaar': '2020', 'nummer': '0001'},)\n"
         'called Settings.write()\n'
         "called coll.update_one() with args ({'_id': '5'}, {'$set': {'gemeld': 'vandaag',"
-        " 'status': 0, 'soort': 'A', 'bijgewerkt': 'ook vandaag',"
+        " 'status': 0, 'soort': 'A', 'bijgewerkt': '2020-01-01 00:00:00',"
         " 'onderwerp': 'it', 'titel': 'whatever', 'melding': 'dit', 'archived': False,"
         " 'events': [('zonet', 'iets'), ('straks', 'nog iets')]}})\n")
     testobj = dmlm.Actie('', '1')
@@ -316,7 +319,7 @@ def test_actie_write(monkeypatch, capsys):
     testobj.datum = 'vandaag'
     testobj.status = 0
     testobj.soort = 'A'
-    testobj.updated = 'ook vandaag'
+    # testobj.updated = 'ook vandaag'
     testobj.over = 'it'
     testobj.titel = 'whatever'
     testobj.melding = 'dit'
@@ -327,7 +330,7 @@ def test_actie_write(monkeypatch, capsys):
     assert capsys.readouterr().out == ('called Actie.read()\n'
         'called Settings.write()\n'
         "called coll.update_one() with args ({'_id': '10'}, {'$set': {'gemeld': 'vandaag',"
-        " 'status': 0, 'soort': 'A', 'bijgewerkt': 'ook vandaag',"
+        " 'status': 0, 'soort': 'A', 'bijgewerkt': '2020-01-01 00:00:00',"
         " 'onderwerp': 'it', 'titel': 'whatever', 'melding': 'dit', 'archived': True,"
         " 'events': [('zonet', 'iets'), ('straks', 'nog iets')]}})\n")
 

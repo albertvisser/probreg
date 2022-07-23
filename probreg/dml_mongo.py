@@ -245,7 +245,7 @@ class Actie:
         actie = coll.find_one({'jaar': jaar, 'nummer': nummer})
         if actie is None:
             raise DataError('Actie object does not exist')
-        # self.id = '-'.join((actie['jaar'], actie['nummer']))
+        self.actie_id = actie['_id']
         self.datum = actie['gemeld']
         self.status = actie['status']
         self.soort = actie['soort']
@@ -292,6 +292,7 @@ class Actie:
             self.exists = True
         self.settings.imagecount = str(self.imagecount)  # moet dit niet parent.parent.imagecount zijn?
         self.settings.startitem = str(self.actie_id)
+        self.updated = dt.datetime.today().isoformat(' ')[:19]
         self.settings.write()
         coll.update_one({'_id': self.actie_id}, {'$set': {'gemeld': self.datum,
                                                           'status': self.status,
