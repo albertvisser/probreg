@@ -1327,7 +1327,6 @@ class MainWindow():
                           'status': stat}
         empty = "(nog niet beschreven)"
         if self.use_text_panels:
-            print('in print_actie: tabs is ', self.book.tabs)
             sections = [[title.split(None, 1)[1], ''] for key, title in
                         sorted(self.book.tabs.items()) if 2 <= key < 6]
             sections[0][1] = self.book.pagedata.melding or empty
@@ -1339,7 +1338,6 @@ class MainWindow():
             self.printdict['sections'] = sections
         else:
             self.printdict['sections'] = [['Probleem/wens', self.book.pagedata.melding]]
-        # print('in print_actie: sections is', self.printdict['sections'])
         self.printdict['events'] = [(x, y) for x, y in self.book.pagedata.events] or []
         self.gui.preview()
 
