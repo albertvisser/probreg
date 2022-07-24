@@ -72,9 +72,10 @@ class EditorPanel(qtw.QTextEdit):
         self.tbparent = parent
         self.parent = parent.parent.parent
         super().__init__()
-        self.setAcceptRichText(True)
-        self.setAutoFormatting(qtw.QTextEdit.AutoAll)
-        self.currentCharFormatChanged.connect(self.charformat_changed)
+        if self.parent.use_rt:
+            self.setAcceptRichText(True)
+            self.setAutoFormatting(qtw.QTextEdit.AutoAll)
+            self.currentCharFormatChanged.connect(self.charformat_changed)
         self.cursorPositionChanged.connect(self.cursorposition_changed)
         font = self.currentFont()
         self.setTabStopWidth(shared.tabsize(font.pointSize()))
