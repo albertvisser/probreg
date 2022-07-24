@@ -1,8 +1,5 @@
 #! usr/bin/env python
 """Actie (was: problemen) Registratie, GUI toolkit onafhankelijke code
-
-Ik ga een nieuwe variant toevoegen die drie tabs gebruikt (lijst, samenvatting en voortgang) en
-die om vergissingen te voorkomen ook een ander database backend gebruikt namelijk mongodb
 """
 import os
 # import sys
@@ -1329,15 +1326,20 @@ class MainWindow():
                           'soort': srt,
                           'status': stat}
         empty = "(nog niet beschreven)"
-        sections = [[title.split(None, 1)[1], ''] for key, title in
-                    self.book.tabs.items() if key > 2]
-        sections[0][1] = self.book.pagedata.melding or empty
-        sections[1][1] = self.book.pagedata.oorzaak or empty
-        sections[2][1] = self.book.pagedata.oplossing or empty
-        sections[3][1] = self.book.pagedata.vervolg or ''
-        if not sections[3][1]:
-            sections.pop()
-        self.printdict['sections'] = sections
+        if self.use_text_panels:
+            print('in print_actie: tabs is ', self.book.tabs)
+            sections = [[title.split(None, 1)[1], ''] for key, title in
+                        sorted(self.book.tabs.items()) if 2 <= key < 6]
+            sections[0][1] = self.book.pagedata.melding or empty
+            sections[1][1] = self.book.pagedata.oorzaak or empty
+            sections[2][1] = self.book.pagedata.oplossing or empty
+            sections[3][1] = self.book.pagedata.vervolg or ''
+            if not sections[3][1]:
+                sections.pop()
+            self.printdict['sections'] = sections
+        else:
+            self.printdict['sections'] = [['Probleem/wens', self.book.pagedata.melding]]
+        # print('in print_actie: sections is', self.printdict['sections'])
         self.printdict['events'] = [(x, y) for x, y in self.book.pagedata.events] or []
         self.gui.preview()
 
