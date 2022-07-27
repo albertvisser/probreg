@@ -992,19 +992,29 @@ class Page6Gui(PageGui):
         if self.master.initializing:
             return
         if item is None or self.is_first_line(item):
-            if self.master.parent.parent.is_user:
-                datum, oldtext = shared.get_dts(), ''
-                newitem = qtw.QListWidgetItem('{} - {}'.format(datum, oldtext))
-                newitem.setData(core.Qt.UserRole, 0)
-                self.progress_list.insertItem(1, newitem)
-                self.master.event_list.insert(0, datum)
-                self.master.event_data.insert(0, oldtext)
-                self.progress_list.setCurrentRow(1)
-                self.progress_text.setText(oldtext)
-                self.progress_text.setReadOnly(False)
-                self.progress_text.setFocus()
-                self.master.oldtext = oldtext
-                # waarom hier ook niet self.enable_buttons() zoals in wx versie?
+            # if self.master.parent.parent.is_user:
+            #     datum, oldtext = shared.get_dts(), ''
+            #     newitem = qtw.QListWidgetItem('{} - {}'.format(datum, oldtext))
+            #     newitem.setData(core.Qt.UserRole, 0)
+            #     self.progress_list.insertItem(1, newitem)
+            #     self.master.event_list.insert(0, datum)
+            #     self.master.event_data.insert(0, oldtext)
+            #     self.progress_list.setCurrentRow(1)
+            #     self.progress_text.setText(oldtext)
+            #     self.progress_text.setReadOnly(False)
+            #     self.progress_text.setFocus()
+            #     self.master.oldtext = oldtext
+            #     # waarom hier ook niet self.enable_buttons() zoals in wx versie?
+            self.master.initialize_new_event()
+
+    def add_new_item_to_list(self, datum, oldtext):
+            newitem = qtw.QListWidgetItem('{} - {}'.format(datum, oldtext))
+            newitem.setData(core.Qt.UserRole, 0)
+            self.progress_list.insertItem(1, newitem)
+            self.progress_list.setCurrentRow(1)
+            self.progress_text.setText(oldtext)
+            self.progress_text.setReadOnly(False)
+            self.progress_text.setFocus()
 
     def is_first_line(self, item):
         """check if we're on the first line of the list, as it isn't a real event

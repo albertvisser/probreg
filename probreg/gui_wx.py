@@ -1072,23 +1072,30 @@ class Page6Gui(PageGui):
         """
         print('in on_activate_item')
         if event.Index == 0:
-            self.add_item()
+            # self.add_item()
+            self.master.initialize_new_event()
 
-    def add_item(self, event=None):
-        """add a new item (by doubleclicking the first item or using shift-ctrl-N)
-        """
-        print('in add_item')
-        datum, oldtext = shared.get_dts(), ''
-        self.progress_list.InsertItem(1, '{} - {}'.format(datum, oldtext))
-        self.master.event_list.insert(0, datum)
-        self.master.event_data.insert(0, oldtext)
-        self.progress_list.Select(1)
-        self.progress_text.set_contents(oldtext)
-        self.progress_text.Enable(True)
-        self.progress_text.SetFocus()
-        self.master.oldtext = oldtext
-        # self.nieuw_item = True
-        self.enable_buttons()
+    # def add_item(self, event=None):
+    #     """add a new item (by doubleclicking the first item or using shift-ctrl-N)
+    #     """
+    #     print('in add_item')
+    #     datum, oldtext = shared.get_dts(), ''
+    #     self.progress_list.InsertItem(1, '{} - {}'.format(datum, oldtext))
+    #     self.master.event_list.insert(0, datum)
+    #     self.master.event_data.insert(0, oldtext)
+    #     self.progress_list.select(1)
+    #     self.progress_text.set_contents(oldtext)
+    #     self.progress_text.enable(true)
+    #     self.progress_text.setfocus()
+    #     self.master.oldtext = oldtext
+    #     # self.nieuw_item = True
+    #     self.enable_buttons()
+    def add_new_item_to_list(self, datum, oldtext):
+          self.progress_list.InsertItem(1, '{} - {}'.format(datum, oldtext))
+          self.progress_list.select(1)
+          self.progress_text.set_contents(oldtext)
+          self.progress_text.enable(True)
+          self.progress_text.setfocus()
 
     def on_deselect_item(self, evt):
         """callback voor het niet meer geselecteerd zijn van een item

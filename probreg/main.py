@@ -258,6 +258,8 @@ class Page():
         # reset font - are these also needed: case? indent? linespacing? paragraphspacing?
         if self.parent.current_tab > 1 and self.parent.parent.use_rt:
             self.gui.reset_font()
+        if self.parent.current_tab == self.parent.count() - 1 and self.status_auto_changed:
+            self.parent.pagedata.status = '0'
         self.vulp()
 
     def on_text(self, *args):
@@ -282,14 +284,10 @@ class Page():
         # aangenomen dat "gemeld" altijd "0" zal blijven en de eerstvolgende status "1"
         # if self.parent.current_tab >= 3 and self.parent.pagedata.status == '0':
         if self.parent.pagedata.status == '0':
-            if ((self.parent.parent.use_text_panels and self.parent.current_tab >= 3) or
-                (not self.parent.parent.use_text_panels and self.parent.current_tab == 2)):
+            if self.parent.parent.use_text_panels and self.parent.current_tab >= 3:
                 self.parent.pagedata.status = '1'
                 sel = [y for x, y in self.parent.stats.items() if y[1] == '1'][0]
                 self.parent.pagedata.add_event('Status gewijzigd in "{0}"'.format(sel[0]))
-                # TODO als dit op panel 2 gebeurt, dus als not use_text_panels, dan moet
-                # het panel eigenlijk ververst worden want anders zien we de extra regel pas
-                # als we van het scherm af gaan en er weer naar toe gaan (maar is dat erg?)
 
         # self.parent.pagedata.id onthouden voor de nieuwe startpositie
         if self.parent.pagedata:
@@ -438,10 +436,12 @@ class Page0(Page):
                                              item[4],
                                              True if item[6] == 'arch' else False)
                 elif len(item) == 8:  # type == self.parent.parent.shared.DataType.MNG:
+                    cats = {y: x for x, y in self.parent.cats.values()}
+                    stats = {y: x for x, y in self.parent.stats.values()}
                     self.parent.data[idx] = (item[0],
                                              item[1],
-                                             '.'.join((item[2], item[2])),
-                                             '.'.join((item[3], item[3])),
+                                             '.'.join((item[2], cats[item[2]])),
+                                             '.'.join((item[3], stats[item[3]])),
                                              item[4],
                                              item[5],
                                              item[6],
@@ -728,17 +728,6 @@ class Page1(Page):
                 wijzig = True
         if wijzig:
             self.update_actie()
-            # teksten op panel 0 bijwerken - verplaatst naar update_actie
-            # pagegui = self.parent.pages[0].gui
-            # item = pagegui.get_selection()
-            # pagegui.set_item_text(item, 1, self.parent.pagedata.get_soorttext()[0].upper())
-            # pagegui.set_item_text(item, 2, self.parent.pagedata.get_statustext())
-            # pagegui.set_item_text(item, 3, self.parent.pagedata.updated)
-            # if self.parent.parent.datatype == shared.DataType.XML:
-            #     pagegui.set_item_text(item, 4, self.parent.pagedata.titel)
-            # elif self.parent.parent.datatype == shared.DataType.SQL:
-            #     pagegui.set_item_text(item, 4, self.parent.pagedata.over)
-            #     pagegui.set_item_text(item, 5, self.parent.pagedata.titel)
             self.oldbuf = self.gui.set_oldbuf()
         return True
 
@@ -775,6 +764,7 @@ class Page6(Page):
         self.oldtext = ""
         self.event_list, self.event_data, self.old_list, self.old_data = [], [], [], []
         self.gui = gui.Page6Gui(parent, self)
+        self.status_auto_changed = False   # t.b.v. ongedaan maken automatische statuswijziging 0->1
 
     def vulp(self):
         """te tonen gegevens invullen in velden e.a. initialisaties
@@ -893,6 +883,55 @@ class Page6(Page):
                 # item.setText(short_text)
                 self.gui.set_listitem_text(self.current_item, short_text)
 
+    def initialize_new_event(self):
+        if not self.parent.parent.is_user:
+            return
+        if self.parent.pagedata.status == '0':
+            if ((self.parent.parent.use_text_panels and self.parent.current_tab >= 3) or
+                    (not self.parent.parent.use_text_panels and self.parent.current_tab == 2)):
+                self.parent.pagedata.status = '1'
+                self.status_auto_changed = True
+                sel = [y for x, y in self.parent.stats.items() if y[1] == '1'][0]
+                datum, oldtext = shared.get_dts(), 'Status gewijzigd in "{0}"'.format(sel[0])
+                self.gui.add_new_item_to_list(datum, oldtext)
+                self.event_list.insert(0, datum)
+                self.event_data.insert(0, oldtext)
+        datum, oldtext = shared.get_dts(), ''
+        self.gui.add_new_item_to_list(datum, oldtext)
+        self.event_list.insert(0, datum)
+        self.event_data.insert(0, oldtext)
+        self.oldtext = oldtext
+        self.gui.enable_buttons()
+
+
+    # if self.master.parent.parent.is_user:  -- uit qt versie
+    #     datum, oldtext = shared.get_dts(), ''
+    #     newitem = qtw.QListWidgetItem('{} - {}'.format(datum, oldtext))
+    #     newitem.setData(core.Qt.UserRole, 0)
+    #     self.progress_list.insertItem(1, newitem)
+    #     self.master.event_list.insert(0, datum)
+    #     self.master.event_data.insert(0, oldtext)
+    #     self.progress_list.setCurrentRow(1)
+    #     self.progress_text.setText(oldtext)
+    #     self.progress_text.setReadOnly(False)
+    #     self.progress_text.setFocus()
+    #     self.master.oldtext = oldtext
+    #     # waarom hier ook niet self.enable_buttons() zoals in wx versie?
+    # def add_item(self, event=None):  -- uit wx versie
+    #     """add a new item (by doubleclicking the first item or using shift-ctrl-N)
+    #     """
+    #     print('in add_item')
+    #     datum, oldtext = shared.get_dts(), ''
+    #     self.progress_list.InsertItem(1, '{} - {}'.format(datum, oldtext))
+    #     self.master.event_list.insert(0, datum)
+    #     self.master.event_data.insert(0, oldtext)
+    #     self.progress_list.Select(1)
+    #     self.progress_text.set_contents(oldtext)
+    #     self.progress_text.Enable(True)
+    #     self.progress_text.SetFocus()
+    #     self.master.oldtext = oldtext
+    #     # self.nieuw_item = True
+    #     self.enable_buttons()
 
 class TabOptions:
     "hulp klasse bij dialoog voor mogelijke tab headers"
