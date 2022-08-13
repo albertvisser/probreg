@@ -4,6 +4,7 @@
 import os
 # import sys
 import pathlib
+import datetime
 import functools
 import probreg.gui as gui
 import probreg.shared as shared   # import DataError, et_projnames
@@ -38,6 +39,24 @@ def db_head_to_book_head(tab_num, tab_item):
 
     subroutine van gemaakt omdat dit op meerdere plekken gebruikt wordt"""
     return " ".join((tab_num, tab_item[0].title()))
+
+
+def dbdate2listdate(datestring):
+    "opslagdatum EEJJMMDD etc laten zien als dd-mm-EEJJ etc"
+    try:
+        date = datetime.datetime.strptime(datestring, '%Y-%m-%d %H:%M:%S')
+        return date.strftime('%d-%m-%Y %H:%M:%S')
+    except ValueError:
+        return datestring # assume other format
+
+
+def listdate2dbdate(datestring):
+    "weergavedatum dd-mm-EEJJ etc omzetten naar opslagdatum EEJJMMDD etc"
+    try:  # try old format
+        date = datetime.datetime.strptime(datestring, '%d-%m-%Y %H:%M:%S')
+        return date.strftime('%Y-%m-%d %H:%M:%S')
+    except ValueError:
+        return datestring # assume already converted
 
 
 class Page():
@@ -775,7 +794,7 @@ class Page6(Page):
         self.gui.init_textfield()
 
         if self.parent.pagedata:
-            self.event_list = [x[0] for x in self.parent.pagedata.events]
+            self.event_list = [dbdate2listdate(x[0]) for x in self.parent.pagedata.events]
             self.event_list.reverse()
             self.old_list = self.event_list[:]
             self.event_data = [x[1] for x in self.parent.pagedata.events]
@@ -819,12 +838,12 @@ class Page6(Page):
             wijzig = True
             hlp = len(self.event_list) - 1
             for idx, data in enumerate(self.parent.pagedata.events):
-                if data != (self.event_list[hlp - idx], self.event_data[hlp - idx]):
-                    self.parent.pagedata.events[idx] = (self.event_list[hlp - idx],
-                                                        self.event_data[hlp - idx])
+                datestring = listdate2dbdate(self.event_list[hlp - idx])
+                if data != (datestring, self.event_data[hlp - idx]):
+                    self.parent.pagedata.events[idx] = (datestring, self.event_data[hlp - idx])
             for idx in range(len(self.parent.pagedata.events), hlp + 1):
                 if self.event_data[hlp - idx]:
-                    self.parent.pagedata.events.append((self.event_list[hlp - idx],
+                    self.parent.pagedata.events.append((listdate2dbdate(self.event_list[hlp - idx]),
                                                         self.event_data[hlp - idx]))
         if wijzig:
             self.update_actie()
