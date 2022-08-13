@@ -810,8 +810,8 @@ class Page6(Page):
             short_text = hlp.split("\n")[0]
             if len(short_text) < 80:
                 short_text = short_text[:80] + "..."
-            if self.parent.parent.datatype == shared.DataType.XML:
-                short_text = short_text.encode('latin-1')       #FIXME: is dit nodig?
+            # if self.parent.parent.datatype == shared.DataType.XML:
+            #     short_text = short_text.encode('latin-1')       #FIXME: is dit nodig?
             self.gui.set_listitem_text(idx + 1, "{} - {}".format(self.event_list[idx], short_text))
             self.gui.set_listitem_data(idx + 1)
         wijzig = False
@@ -897,9 +897,9 @@ class Page6(Page):
                 self.event_list.insert(0, datum)
                 self.event_data.insert(0, oldtext)
         datum, oldtext = shared.get_dts(), ''
-        self.gui.add_new_item_to_list(datum, oldtext)
         self.event_list.insert(0, datum)
         self.event_data.insert(0, oldtext)
+        self.gui.add_new_item_to_list(datum, oldtext)
         self.oldtext = oldtext
         self.gui.enable_buttons()
 
@@ -1038,6 +1038,7 @@ class MainWindow():
     def __init__(self, parent, fnaam=""):
         self.parent = parent
         self.dirname, self.filename = '', ''
+        self.datatype = None
         self.title = 'Actieregistratie'
         self.initializing = True
         self.exiting = False
@@ -1065,8 +1066,6 @@ class MainWindow():
                 shared.log('SQL: %s', self.filename)
             elif fnaam in ('mongo', 'mongodb'):
                 self.datatype = shared.DataType.MNG
-            else:
-                fnaam = ''
         self.gui = gui.MainGui(self)
         if not self.datatype:
             self.filename = ''
