@@ -11,7 +11,7 @@ import datetime as dt
 import collections
 
 import pathlib
-ROOT = pathlib.Path("/home/albert/projects/actiereg")
+ROOT = pathlib.Path("~/projects/actiereg").expanduser()   # location of actiereg project
 sys.path.append(str(ROOT))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "actiereg.settings")
 
@@ -43,14 +43,7 @@ for proj in get_projnames():
     MY[name] = importlib.import_module('actiereg.{}.models'.format(name))
 
 import actiereg.core as core
-import logging
 dtformat = '%d-%m-%Y %H:%I:%S'  # was '%x %X' en daarvoor .isoformat(' ')
-
-
-def log(msg, *args, **kwargs):
-    "schrijf logregel indien debuggen gewenst"
-    if 'DEBUG' in os.environ and os.environ['DEBUG']:
-        logging.info(msg, *args, **kwargs)
 
 
 def get_user(inp):
@@ -91,7 +84,7 @@ def get_acties(naam, select=None, arch="", user=None):
     try:
         my = MY[naam]
     except KeyError:
-        raise
+        raise DataError(naam + " bestaat niet")
 
     userid = user.id if user else 0
     data = core.get_acties(my, userid)
@@ -106,10 +99,7 @@ def get_acties(naam, select=None, arch="", user=None):
                         actie.about, actie.title, gewijzigd, actie.arch)
             actiedata.append(linedata)
         return actiedata
-    elif len(data) == 0:
-        return data
-    else:
-        raise DataError(naam + " bestaat niet")
+    return []
 
 
 class SortOptions:
