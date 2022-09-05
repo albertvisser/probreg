@@ -210,14 +210,15 @@ class SelectOptions:
         name = 'status'
         stats = data.get(name, [])
         newdata[name] = stats
-
         name = 'titel'
         about = data.get(name, [])
         newdata[name] = about
-
         name = 'arch'
         arch = data.get(name, '')
         newdata[name] = arch
+        # for name, default  in (('soort', []), ('status', []), ('titel', []), ('arch', '')):
+        #     value = data.get(name, [])
+        #     newdata[name] = value
 
         if newdata and newdata == self.olddata:
             return "no changes"
@@ -276,8 +277,6 @@ class Settings:
     self.stat is een dict met code als key en titel, volgorde en record-id
         als waarde
     self.cat idem
-    de get methoden zijn voor het gemak
-    wijzigen doe je maar direct in de attributen (properties van maken?)
 
     is in django als volgt gedefinieerd:
     Status      title value order
@@ -305,90 +304,19 @@ class Settings:
 
     def write(self, srt, sett_id):
         "schrijf alle settings terug"
-        # als ik ze stuk voor stuk ga schrijven hier moet k verwijderen mogelijk maken
+        # als ik ze stuk voor stuk ga schrijven hier moet ik verwijderen mogelijk maken
         if srt == 'kop':
-            item = self.my.Page.objects.all.filter(order='{}'.format(sett_id))
-            item.order = int(sett_id)
+            item = self.my.Page.objects.get_or_create(order='{}'.format(sett_id))[0]
             item.title, item.link = self.kop[sett_id]
             item.save()
         elif srt == 'stat':
-            item = self.my.Status.objects.all.filter(value='{}'.format(sett_id))
-            item.value = int(sett_id)
+            item = self.my.Status.objects.get_or_create(value='{}'.format(sett_id))[0]
             item.title, item.order, _ = self.stat[sett_id]
             item.save()
         elif srt == 'cat':
-            item = self.my.Soort.objects.all.filter(value='{}'.format(sett_id))
-            item.order = sett_id
+            item = self.my.Soort.objects.get_or_create(value='{}'.format(sett_id))[0]
             item.title, item.order, _ = self.cat[sett_id]
             item.save()
-
-    # def get_statusid(self, waarde):
-    #     "geef id bij statuscode of -tekst"
-    #     log(waarde, type(waarde), sep=" ")
-    #     for code, value in self.stat.items():
-    #         log(code, type(code), value, sep=" ")
-    #         text, sortkey, row_id = value
-    #         if waarde == code or waarde == text:
-    #             return row_id
-    #     raise DataError("geen status bij code of omschrijving '{}' gevonden".format(
-    #         waarde))
-
-    # def get_soortid(self, waarde):
-    #     "geef id bij soortcode of -tekst"
-    #     for code, value in self.cat.items():
-    #         text, sortkey, row_id = value
-    #         if waarde == code or waarde == text:
-    #             return row_id
-    #     raise DataError("geen soort bij code of omschrijving '{}' gevonden".format(
-    #         waarde))
-
-    # def get_statustext(self, waarde):
-    #     "geef tekst bij statuscode of -id"
-    #     try:
-    #         return self.stat[waarde][0]
-    #     except KeyError:
-    #         pass
-    #     for text, sortkey, row_id in self.stat.values():
-    #         if waarde == sortkey or waarde == row_id:
-    #             return text
-    #     raise DataError("Geen omschrijving gevonden bij statuscode of -id '{}'".format(
-    #         waarde))
-
-    # def get_soorttext(self, waarde):
-    #     "geef tekst bij soortcode of -id"
-    #     try:
-    #         return self.cat[waarde][0]
-    #     except KeyError:
-    #         pass
-    #     for text, sortkey, row_id in self.cat.values():
-    #         if waarde == sortkey or waarde == row_id:
-    #             return text
-    #     raise DataError("Geen omschrijving gevonden bij soortcode of -id '{}'".format(
-    #         waarde))
-
-    # def get_statuscode(self, waarde):
-    #     "geef code bij statusid"
-    #     ## try:
-    #         ## return self.stat[waarde][0]
-    #     ## except KeyError:
-    #         ## pass
-    #     for text, sortkey, row_id in self.stat.values():
-    #         if waarde == sortkey:   # or waarde == row_id:
-    #             return row_id   # text
-    #     raise DataError("Geen omschrijving gevonden bij statuscode of -id '{}'".format(
-    #         waarde))
-
-    # def get_soortcode(self, waarde):
-    #     "geef code bij soortid"
-    #     ## try:
-    #         ## return self.cat[waarde][0]
-    #     ## except KeyError:
-    #         ## pass
-    #     for text, sortkey, row_id in self.cat.values():
-    #         if waarde == sortkey:   # or waarde == row_id:
-    #             return row_id   # text
-    #     raise DataError("Geen omschrijving gevonden bij soortcode of -id '{}'".format(
-    #         waarde))
 
 
 class Actie:
@@ -417,9 +345,7 @@ class Actie:
         if self.id in (0, "0"):
             self.nieuw(user)
         else:
-            self._actie = self.my.Actie.objects.filter(nummer='{}'.format(self.id))
-            if self._actie:
-                self._actie = self._actie[0]
+            self._actie = self.my.Actie.objects.get(nummer='{}'.format(self.id))
         self.read()
 
     def nieuw(self, user):
@@ -442,11 +368,11 @@ class Actie:
         except ObjectDoesNotExist:
             self._actie.soort = self.my.Soort.objects.get(value=" ")
         self._actie.status = self.my.Status.objects.get(value="0")
-        self._actie.datum = nw_date.strftime('%x %X')  # .isoformat(' ')  # [:19]
+        self._actie.start = nw_date.strftime('%x %X')  # .isoformat(' ')  # [:19]
         self._actie.starter = self._actie.behandelaar = user
         self._actie.lasteditor = user
         self._actie.save()
-        self.events = [(self._actie.datum, "Actie opgevoerd")]
+        self.events = [(self._actie.start, "Actie opgevoerd")]
 
     def read(self):
         "gegevens lezen van een bepaalde actie"
@@ -458,10 +384,10 @@ class Actie:
         self.datum = self._actie.start.strftime(dtformat)
         self.over = self.over_oud = self._actie.about
         self.titel = self.titel_oud = self._actie.title
-        if self._actie.gewijzigd:
-            self.updated = self._actie.gewijzigd.strftime(dtformat)
-        else:
-            self.updated = ''
+        # if self._actie.gewijzigd:  # is net als start een auto_now_add veld
+        self.updated = self._actie.gewijzigd.strftime(dtformat)
+        # else:
+        #    self.updated = ''
         self.status = self.status_oud = self._actie.status.value
         self.soort = self.soort_oud = self._actie.soort.value
         self.arch = self.arch_oud = self._actie.arch
@@ -481,10 +407,11 @@ class Actie:
         "geef tekst bij statuscode"
         # log(self.status)
         # return self.settings.get_statustext(self.status)
+        waarde = self.status
         try:
-            return self.status[waarde][0]
+            return self.settings.stat[waarde][0]
         except KeyError:
-            for text, sortkey, row_id in self.status.values():
+            for text, sortkey, row_id in self.settings.stat.values():
                 if waarde == sortkey or waarde == row_id:
                     return text
         raise DataError("Geen omschrijving gevonden bij statuscode of -id '{}'".format(
@@ -493,40 +420,19 @@ class Actie:
     def get_soorttext(self):
         "geef tekst bij soortcode"
         # return self.settings.get_soorttext(self.soort)
+        waarde = self.soort
         try:
-            return self.soort[waarde][0]
+            return self.settings.cat[waarde][0]
         except KeyError:
-            for text, sortkey, row_id in self.soort.values():
+            for text, sortkey, row_id in self.settings.cat.values():
                 if waarde == sortkey or waarde == row_id:
                     return text
         raise DataError("Geen omschrijving gevonden bij soortcode of -id '{}'".format(
             waarde))
 
-    # def set_status(self, waarde):
-    #     "stel status in (code of tekst) met controle a.h.v. project settings"
-    #     self.status = self.settings.get_statusid(waarde)
-    #     ## log(waarde, self.status, sep = " ")
-    #     self.add_event('status gewijzigd in "{}"'.format(self.get_statustext()))
-
-    # def set_soort(self, waarde):
-    #     "stel soort in (code of tekst) met controle a.h.v. project settings"
-    #     self.soort = self.settings.get_soortid(waarde)
-    #     self.add_event('status gewijzigd in "{}"'.format(self.get_soorttext()))
-
-    # def set_arch(self, waarde):
-    #     "stel archiefstatus in - garandeert dat dat een boolean waarde wordt"
-    #     if waarde:
-    #         self.arch = True
-    #         txt = "Actie gearchiveerd"
-    #     else:
-    #         self.arch = False
-    #         txt = "Actie herleefd"
-    #     self.add_event(txt)
-
     def add_event(self, txt):
         "voeg tekstregel toe aan events"
-        now = dt.datetime.today()
-        self.events.append((now.strftime(dtformat), txt))
+        self.events.append((dt.datetime.today(), txt))
 
     def write(self, user):
         "actiegegevens (terug)schrijven"
@@ -559,23 +465,3 @@ class Actie:
     def cleanup(self):                            # compatibility with dml_xml.py
         "images opruimen"
         pass
-
-    # # def list(self):
-    #     "actiegegevens uitlijsten"
-    #     result = ["%s %s gemeld op %s status %s %s" % (self.get_soorttext(),
-    #                                                    self.id,
-    #                                                    self.datum,
-    #                                                    self.status,
-    #                                                    self.get_statustext())]
-    #     result.append("Titel: {}".format(self.titel))
-    #     result.append("Melding: {}".format(self.melding))
-    #     result.append("Oorzaak: {}".format(self.oorzaak))
-    #     result.append("Oplossing: {}".format(self.oplossing))
-    #     result.append("Vervolg: {}".format(self.vervolg))
-    #     result.append("Verslag:")
-    #     for item in self.events:
-    #         result.append("\t {} - {}".format(item.start, item.text))
-    #     if self.arch:
-    #         result.append("Actie is gearchiveerd.")
-    #     # for now
-    #     return result
