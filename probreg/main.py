@@ -1501,6 +1501,12 @@ class MainWindow():
                 return retval
             self.book.fnaam = fullname
             self.title = self.filename
+        elif self.multiple_projects:
+            self.book.fnaam = self.filename
+            for name, title, desc in self.projnames:  # TODO: dict van maken
+                if name.lower() == self.filename.lower():
+                    self.title = title
+                    break
         else:
             self.book.fnaam = self.title = self.filename
         self.book.rereadlist = True
