@@ -611,7 +611,6 @@ class Page0(Page):
         self.parent.rereadlist = True
         self.vulp()
         self.parent.parent.gui.set_tabfocus(0)
-        # het navolgende geldt alleen voor de selectie "gearchiveerd en actief"
         if self.sel_args.get("arch", "") == "alles":
             self.gui.ensure_visible(self.parent.current_item)
             hlp = "&Herleef" if self.parent.pagedata.arch else "&Archiveer"
@@ -1137,7 +1136,7 @@ class MainWindow():
                                         "Print the contents of the current issue"))),
                            ('',),
                            ("&Quit", self.exit_app, 'Ctrl+Q', " Terminate the program")]),
-                ("&Login", [("&Go", self.sign_in, 'Ctrl+L', " Sign in to the database")]),
+                ("&User", [("&Login", self.sign_in, 'Ctrl+L', " Sign in to the database")]),
                 ("&Settings", (("&Applicatie", (("&Lettertype", self.font_settings, '',
                                                  " Change the size and font of the text"),
                                                 ("&Kleuren", self.colour_settings, '',
