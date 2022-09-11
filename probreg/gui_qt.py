@@ -651,7 +651,7 @@ class Page0Gui(PageGui):
 
     def get_selected_action(self):
         "return the key of the selected action"
-        return shared.data2str(self.p0list.currentItem().data(0, core.Qt.UserRole))
+        return self.p0list.currentItem().data(0, core.Qt.UserRole)
 
     def get_list_row(self):
         "return the event list's selected row index - but this is a tree, not a list"
@@ -839,8 +839,10 @@ class Page1Gui(PageGui):
             domain = self.parent.cats
             field = self.cat_choice
         for x in range(len(domain)):
-            y = shared.data2str(field.itemData(x))
-            if y == value:
+            code = field.itemData(x)
+            if self.parent.parent.datatype == shared.DataType.SQL:
+                code = int(code)
+            if code == value:
                 field.setCurrentIndex(x)
                 break
 
@@ -848,11 +850,13 @@ class Page1Gui(PageGui):
         "get selected entry in a combobox"
         if fieldtype == 'stat':
             idx = self.stat_choice.currentIndex()
-            code = shared.data2str(self.stat_choice.itemData(idx))
+            code = self.stat_choice.itemData(idx)
+            if self.parent.parent.datatype == shared.DataType.SQL:
+                code = int(code)
             text = self.stat_choice.currentText()
         elif fieldtype == 'cat':
             idx = self.cat_choice.currentIndex()
-            code = shared.data2str(self.cat_choice.itemData(idx))
+            code = self.cat_choice.itemData(idx)
             text = str(self.cat_choice.currentText())
         return code, text
 

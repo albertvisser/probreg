@@ -13,7 +13,7 @@ import os
 import enum
 import logging
 import pathlib
-from datetime import datetime
+import datetime
 import probreg.dml_django as dmls
 import probreg.dml_xml as dmlx
 import probreg.dml_mongo as dmlm
@@ -41,21 +41,7 @@ def log(msg, *args, **kwargs):
 
 def get_dts():
     "routine om een geformatteerd date/time stamp te verkrijgen"
-    return datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-
-
-def data2str(data):
-    "compatibility Python 2 / 3: turn PyQt data object into Python string"
-    if sys.version < "3":
-        return str(data.toPyObject())
-    return str(data)
-
-
-def data2int(data):
-    "compatibility Python 2 / 3: turn PyQt data object into Python integer"
-    if sys.version < "3":
-        return int(data.toPyObject())
-    return int(data)
+    return datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
 
 
 def tabsize(pointsize):

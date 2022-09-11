@@ -772,7 +772,8 @@ class Page0Gui(PageGui, listmix.ColumnSorterMixin):
 
     def get_selected_action(self):
         "return the key of the selected action"
-        data = str(self.p0list.GetItemData(self.p0list.GetFirstSelected()))
+        data = self.p0list.GetItemData(self.p0list.GetFirstSelected())
+        print('in Page0.get_selected_action, data is', data)
         return '-'.join((data[:4], data[4:]))
 
     def get_list_row(self):
@@ -912,8 +913,10 @@ class Page1Gui(PageGui):
             domain = self.parent.cats
             field = self.cat_choice
         for x in range(len(domain)):
-            y = shared.data2str(field.GetClientData(x))
-            if y == value:
+            code = field.GetClientData(x)
+            if self.parent.parent.datatype == shared.DataType.SQL:
+                code = int(code)
+            if code == value:
                 field.Select(x)
                 break
 
@@ -921,12 +924,14 @@ class Page1Gui(PageGui):
         "get selected entry in a combobox"
         if fieldtype == 'stat':
             idx = self.stat_choice.GetSelection()
-            code = shared.data2str(self.stat_choice.GetClientData(idx))
+            code = self.stat_choice.GetClientData(idx)
+            if self.parent.parent.datatype == shared.DataType.SQL:
+                code = int(code)
             text = self.stat_choice.GetStringSelection()
         elif fieldtype == 'cat':
             idx = self.cat_choice.GetSelection()
-            code = shared.data2str(self.cat_choice.GetClientData(idx))
-            text = str(self.cat_choice.GetStringSelection())
+            code = self.cat_choice.GetClientData(idx)
+            text = self.cat_choice.GetStringSelection()
         return code, text
 
     def set_oldbuf(self):

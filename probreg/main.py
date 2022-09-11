@@ -598,12 +598,7 @@ class Page0(Page):
 
     def archiveer(self, *args):
         "archiveren of herleven van het geselecteerde item"
-        selindx = self.gui.get_selected_action()
-        if self.parent.parent.datatype == shared.DataType.XML:
-            selindx = shared.data2str(selindx)
-        else:
-            selindx = shared.data2int(selindx)
-        self.readp(selindx)
+        self.readp(self.gui.get_selected_action())
         self.parent.pagedata.arch = not self.parent.pagedata.arch
         hlp = "gearchiveerd" if self.parent.pagedata.arch else "herleefd"
         self.parent.pagedata.add_event("Actie {0}".format(hlp))
