@@ -31,7 +31,7 @@ def get_projnames():
         for line in f_in:
             sel, naam, titel, oms = line.strip().split(";")
             if sel == "X":
-                data.append((naam, titel.title(), oms))
+                data.append((naam, titel, oms))
     data = data
     return sorted(data)
 

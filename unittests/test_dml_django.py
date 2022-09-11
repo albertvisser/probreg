@@ -26,11 +26,11 @@ class MockDatetime:
 def test_get_projnames(monkeypatch, capsys):
     testfilename = '/tmp/actieregtestapps.dat'
     with open(testfilename, 'w') as f:
-        print('X;bep1;app1;testapp #1', file=f)
-        print(';app2;app2;testapp #2', file=f)
+        print('X;bep1;App1;testapp #1', file=f)
+        print(';app2;App2;testapp #2', file=f)
         print('X;app3;app3;testapp #3', file=f)
     monkeypatch.setattr(dml, 'APPS', dml.pathlib.Path(testfilename))
-    assert dml.get_projnames() == [('app3', 'App3', 'testapp #3'), ('bep1', 'App1', 'testapp #1')]
+    assert dml.get_projnames() == [('app3', 'app3', 'testapp #3'), ('bep1', 'App1', 'testapp #1')]
 
 
 @pytest.mark.django_db
