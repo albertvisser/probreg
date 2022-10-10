@@ -44,13 +44,13 @@ def test_get_user():
 @pytest.mark.django_db
 def test_validate_user(monkeypatch):
     monkeypatch.setattr(dml, 'get_user', lambda x: None)
-    assert dml.validate_user('naam', 'passw', 'project') is None
+    assert dml.validate_user('naam', 'passw', 'project') == ('', False, False)
     me = django.contrib.auth.models.User.objects.create(username='testuser')
     # me = django.contrib.auth.models.User(username='testuser')
     # me.save()
     monkeypatch.setattr(dml, 'get_user', lambda x: me)
     monkeypatch.setattr(dml.django.contrib.auth.hashers, 'check_password', lambda *x: False)
-    assert dml.validate_user('naam', 'passw', 'project') is None
+    assert dml.validate_user('naam', 'passw', 'project') == ('', False, False)
     monkeypatch.setattr(dml.django.contrib.auth.hashers, 'check_password', lambda *x: True)
     monkeypatch.setattr(dml.core, 'is_user', lambda *x: True)
     monkeypatch.setattr(dml.core, 'is_admin', lambda *x: True)

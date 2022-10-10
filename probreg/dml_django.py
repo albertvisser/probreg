@@ -62,9 +62,9 @@ def validate_user(naam, passw, project):
     """
     user = get_user(naam)
     if not user:
-        return
+        return '', False, False
     if not hashers.check_password(passw, user.password):
-        return
+        return '', False, False
     return user, core.is_user(project, user), core.is_admin(project, user)
 
 
