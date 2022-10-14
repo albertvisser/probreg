@@ -1008,7 +1008,7 @@ class Page6Gui(PageGui):
         accel_data = []
         if not parent.parent.work_with_user:
             self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.on_activate_item, self.progress_list)
-            accel_data.append(('new-item', self.add_item, 'Shift-Ctrl-N'))
+            accel_data.append(('new-item', self.on_activate_item, 'Shift-Ctrl-N'))
         # self.progress_list.Bind(wx.EVT_LIST_ITEM_SELECTED, self.on_select_item)
         # self.progress_list.Bind(wx.EVT_LIST_ITEM_DESELECTED, self.on_deselect_item)
         self.Bind(wx.EVT_LIST_ITEM_SELECTED, self.on_select_item, self.progress_list)
