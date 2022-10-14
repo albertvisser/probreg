@@ -43,6 +43,7 @@ for proj in get_projnames():
     MY[name] = importlib.import_module('actiereg.{}.models'.format(name))
 
 import actiereg.core as core
+from actiereg._basic.models import SORTFIELDS   # used in main.py
 dtformat = '%d-%m-%Y %H:%I:%S'  # was '%x %X' en daarvoor .isoformat(' ')
 
 
