@@ -126,37 +126,38 @@ class Page():
                 if self.parent.parent.use_separate_subject:
                     text = f'{self.parent.pagedata.over} - {text}'
                 text = f'{self.parent.pagedata.id} {text}'
-        self.parent.parent.set_windowtitle("{} | {}".format(self.parent.parent.title, text))
+        test = self.parent.parent.title
+        if test:
+            self.parent.parent.set_windowtitle("{} | {}".format(test, text))
+        else:
+            self.parent.parent.set_windowtitle(text)
         self.parent.parent.set_statusmessage()
         if 1 < self.parent.current_tab < self.parent.count() - 1:
             self.oldbuf = ''
             is_readonly = False
             if self.parent.pagedata is not None:
-                if self.parent.current_tab == 2 and self.parent.pagedata.melding:
-                    self.oldbuf = self.parent.pagedata.melding
-                if self.parent.current_tab == 3 and self.parent.pagedata.oorzaak:
-                    self.oldbuf = self.parent.pagedata.oorzaak
-                if self.parent.current_tab == 4 and self.parent.pagedata.oplossing:
-                    self.oldbuf = self.parent.pagedata.oplossing
-                if self.parent.current_tab == 5 and self.parent.pagedata.vervolg:
-                    self.oldbuf = self.parent.pagedata.vervolg
-                # self.text1.setReadOnly(self.parent.pagedata.arch)
+                self.oldbuf = self.get_pagetext()
                 is_readonly = self.parent.pagedata.arch
-            # print('in Page.vulp, setting text:', self.oldbuf)
             self.gui.set_textarea_contents(self.oldbuf)
-            # print('in Page.vulp, set text')
             if not is_readonly:
                 is_readonly = not self.parent.parent.is_user
             self.gui.set_text_readonly(is_readonly)
             self.gui.enable_toolbar(self.parent.parent.is_user)
-            # print('in Page.vulp, getting text')
             self.oldbuf = self.gui.get_textarea_contents()  # make sure it's rich text
-            # print('in Page.vulp, got text:', self.oldbuf)
             self.gui.move_cursor_to_end()
-            # print('  set cursor to end')
         self.initializing = False
-        # self.parent.checked_for_leaving = True  - alleen voor wx versie, hoort bij gui
-        # print('end of Page.vulp')
+
+    def get_pagetext(self):
+        text = ''
+        if self.parent.current_tab== 2:
+            text = self.parent.pagedata.melding
+        elif self.parent.current_tab== 3:
+            text = self.parent.pagedata.oorzaak
+        elif self.parent.current_tab== 4:
+            text = self.parent.pagedata.oplossing
+        elif self.parent.current_tab== 5:
+            text = self.parent.pagedata.vervolg
+        return text
 
     def readp(self, pid):
         "lezen van een actie"
@@ -291,9 +292,9 @@ class Page():
             changed = newbuf != self.oldbuf
             self.enable_buttons(changed)
 
-    def on_choice(self):
-        "callback voor combobox (? wordt on_text hier niet gewoon voor gebruikt?)"
-        self.enable_buttons()
+    # def on_choice(self):
+    #     "callback voor combobox (? wordt on_text hier niet gewoon voor gebruikt?)"
+    #     self.enable_buttons()
 
     def update_actie(self):
         """pass page data from the GUI to the internal storage
@@ -311,7 +312,7 @@ class Page():
         # self.parent.pagedata.id onthouden voor de nieuwe startpositie
         if self.parent.pagedata:
             self.parent.pagedata.startitem = self.parent.pagedata.id
-        else:
+        else:                                       #FIXME: kan dit nog wel?
             self.parent.pagedata.startitem = ''
         if self.parent.parent.work_with_user:
             self.parent.pagedata.write(self.parent.parent.user)
@@ -380,7 +381,7 @@ class Page():
     def goto_page(self, page_num, check=True):
         "naar de aangegeven pagina gaan"
         if not check or self.leavep():
-            if 0 <= page_num <= len(self.parent.pages):
+            if 0 <= page_num < len(self.parent.pages):
                 self.parent.parent.gui.set_page(page_num)
 
     def get_textarea_contents(self):
@@ -421,6 +422,7 @@ class Page0(Page):
         """
         # if (self.parent.parent.datatype == shared.DataType.SQL
         #         and self.parent.parent.filename):
+        self.selection = ''
         if self.parent.parent.work_with_user:
             if self.saved_sortopts:
                 test = self.saved_sortopts.load_options()
@@ -430,51 +432,14 @@ class Page0(Page):
                 self.selection = 'volgens user gedefinieerde selectie'
             else:
                 value = False
-                self.selection = ''
             self.gui.enable_sorting(value)
 
         self.seltitel = 'alle meldingen ' + self.selection
         super().vulp()
         msg = ''
         if self.parent.rereadlist:
-            self.parent.data = {}
-            select = self.sel_args.copy()
-            arch = ""  # "alles"
-            if "arch" in select:
-                arch = select.pop("arch")
-
-            data = shared.get_acties[self.parent.parent.datatype](self.parent.fnaam, select,
-                                                                  arch, self.parent.parent.user)
-            for idx, item in enumerate(data):
-                if len(item) == 7:  # type == self.parent.parent.shared.DataType.XML:
-                    self.parent.data[idx] = (item[0],
-                                             item[1],
-                                             ".".join((item[3][1], item[3][0])),
-                                             ".".join((item[2][1], item[2][0])),
-                                             item[5],
-                                             item[4],
-                                             True if item[6] == 'arch' else False)
-                elif len(item) == 8:  # type == self.parent.parent.shared.DataType.MNG:
-                    cats = {y: x for x, y in self.parent.cats.values()}
-                    stats = {y: x for x, y in self.parent.stats.values()}
-                    self.parent.data[idx] = (item[0],
-                                             item[1],
-                                             '.'.join((item[2], cats[item[2]])),
-                                             '.'.join((item[3], stats[item[3]])),
-                                             item[4],
-                                             item[5],
-                                             item[6],
-                                             item[7])
-                elif len(item) == 10:  # type == self.parent.parent.shared.DataType.SQL:
-                    self.parent.data[idx] = (item[0],
-                                             item[1],
-                                             ".".join((item[5], item[4])),
-                                             ".".join((str(item[3]), item[2])),
-                                             item[8],
-                                             item[6],
-                                             item[7],
-                                             item[9])
             msg = self.populate_list()
+            self.parent.rereadlist = False
             # nodig voor sorteren?  Geen idee maar als het ergens goed voor is dan moet dit
             # naar de gui module want sortItems is een qt methode
             # if self.parent.parent.datatype == shared.DataType.XML:
@@ -494,16 +459,47 @@ class Page0(Page):
 
     def populate_list(self):
         "list control vullen"
+        self.parent.data = {}
         self.gui.clear_list()
 
-        self.parent.rereadlist = False
-        items = self.parent.data.items()
-        if items is None:
-            self.parent.parent.set_statusmessage('Selection is None?')
-        if not items:
-            return
-
-        for _, data in items:
+        select = self.sel_args.copy()
+        arch = select.pop("arch") if ("arch" in select) else ""  # "alles"
+        data = shared.get_acties[self.parent.parent.datatype](self.parent.fnaam, select,
+                                                              arch, self.parent.parent.user)
+        for idx, item in enumerate(data):
+            if len(item) == 7:  # type == self.parent.parent.shared.DataType.XML:
+                self.parent.data[idx] = (item[0],
+                                         item[1],
+                                         ".".join((item[3][1], item[3][0])),
+                                         ".".join((item[2][1], item[2][0])),
+                                         item[5],
+                                         item[4],
+                                         True if item[6] == 'arch' else False)
+            elif len(item) == 8:  # type == self.parent.parent.shared.DataType.MNG:
+                cats = {y: x for x, y in self.parent.cats.values()}
+                stats = {y: x for x, y in self.parent.stats.values()}
+                self.parent.data[idx] = (item[0],
+                                         item[1],
+                                         '.'.join((item[2], cats[item[2]])),
+                                         '.'.join((item[3], stats[item[3]])),
+                                         item[4],
+                                         item[5],
+                                         item[6],
+                                         item[7])
+            elif len(item) == 10:  # type == self.parent.parent.shared.DataType.SQL:
+                self.parent.data[idx] = (item[0],
+                                         item[1],
+                                         ".".join((item[5], item[4])),
+                                         ".".join((str(item[3]), item[2])),
+                                         item[8],
+                                         item[6],
+                                         item[7],
+                                         item[9])
+        # items = self.parent.data.items()
+        # if items is None:
+        #     self.parent.parent.set_statusmessage('Selection is None?')
+        # for _, data in items:
+        for data in self.parent.data.values():
             new_item = self.gui.add_listitem(data[0])
             self.gui.set_listitem_values(new_item, [data[0]] + list(data[2:]))
 
@@ -567,7 +563,7 @@ class Page0(Page):
         2x4 comboboxjes waarin je de volgorde van de rubrieken en de sorteervolgorde
         per rubriek kunt aangeven"""
         sortopts, sortlist = {}, []
-        if self.saved.sortopts:
+        if self.saved_sortopts:
             sortopts = self.saved_sortopts.load_options()
             # try:
             sortlist = [x[0] for x in dmls.SORTFIELDS]
@@ -576,7 +572,7 @@ class Page0(Page):
         else:
             gui.show_message(self.gui, 'Sorry, multi-column sorteren werkt nog niet')
             return
-        if not sortlist:  # kan dit?
+        if not sortlist:  # kan dit? Nu dat deze in dmls geïmporteerd wordt niet meer denk ik
             sortlist = [x for x in self.parent.ctitels]
             sortlist[1] = "Soort"
         sortlist.insert(0, "(geen)")
@@ -603,7 +599,7 @@ class Page0(Page):
         hlp = "gearchiveerd" if self.parent.pagedata.arch else "herleefd"
         self.parent.pagedata.add_event("Actie {0}".format(hlp))
         self.update_actie()  # self.parent.pagedata.write()
-        self.parent.rereadlist = True
+        self.parent.rereadlist = True  # wordt uitgezet in vulp
         self.vulp()
         self.parent.parent.gui.set_tabfocus(0)
         if self.sel_args.get("arch", "") == "alles":
@@ -748,7 +744,7 @@ class Page1(Page):
         "archiveren/herleven"
         self.parch = not self.parch
         self.savep()
-        self.parent.rereadlist = True
+        self.parent.rereadlist = True  # wordt in vulp uitgezet
         self.vulp()
 
     def vul_combos(self):
@@ -917,35 +913,6 @@ class Page6(Page):
         self.gui.enable_buttons()
 
 
-    # if self.master.parent.parent.is_user:  -- uit qt versie
-    #     datum, oldtext = shared.get_dts(), ''
-    #     newitem = qtw.QListWidgetItem('{} - {}'.format(datum, oldtext))
-    #     newitem.setData(core.Qt.UserRole, 0)
-    #     self.progress_list.insertItem(1, newitem)
-    #     self.master.event_list.insert(0, datum)
-    #     self.master.event_data.insert(0, oldtext)
-    #     self.progress_list.setCurrentRow(1)
-    #     self.progress_text.setText(oldtext)
-    #     self.progress_text.setReadOnly(False)
-    #     self.progress_text.setFocus()
-    #     self.master.oldtext = oldtext
-    #     # waarom hier ook niet self.enable_buttons() zoals in wx versie?
-    # def add_item(self, event=None):  -- uit wx versie
-    #     """add a new item (by doubleclicking the first item or using shift-ctrl-N)
-    #     """
-    #     print('in add_item')
-    #     datum, oldtext = shared.get_dts(), ''
-    #     self.progress_list.InsertItem(1, '{} - {}'.format(datum, oldtext))
-    #     self.master.event_list.insert(0, datum)
-    #     self.master.event_data.insert(0, oldtext)
-    #     self.progress_list.Select(1)
-    #     self.progress_text.set_contents(oldtext)
-    #     self.progress_text.Enable(True)
-    #     self.progress_text.SetFocus()
-    #     self.master.oldtext = oldtext
-    #     # self.nieuw_item = True
-    #     self.enable_buttons()
-
 class TabOptions:
     "hulp klasse bij dialoog voor mogelijke tab headers"
     def initstuff(self, parent):
@@ -985,7 +952,7 @@ class StatOptions:
             statitems = [item_value, item_text]
             if row_id:
                 statitems.append(row_id[0])
-            self.data.append(':'.join(statitems))
+            self.data.append(': '.join(statitems))
         self.tekst = ["De waarden voor de status worden getoond in dezelfde volgorde",
                       "als waarin ze in de combobox staan.",
                       "Vóór de dubbele punt staat de code, erachter de waarde.",
@@ -1024,7 +991,7 @@ class CatOptions:
             catitems = [item_value, item_text]
             if row_id:
                 catitems.append(row_id[0])
-            self.data.append(':'.join(catitems))
+            self.data.append(': '.join(catitems))
         self.tekst = ["De waarden voor de soorten worden getoond in dezelfde volgorde",
                       "als waarin ze in de combobox staan.",
                       "Vóór de dubbele punt staat de code, erachter de waarde.",
@@ -1056,41 +1023,16 @@ class MainWindow():
         self.initializing = True
         self.exiting = False
         self.helptext = ''
-        # self.pagedata = None
-        # self.oldbuf = None
         self.is_newfile = False
         self.oldsort = -1
         self.idlist = self.actlist = self.alist = []
         shared.log('fnaam is %s', fnaam)
         self.projnames = dmls.get_projnames()
         if fnaam:
-            if fnaam == 'xml' or (os.path.exists(fnaam) and os.path.isfile(fnaam)):
-                self.datatype = shared.DataType.XML
-                if fnaam != 'xml':
-                    test = pathlib.Path(fnaam)
-                    self.dirname, self.filename = test.parent, test.name
-                shared.log('XML: %s %s', self.dirname, self.filename)
-            elif fnaam == 'sql' or fnaam.lower() in [x[0] for x in self.projnames]:
-                self.datatype = shared.DataType.SQL
-                if fnaam == 'basic':
-                    self.filename = '_basic'
-                elif fnaam != 'sql':
-                    self.filename = fnaam.lower()
-                shared.log('SQL: %s', self.filename)
-            elif fnaam in ('mongo', 'mongodb'):
-                self.datatype = shared.DataType.MNG
+            self.determine_datatype_from_filename(fnaam)
         self.gui = gui.MainGui(self)
         if not self.datatype:
-            self.filename = ''
-            choice = gui.get_choice_item(None, 'Select Mode', ['XML', 'SQL', 'MNG'])
-            if choice == 'XML':
-                self.datatype = shared.DataType.XML
-            elif choice == 'SQL':
-                self.datatype = shared.DataType.SQL
-            elif choice == 'MNG':
-                self.datatype = shared.DataType.MNG
-            else:
-                raise SystemExit('No datatype selected')
+            self.select_datatype()
         self.work_with_user = self.datatype == shared.DataType.SQL
         if self.work_with_user:
             self.user = None                        # start without user
@@ -1118,6 +1060,35 @@ class MainWindow():
         elif self.datatype == shared.DataType.MNG:
             self.open_mongo()
         self.initializing = False
+
+    def determine_datatype_from_filename(self, fnaam):
+        if fnaam == 'xml' or (os.path.exists(fnaam) and os.path.isfile(fnaam)):
+            self.datatype = shared.DataType.XML
+            if fnaam != 'xml':
+                test = pathlib.Path(fnaam)
+                self.dirname, self.filename = test.parent, test.name
+            shared.log('XML: %s %s', self.dirname, self.filename)
+        elif fnaam == 'sql' or fnaam.lower() in [x[0] for x in self.projnames]:
+            self.datatype = shared.DataType.SQL
+            if fnaam == 'basic':
+                self.filename = '_basic'
+            elif fnaam != 'sql':
+                self.filename = fnaam.lower()
+            shared.log('SQL: %s', self.filename)
+        elif fnaam in ('mongo', 'mongodb'):
+            self.datatype = shared.DataType.MNG
+
+    def select_datatype(self):
+        self.filename = ''
+        choice = gui.get_choice_item(None, 'Select Mode', ['XML', 'SQL', 'MNG'])
+        if choice == 'XML':
+            self.datatype = shared.DataType.XML
+        elif choice == 'SQL':
+            self.datatype = shared.DataType.SQL
+        elif choice == 'MNG':
+            self.datatype = shared.DataType.MNG
+        else:
+            raise SystemExit('No datatype selected')
 
     def get_menu_data(self):
         """Define application menu
@@ -1224,7 +1195,7 @@ class MainWindow():
 
     def open_xml(self, event=None):
         "Menukeuze: open file"
-        shared.log('in open_xml: %s', self.filename)
+        # shared.log('in open_xml: %s', self.filename)
         self.dirname = self.dirname or os.getcwd()
         fname = gui.get_open_filename(self.gui, start=self.dirname)
         if fname:
@@ -1238,7 +1209,7 @@ class MainWindow():
 
     def open_sql(self, event=None, do_sel=True):
         "Menukeuze: open project"
-        shared.log('in open_sql: %s', self.filename)
+        # shared.log('in open_sql: %s', self.filename)
         current = choice = 0
         data = self.projnames
         if self.filename in data:
@@ -1248,7 +1219,7 @@ class MainWindow():
                                          [": ".join((h[0], h[2])) for h in data], current)
         else:
             for h in data:
-                shared.log(h)
+                # shared.log(h)
                 if h[0] == self.filename or (h[0] == 'basic' and self.filename == "_basic"):
                     choice = h[0]
                     break
@@ -1259,7 +1230,7 @@ class MainWindow():
             self.startfile()
 
     def open_mongo(self, event=None):
-        "to be implemented"
+        "open database for the MongoDB version"
         self.filename = 'default'
         self.startfile()
 
@@ -1333,7 +1304,7 @@ class MainWindow():
             events = []
             for idx, data in enumerate(self.book.pages[6].event_list):
                 # if self.datatype == shared.DataType.SQL:
-                if len(datum) > 18:
+                if len(data) > 18:
                     data = data[:19]
                 events.append((data, self.book.pages[6].event_data[idx]))
             self.printdict['events'] = events
@@ -1394,7 +1365,7 @@ class MainWindow():
 
     def exit_app(self, event=None):
         "Menukeuze: exit applicatie"
-        self.exiting = True
+        self.exiting = True    # TODO ook weer uitzetten?
         ok_to_leave = True  # while we don't have pages yet
         if self.book.current_tab > -1:
             ok_to_leave = self.book.pages[self.book.current_tab].leavep()
@@ -1410,7 +1381,7 @@ class MainWindow():
             if not ok:
                 break
             test = dmls.validate_user(*self.gui.dialog_data)
-            if test:
+            if test[0]:
                 text = 'Login accepted'
                 logged_in = True
             else:
@@ -1503,7 +1474,8 @@ class MainWindow():
                     self.title = title
                     break
         else:
-            self.book.fnaam = self.title = self.filename
+            self.book.fnaam = self.filename
+            self.title = ''
         self.book.rereadlist = True
         self.book.sorter = None
         self.lees_settings()
@@ -1519,9 +1491,9 @@ class MainWindow():
 
     def lees_settings(self):
         """instellingen (tabnamen, actiesoorten en actiestatussen) inlezen"""
-        self.book.stats = {0: ('dummy,', 0, 0)}
-        self.book.cats = {0: ('dummy,', ' ', 0)}
-        self.book.tabs = {0: '0 start'}
+        # self.book.stats = {0: ('dummy,', 0, 0)}
+        # self.book.cats = {0: ('dummy,', ' ', 0)}
+        # self.book.tabs = {0: '0 start'}
         data = shared.Settings[self.datatype](self.book.fnaam)
         ## print(data.meld)     # "Standaard waarden opgehaald"
         self.imagecount = data.imagecount
@@ -1555,7 +1527,7 @@ class MainWindow():
             settings.write()
             self.book.tabs = {}
             for item_value, item in data.items():
-                self.book.tabs[int(item_value)] = db_head_to_ook_head(item_value, item)
+                self.book.tabs[int(item_value)] = db_head_to_book_head(item_value, item)
                 self.gui.set_page_title(int(item_value), item[0])
         elif srt == "stat":
             settings.stat = data
@@ -1574,8 +1546,9 @@ class MainWindow():
     def save_startitem_on_exit(self):
         "bijwerken geselecteerde actie om te onthouden voor de volgende keer"
         data = shared.Settings[self.datatype](self.book.fnaam)
-        # if self.datatype == shared.DataType.XML:
-        if getattr(data, 'startitem') and self.book.pagedata:
+        # if getattr(data, 'startitem') and self.book.pagedata:
+        # if hasattr(data, 'startitem') and self.book.pagedata:  # FIXME: is dit juiste correctie?`
+        if data.startitem and self.book.pagedata:                # nee maar dit wel
             data.startitem = self.book.pagedata.id
             data.write()
 
@@ -1610,7 +1583,7 @@ class MainWindow():
             msg = self.book.pagehelp[self.book.current_tab]
             if self.book.current_tab == 0:
                 msg += ' - {} items'.format(len(self.book.data))
-        self.gui.set_statusmessage(msg)
+        self.gui.set_statusmessage(msg)  # FIXME: deze wel of niet inspringen? volgens mij niet
         if self.work_with_user:
             if self.user:
                 msg = 'Aangemeld als {}'.format(self.user.username)
