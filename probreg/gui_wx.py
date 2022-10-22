@@ -1096,7 +1096,7 @@ class Page6Gui(PageGui):
     def add_new_item_to_list(self, datum, oldtext):
         """update widgets with new event
         """
-        self.progress_list.InsertItem(1, '{datum} - {oldtext}')
+        self.progress_list.InsertItem(1, f'{datum} - {oldtext}')
         self.progress_list.select(1)
         self.progress_text.set_contents(oldtext)
         self.progress_text.enable(True)
@@ -1180,7 +1180,7 @@ class Page6Gui(PageGui):
         # if self.parent.parent.datatype == shared.DataType.SQL:
         if len(datum) > 18:
             datum = datum[:19]
-        self.progress_list.SetItem(index, 0, "{datum} - {text}")
+        self.progress_list.SetItem(index, 0, f"{datum} - {text}")
                 # datum, text.encode('latin-1')))
         self.progress_list.SetItemData(index, idx)
 

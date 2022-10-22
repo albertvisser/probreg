@@ -1075,7 +1075,7 @@ class Page6Gui(PageGui):
         except AttributeError:
             text = tekst_plat or ""
         text = text if len(text) < 80 else text[:80] + "..."
-        newitem = qtw.QListWidgetItem('{datum} - {text}')
+        newitem = qtw.QListWidgetItem(f'{datum} - {text}')
         newitem.setData(core.Qt.UserRole, idx)
         self.progress_list.addItem(newitem)
 
