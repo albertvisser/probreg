@@ -10,8 +10,8 @@ import PyQt5.QtPrintSupport as qtp
 import PyQt5.QtGui as gui
 import PyQt5.QtCore as core
 from mako.template import Template
-import probreg.shared as shared
-LIN = True if os.name == 'posix' else False
+from probreg import shared
+LIN = os.name == 'posix'
 HERE = os.path.dirname(__file__)
 sortorder = {shared.Order.A.name: core.Qt.AscendingOrder,
              shared.Order.D.name: core.Qt.DescendingOrder}
@@ -51,8 +51,7 @@ def get_choice_item(win, caption, choices, current=0):
 def ask_cancel_question(win, message):
     "ask the user a question with an option to cancel the process"
     retval = qtw.QMessageBox.question(win, shared.app_title, message,
-                                      qtw.QMessageBox.Yes | qtw.QMessageBox.No |
-                                      qtw.QMessageBox.Cancel)
+                                  qtw.QMessageBox.Yes | qtw.QMessageBox.No | qtw.QMessageBox.Cancel)
     return retval == qtw.QMessageBox.Yes, retval == qtw.QMessageBox.Cancel
 
 
@@ -98,7 +97,7 @@ class EditorPanel(qtw.QTextEdit):
             num = self.parent.imagecount
             num += 1
             self.parent.imagecount = num
-            urlname = '{}_{:05}.png'.format(self.parent.filename, num)
+            urlname = '{self.parent.filename}_{num:05}.png'
             image.save(urlname)
             urlname = os.path.basename(urlname)  # make name "relative"
             document.addResource(gui.QTextDocument.ImageResource,
@@ -161,11 +160,9 @@ class EditorPanel(qtw.QTextEdit):
 
     def case_lower(self):
         "change case not implemented"
-        pass
 
     def case_upper(self):
         "change case not implemented"
-        pass
 
     def indent_more(self):
         "alinea verder laten inspringen"
@@ -285,7 +282,7 @@ class EditorPanel(qtw.QTextEdit):
 
     def cursorposition_changed(self):
         "wordt aangeroepen als de cursorpositie gewijzigd is"
-        pass  # self.alignment_changed(self.alignment())
+        # self.alignment_changed(self.alignment())
 
     def font_changed(self, font):
         """fontgegevens aanpassen
@@ -394,7 +391,7 @@ class PageGui(qtw.QFrame):
             else:
                 action = qtw.QAction(label, self)
             if shortcut:
-                action.setShortcuts([x for x in shortcut.split(",")])
+                action.setShortcuts(list(shortcut.split(",")))
             if info.startswith("Toggle"):
                 action.setCheckable(True)
                 info = info[7]
@@ -840,8 +837,6 @@ class Page1Gui(PageGui):
             field = self.cat_choice
         for x in range(len(domain)):
             code = field.itemData(x)
-            if self.parent.parent.datatype == shared.DataType.SQL:
-                code = int(code)
             if code == value:
                 field.setCurrentIndex(x)
                 break
@@ -851,8 +846,6 @@ class Page1Gui(PageGui):
         if fieldtype == 'stat':
             idx = self.stat_choice.currentIndex()
             code = self.stat_choice.itemData(idx)
-            if self.parent.parent.datatype == shared.DataType.SQL:
-                code = int(code)
             text = self.stat_choice.currentText()
         elif fieldtype == 'cat':
             idx = self.cat_choice.currentIndex()
@@ -902,10 +895,12 @@ class Page1Gui(PageGui):
 
     def add_cat_choice(self, text, value):
         "add category choice"
+        print('in add_cat_choice, adding', text, value, type(value))
         self.cat_choice.addItem(text, value)
 
     def add_stat_choice(self, text, value):
         "add status choice"
+        print('in add_stat_choice, adding', text, value, type(value))
         self.stat_choice.addItem(text, value)
 
     def set_focus(self):
@@ -1012,13 +1007,15 @@ class Page6Gui(PageGui):
             self.master.initialize_new_event()
 
     def add_new_item_to_list(self, datum, oldtext):
-            newitem = qtw.QListWidgetItem('{} - {}'.format(datum, oldtext))
-            newitem.setData(core.Qt.UserRole, 0)
-            self.progress_list.insertItem(1, newitem)
-            self.progress_list.setCurrentRow(1)
-            self.progress_text.setText(oldtext)
-            self.progress_text.setReadOnly(False)
-            self.progress_text.setFocus()
+        """update widgets with new event
+        """
+        newitem = qtw.QListWidgetItem(f'{datum} - {oldtext}')
+        newitem.setData(core.Qt.UserRole, 0)
+        self.progress_list.insertItem(1, newitem)
+        self.progress_list.setCurrentRow(1)
+        self.progress_text.setText(oldtext)
+        self.progress_text.setReadOnly(False)
+        self.progress_text.setFocus()
 
     def is_first_line(self, item):
         """check if we're on the first line of the list, as it isn't a real event
@@ -1078,7 +1075,7 @@ class Page6Gui(PageGui):
         except AttributeError:
             text = tekst_plat or ""
         text = text if len(text) < 80 else text[:80] + "..."
-        newitem = qtw.QListWidgetItem('{} - {}'.format(datum, text))
+        newitem = qtw.QListWidgetItem('{datum} - {text}')
         newitem.setData(core.Qt.UserRole, idx)
         self.progress_list.addItem(newitem)
 
@@ -1187,7 +1184,7 @@ class SortOptionsDialog(qtw.QDialog):
         self._widgets = []
         row += 1
         while row < len(lijst):
-            lbl = qtw.QLabel("  {}.".format(row), self)
+            lbl = qtw.QLabel("  {row}.", self)
             grid.addWidget(lbl, row, 0)
             cmb = qtw.QComboBox(self)
             cmb.setEditable(False)
@@ -1332,8 +1329,7 @@ class SelectOptionsDialog(qtw.QDialog):
             self.radio_arch.addButton(radio)
             radio.toggled.connect(functools.partial(self.on_checked, 'arch'))
 
-        self.buttonbox = qtw.QDialogButtonBox(qtw.QDialogButtonBox.Ok |
-                                              qtw.QDialogButtonBox.Cancel)
+        self.buttonbox = qtw.QDialogButtonBox(qtw.QDialogButtonBox.Ok | qtw.QDialogButtonBox.Cancel)
         self.buttonbox.accepted.connect(self.accept)
         self.buttonbox.rejected.connect(self.reject)
 
@@ -1634,8 +1630,7 @@ class SettOptionsDialog(qtw.QDialog):
 
         sizer.addWidget(qtw.QLabel("\n".join(self.tekst), self))
 
-        buttonbox = qtw.QDialogButtonBox(qtw.QDialogButtonBox.Ok |
-                                         qtw.QDialogButtonBox.Cancel)
+        buttonbox = qtw.QDialogButtonBox(qtw.QDialogButtonBox.Ok | qtw.QDialogButtonBox.Cancel)
         sizer.addWidget(buttonbox)
         self.setLayout(sizer)
 
@@ -1752,8 +1747,7 @@ class LoginBox(qtw.QDialog):
         self.t_password.setEchoMode(qtw.QLineEdit.Password)
         grid.addWidget(self.t_password, 1, 1)
         vbox.addLayout(grid)
-        bbox = qtw.QDialogButtonBox(qtw.QDialogButtonBox.Ok |
-                                    qtw.QDialogButtonBox.Cancel)
+        bbox = qtw.QDialogButtonBox(qtw.QDialogButtonBox.Ok | qtw.QDialogButtonBox.Cancel)
         ## bbox.button(qtw.QDialogButtonBox.Ok).setDefault(True)  # -- werkt ook al niet
         vbox.addWidget(bbox)
         self.setLayout(vbox)
@@ -1880,7 +1874,7 @@ class MainGui(qtw.QMainWindow):
         self.enable_all_other_tabs(True)
         if 0 < new < 6:
             self.master.book.pages[new].vulp()
-        elif new == 0 or new == 6:
+        elif new in (0, 6):
             if old == new:
                 item = self.master.book.pages[new].gui.get_list_row()  # remember current item
                 print('in on_page_changing, selection is', item)
@@ -1934,9 +1928,9 @@ class MainGui(qtw.QMainWindow):
                    self.master.book.pages[1].gui.proc_entry]
         if self.master.use_text_panels:
             widgets.extend([self.master.book.pages[2].gui.text1,
-                             self.master.book.pages[3].gui.text1,
-                             self.master.book.pages[4].gui.text1,
-                             self.master.book.pages[5].gui.text1])
+                            self.master.book.pages[3].gui.text1,
+                            self.master.book.pages[4].gui.text1,
+                            self.master.book.pages[5].gui.text1])
             lasttab = 6
         else:
             lasttab = 2

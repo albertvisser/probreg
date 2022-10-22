@@ -100,39 +100,38 @@ def vergelijk(file1, file2, uit=sys.stdout):
             if found:
                 l2.remove(y)
                 break
-            else:
-                # meld dit element als "unmatched"
-                verschillen.append(('actie ' + xid, "alleen in " + file1))
+            # meld dit element als "unmatched"
+            verschillen.append(('actie ' + xid, "alleen in " + file1))
     for y in l2:
         # meld deze elementen als "unmatched"
         verschillen.append(('actie ' + y[0].get('id'), "alleen in " + file2))
 
     if len(verschillen) > 0:
-        uit.write("verschillen tussen %s en %s\n" % (file1, file2))
+        uit.write(f"verschillen tussen {file1} en {file2}\n")
     for x in verschillen:
         if isinstance(x[1], dict):
-            uit.write('-------------------------\n%s\n' % x[0])
+            uit.write(f'-------------------------\n{x[0]}\n')
             for y in list(x[1].keys()):
-                uit.write('-\n%s\n' % y)
+                uit.write(f'-\n{y}\n')
                 h = x[1][y][0]
                 if h is None:
                     h = 'n/a'
-                uit.write("*** links: ***\n%s\n" % h.encode('latin-1'))
+                uit.write(f"*** links: ***\n{h}\n")      #  h.encode('latin-1'))
                 h = x[1][y][1]
                 if h is None:
                     h = 'n/a'
-                uit.write("*** rechts: ***\n%s\n\n" % h.encode('latin-1'))
+                uit.write(f"*** rechts: ***\n{h}\n\n")   #  h.encode('latin-1'))
         else:
-            uit.write(" ".join(x[0], x[1]) + "\n")
+            uit.write(f"{x[0]} {x[1]}\n")
 
 
 def main(argv):
     "functie uitvoeren"
     f1 = argv[1]
     f2 = argv[2]
-    f3 = open('vergelijk_jvs.txt', 'w')
-    vergelijk(f1, f2, f3)
-    f3.close()
+    with open('vergelijk_jvs.txt', 'w') as f3:
+        vergelijk(f1, f2, f3)
+
 
 if __name__ == '__main__':
     main(sys.argv)

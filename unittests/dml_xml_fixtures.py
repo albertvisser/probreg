@@ -1,3 +1,4 @@
+import pathlib
 import pytest
 import probreg.dml_xml as dml
 
@@ -44,7 +45,7 @@ def get_acties_fixture():
     # titel.text = 'Iets heel anders'
     titel.text = ''
     tree = dml.ElementTree(testroot).write(testfilename)
-    return dml.pathlib.Path(testfilename)
+    return pathlib.Path(testfilename)
 
 
 @pytest.fixture
@@ -62,7 +63,7 @@ class SettingsFixture:
     - all_levels: a complete settings element
     """
     def __init__(self):
-        self.path = dml.pathlib.Path('/tmp/testprobregdml.xml')
+        self.path = pathlib.Path('/tmp/testprobregdml.xml')
 
     def nosett(self):
         "create XML in memory: only the root"
@@ -239,7 +240,7 @@ class ActieFixture:
     - all_levels: a complete settings element
     """
     def __init__(self):
-        self.path = dml.pathlib.Path('/tmp/testprobregdml.xml')
+        self.path = pathlib.Path('/tmp/testprobregdml.xml')
 
     def justaroot(self):
         "create XML in memory: only the root"
@@ -279,7 +280,6 @@ class ActieFixture:
         dml.SubElement(im, 'image', filename='/tmp/x.img').text='"stuffing"'
         return self.finish()
 
-
     def finish(self):
         """write the XML to a file and create & return the Actie structure
         """
@@ -305,7 +305,7 @@ def actie_output():
                     "called Element.__setattr__() with args ('attrs', {})\n"
                     "called Element.set() with args ('id', '1')\n"
                     "called Element.set() with args ('datum', 'now')\n"
-                    "called Element.set() with args ('updated', '2022-08-28')\n"
+                    "called Element.set() with first arg updated\n"
                     "called Element.set() with args ('soort', 'P')\n"
                     "called Element.set() with args ('status', '0')\n"
                     "called Element.get() with args ('arch',)\n"
@@ -383,7 +383,7 @@ def actie_output():
                     "called Element.__setattr__() with args ('tag', 'actie')\n"
                     "called Element.__setattr__() with args ('attrs', {})\n"
                     "called Element.get() with args ('id',)\n"
-                    "called Element.set() with args ('updated', '2022-08-28')\n"
+                    "called Element.set() with first arg updated\n"
                     "called Element.set() with args ('soort', ' ')\n"
                     "called Element.set() with args ('status', '0')\n"
                     "called Element.set() with args ('arch', 'arch')\n"

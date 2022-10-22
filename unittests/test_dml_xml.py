@@ -3,6 +3,7 @@
 import os
 import types
 import datetime
+import pathlib
 import pytest
 import probreg.dml_xml as dml
 from unittests.dml_xml_fixtures import (get_acties_fixture, settings_fixture, settings_output,
@@ -55,32 +56,35 @@ class MockElement:
     def get(self, *args):
         pass
     def set(self, *args):
-        print('called Element.set() with args', args)
+        if args[0] == 'updated':
+            print('called Element.set() with first arg', args[0])
+        else:
+            print('called Element.set() with args', args)
     def remove(self, *args):
         print('called Element.remove() for subelement', args[0].tag)
 
 
 def test_check_filename(monkeypatch, capsys):
-    monkeypatch.setattr(dml.pathlib.Path, 'exists', lambda x: True)
+    monkeypatch.setattr(pathlib.Path, 'exists', lambda x: True)
     assert dml.check_filename('') == (None, '', False, 'Please provide a filename')
-    assert dml.check_filename(dml.pathlib.Path('test')) == (
-            dml.pathlib.Path('./test'), 'test', True, 'Filename incorrect (must end in .xml)')
-    assert dml.check_filename(dml.pathlib.Path('test.xml')) == (
-            dml.pathlib.Path('test.xml'), 'test.xml', True, '')
-    assert dml.check_filename(dml.pathlib.Path('here/test.xml')) == (
-            dml.pathlib.Path('here/test.xml'), 'test.xml', True, '')
+    assert dml.check_filename(pathlib.Path('test')) == (
+            pathlib.Path('./test'), 'test', True, 'Filename incorrect (must end in .xml)')
+    assert dml.check_filename(pathlib.Path('test.xml')) == (
+            pathlib.Path('test.xml'), 'test.xml', True, '')
+    assert dml.check_filename(pathlib.Path('here/test.xml')) == (
+            pathlib.Path('here/test.xml'), 'test.xml', True, '')
 
 
 def test_checkfile(monkeypatch, capsys):
-    filename = dml.pathlib.Path('/tmp/name')
+    filename = pathlib.Path('/tmp/name')
     if filename.exists():
         filename.unlink()
     assert dml.checkfile(filename) == '/tmp/name bestaat niet'
     filename.write_text('<root><element/></root>')
-    assert dml.checkfile(dml.pathlib.Path('/tmp/name')) == '/tmp/name is geen bruikbaar xml bestand'
+    assert dml.checkfile(pathlib.Path('/tmp/name')) == '/tmp/name is geen bruikbaar xml bestand'
     filename.write_text('<acties><actie/></acties>')
-    assert dml.checkfile(dml.pathlib.Path('/tmp/name')) == ''
-    assert dml.checkfile(dml.pathlib.Path('/tmp/name'), new=True) == ''
+    assert dml.checkfile(pathlib.Path('/tmp/name')) == ''
+    assert dml.checkfile(pathlib.Path('/tmp/name'), new=True) == ''
     data = filename.read_text()
     assert data == ("<?xml version='1.0' encoding='utf-8'?>\n"
             '<acties><settings imagecount="0"><stats><stat order="0" value="0">gemeld</stat>'
@@ -114,27 +118,27 @@ def test_get_nieuwetitel(monkeypatch, capsys):
         new = dml.SubElement(root, 'actie', id='2022-0001')
         return root
     monkeypatch.setattr(dml.dt, 'date', MockDate)
-    monkeypatch.setattr(dml.pathlib.Path, 'exists', lambda x: False)
+    monkeypatch.setattr(pathlib.Path, 'exists', lambda x: False)
     with pytest.raises(dml.DataError) as exc:
-        dml.get_nieuwetitel(dml.pathlib.Path(''))
+        dml.get_nieuwetitel(pathlib.Path(''))
     assert str(exc.value) == 'Datafile bestaat niet'
-    monkeypatch.setattr(dml.pathlib.Path, 'exists', lambda x: True)
+    monkeypatch.setattr(pathlib.Path, 'exists', lambda x: True)
     monkeypatch.setattr(MockTree, '__init__', mock_init)
     monkeypatch.setattr(MockTree, 'getroot', mock_getroot)
     monkeypatch.setattr(dml, 'ElementTree', MockTree)
-    assert dml.get_nieuwetitel(dml.pathlib.Path('')) == '2022-0001'
+    assert dml.get_nieuwetitel(pathlib.Path('')) == '2022-0001'
     assert capsys.readouterr().out == "called ElementTree.__init__() with kwargs {'file': '.'}\n"
-    assert dml.get_nieuwetitel(dml.pathlib.Path(''), 2020) == '2020-0001'
+    assert dml.get_nieuwetitel(pathlib.Path(''), 2020) == '2020-0001'
     assert capsys.readouterr().out == "called ElementTree.__init__() with kwargs {'file': '.'}\n"
     monkeypatch.setattr(dml.ElementTree, 'getroot', mock_getroot_2)
-    assert dml.get_nieuwetitel(dml.pathlib.Path('')) == '2022-0001'
+    assert dml.get_nieuwetitel(pathlib.Path('')) == '2022-0001'
     assert capsys.readouterr().out == "called ElementTree.__init__() with kwargs {'file': '.'}\n"
-    assert dml.get_nieuwetitel(dml.pathlib.Path(''), 2020) == '2020-0002'
+    assert dml.get_nieuwetitel(pathlib.Path(''), 2020) == '2020-0002'
     assert capsys.readouterr().out == "called ElementTree.__init__() with kwargs {'file': '.'}\n"
     monkeypatch.setattr(dml.ElementTree, 'getroot', mock_getroot_3)
-    assert dml.get_nieuwetitel(dml.pathlib.Path('')) == '2022-0002'
+    assert dml.get_nieuwetitel(pathlib.Path('')) == '2022-0002'
     assert capsys.readouterr().out == "called ElementTree.__init__() with kwargs {'file': '.'}\n"
-    assert dml.get_nieuwetitel(dml.pathlib.Path(''), 2020) == '2020-0002'
+    assert dml.get_nieuwetitel(pathlib.Path(''), 2020) == '2020-0002'
     assert capsys.readouterr().out == "called ElementTree.__init__() with kwargs {'file': '.'}\n"
 
 
@@ -145,10 +149,10 @@ def test_get_acties(monkeypatch, capsys, get_acties_fixture):
             self.cat = {'P': 'Probleem', 'W': 'Wens'}
     monkeypatch.setattr(dml, 'Settings', MockSettings)
     with pytest.raises(dml.DataError) as exc:
-        lijst = dml.get_acties(dml.pathlib.Path('x'))
+        lijst = dml.get_acties(pathlib.Path('x'))
     # assert str(exc.value) == 'Filename incorrect (must end in .xml)'
     # with pytest.raises(dml.DataError) as exc:
-    #     lijst = dml.get_acties(dml.pathlib.Path('x.xml'))
+    #     lijst = dml.get_acties(pathlib.Path('x.xml'))
     assert str(exc.value) == 'Datafile bestaat niet'
     with pytest.raises(dml.DataError) as exc:
         lijst = dml.get_acties('x', {'foute': 'waarde'})
@@ -223,7 +227,7 @@ def test_settings_init(monkeypatch, capsys):
 
 def test_settings_read(monkeypatch, capsys, settings_fixture):
     testfilename = '/tmp/testprobregdml.xml'
-    testpath = dml.pathlib.Path(testfilename)
+    testpath = pathlib.Path(testfilename)
     testobj = dml.Settings(settings_fixture.nosett())
     assert testobj.fn == testpath
     assert testobj.fnaam == testpath.name
@@ -275,7 +279,7 @@ def test_settings_write(monkeypatch, capsys, settings_output):
     def mock_copyfile(*args):
         print('called shutil.copyfile with args', args)
     def mock_init(self, *args):
-        self.fn = dml.pathlib.Path('anything_goes')
+        self.fn = pathlib.Path('anything_goes')
         print('called Settings()')
     def mock_iter(self, *args):
         return (x for x in [MockElement('stats'), MockElement('cats'), MockElement('koppen')])
@@ -354,7 +358,7 @@ def test_actie_init(monkeypatch, capsys):
 def test_actie_nieuwfile(monkeypatch, capsys):
     testfilename = '/tmp/testactie.xml'
     def mock_init(self, *args):
-        self.fn = dml.pathlib.Path(testfilename)
+        self.fn = pathlib.Path(testfilename)
     monkeypatch.setattr(dml.Actie, '__init__', mock_init)
     testobj = dml.Actie()
     testobj.nieuwfile()
@@ -367,7 +371,7 @@ def test_actie_nieuwfile(monkeypatch, capsys):
 def test_actie_nieuw(monkeypatch, capsys):
     testfilename = '/tmp/testactie.xml'
     def mock_init(self, *args):
-        self.fn = dml.pathlib.Path(testfilename)
+        self.fn = pathlib.Path(testfilename)
     monkeypatch.setattr(dml, 'get_nieuwetitel', lambda *x: 'nieuw item voor {}'.format(x[0]))
     monkeypatch.setattr(dml.Actie, '__init__', mock_init)
     monkeypatch.setattr(dml.dt, 'datetime', MockDatetime)
@@ -379,7 +383,7 @@ def test_actie_nieuw(monkeypatch, capsys):
 
 def test_actie_read(monkeypatch, capsys, actie_fixture):
     testfilename = '/tmp/testactie.xml'
-    testpath = dml.pathlib.Path(testfilename)
+    testpath = pathlib.Path(testfilename)
     monkeypatch.setattr(dml.dt, 'datetime', MockDatetime)
     testobj = dml.Actie(actie_fixture.justaroot(), '1')
     testobj.read()
@@ -423,7 +427,7 @@ def test_actie_read(monkeypatch, capsys, actie_fixture):
 def test_actie_get_statustext(monkeypatch, capsys):
     testfilename = '/tmp/testactie.xml'
     def mock_init(self, *args):
-        self.fn = dml.pathlib.Path(testfilename)
+        self.fn = pathlib.Path(testfilename)
     monkeypatch.setattr(dml.Actie, '__init__', mock_init)
     testobj = dml.Actie()
     testobj.status = (1, '1')
@@ -438,7 +442,7 @@ def test_actie_get_statustext(monkeypatch, capsys):
 def test_actie_get_soorttext(monkeypatch, capsys):
     testfilename = '/tmp/testactie.xml'
     def mock_init(self, *args):
-        self.fn = dml.pathlib.Path(testfilename)
+        self.fn = pathlib.Path(testfilename)
     monkeypatch.setattr(dml.Actie, '__init__', mock_init)
     testobj = dml.Actie()
     testobj.soort = 'P'
@@ -453,7 +457,7 @@ def test_actie_get_soorttext(monkeypatch, capsys):
 def test_actie_add_event(monkeypatch, capsys):
     testfilename = '/tmp/testactie.xml'
     def mock_init(self, *args):
-        self.fn = dml.pathlib.Path(testfilename)
+        self.fn = pathlib.Path(testfilename)
     monkeypatch.setattr(dml.Actie, '__init__', mock_init)
     monkeypatch.setattr(dml.dt, 'datetime', MockDatetime)
     testobj = dml.Actie()
@@ -497,13 +501,12 @@ def test_actie_write(monkeypatch, capsys, actie_output):
 
     testfilename = '/tmp/testactie.xml'
     def mock_init(self, *args):
-        self.fn = dml.pathlib.Path(testfilename)
+        self.fn = pathlib.Path(testfilename)
     monkeypatch.setattr(dml.Actie, '__init__', mock_init)
     testobj = dml.Actie()
     testobj.file_exists = False
     testobj.exists = False
     testobj.imagecount = 0
-    testobj.startitem = '1'
     testobj.id = '1'
     testobj.datum = 'now'
     testobj.soort = 'P'
@@ -563,7 +566,7 @@ def test_actie_cleanup(monkeypatch, capsys):
         print(f'called os.remove on file {fname}')
     testfilename = '/tmp/testactie.xml'
     def mock_init(self, *args):
-        self.fn = dml.pathlib.Path(testfilename)
+        self.fn = pathlib.Path(testfilename)
     monkeypatch.setattr(dml.Actie, '__init__', mock_init)
     monkeypatch.setattr(dml.os, 'remove', mock_remove)
     testobj = dml.Actie()
@@ -576,7 +579,7 @@ def test_actie_cleanup(monkeypatch, capsys):
 def test_actie_list(monkeypatch, capsys):
     testfilename = '/tmp/testactie.xml'
     def mock_init(self, *args):
-        self.fn = dml.pathlib.Path(testfilename)
+        self.fn = pathlib.Path(testfilename)
     def mock_get_soorttext(self, *args):
         return 'Probleem'
     def mock_get_soorttext_err(self, *args):

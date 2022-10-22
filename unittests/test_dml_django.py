@@ -189,7 +189,7 @@ def test_selections_save(monkeypatch, capsys):
     # breakpoint()
     assert testobj.save_options({"arch": 'alles', "gewijzigd": [], "idgt": '1', 'id': 'or',
                                  'idlt': '5', "soort": ['P'], "status": ['1'],
-                                 "titel": [('over', 'Oeps'), ('or',), ('titel', 'mis')]}) is None
+                                 "titel": [('over', 'Oeps'), ('or',), ('titel', 'mis')]}) == ''
     data = my.Selection.objects.all()
     assert len(data) == 9
     data = data.filter(user='15')
@@ -214,23 +214,75 @@ def test_selections_save(monkeypatch, capsys):
 @pytest.mark.django_db
 def test_settings(monkeypatch, capsys):
     monkeypatch.setattr(dml, 'MY', {'_basic': my, 'naam': my})
-    my.Page.objects.create(order='1', title='page1', link='/there')
-    my.Soort.objects.create(order='1', value='P', title='Problem')
-    my.Status.objects.create(order='1', value='0', title='started')
+    # werkt dit? doet Django impliciete waardeconversie?
+    # my.Page.objects.create(order='1', title='page1', link='/there')
+    # my.Soort.objects.create(order='1', value='P', title='Problem')
+    # my.Status.objects.create(order='1', value='0', title='started')
+    # want volgens de model definities moet het `zijn:
+    my.Page.objects.create(order=1, title='page1', link='/there')
+    my.Soort.objects.create(order=1, value='P', title='Problem')
+    my.Status.objects.create(order=1, value=0, title='started')
     testobj = dml.Settings()
     assert testobj.meld == 'Standaard waarden opgehaald'
     assert testobj.kop == {'1': ('page1', '/there')}
-    assert testobj.cat == {'P': ('Problem', 1, 'P')}
-    assert testobj.stat == {'0': ('started', 1, 0)}
+    assert testobj.cat == {'P': ('Problem', 1)}
+    assert testobj.stat == {0: ('started', 1)}
     testobj = dml.Settings('naam')
     assert testobj.meld == ''
     assert testobj.kop == {'1': ('page1', '/there')}
-    assert testobj.cat == {'P': ('Problem', 1, 'P')}
-    assert testobj.stat == {'0': ('started', 1, 0)}
+    assert testobj.cat == {'P': ('Problem', 1)}
+    assert testobj.stat == {0: ('started', 1)}
 
 
 @pytest.mark.django_db
-def test_settings_write(monkeypatch, capsys):
+def test_settings_write(monkeypatch):
+    my.Page.objects.create(order=0, title='page0', link='/here')
+    my.Page.objects.create(order=1, title='page1', link='/there')
+    my.Soort.objects.create(order=0, value='P', title='Problem')
+    cat_to_keep = my.Soort.objects.create(order=1, value='R', title='Request')
+    cat_to_remove = my.Soort.objects.create(order=2, value='D', title='Discussion')
+    stat_to_keep = my.Status.objects.create(order=0, value=0, title='started')
+    stat_to_remove = my.Status.objects.create(order=1, value=1, title='continued')
+    my.Status.objects.create(order=2, value=2, title='finished')
+    testobj = dml.Settings()
+    testobj.kop['0'] = ('start', '/here')     # waarom heeft de kop dict string keys?
+    testobj.kop['1'] = ('page1', '/nowhere')
+    testobj.cat['P'] = ('Defect', 0)
+    testobj.cat['R'] = ('Request', 2)
+    testobj.cat['B'] = ('Brainstorm', 1)
+    testobj.cat.pop('D')
+    testobj.stat[0] = ('created', 0)
+    testobj.stat.pop(1)
+    testobj.stat[2] = ('done', 1)
+    testobj.stat[3] = ('reopened', 2)
+    user = my.User.objects.create(username='me')
+    actie = my.Actie.objects.create(nummer='xx', starter=user, lasteditor=user, soort=cat_to_remove,
+                                    status=stat_to_remove, behandelaar=user)
+    assert testobj.write() == ('status', 1)
+    actie.status = stat_to_keep
+    actie.save()
+    assert testobj.write() == ('soort', 'D')
+    actie.soort = cat_to_keep
+    actie.save()
+    testobj.write()
+    pages = my.Page.objects.all()
+    assert len(pages) == 2
+    assert [pages[0].order, pages[0].title, pages[0].link] == [0, 'start', '/here']
+    assert [pages[1].order, pages[1].title, pages[1].link] == [1, 'page1', '/nowhere']
+    cats = my.Soort.objects.all()
+    assert len(cats) == 3
+    assert [cats[0].value, cats[0].title, cats[0].order] == ['P', 'Defect', 0]
+    assert [cats[1].value, cats[1].title, cats[1].order] == ['R', 'Request', 2]
+    assert [cats[2].value, cats[2].title, cats[2].order] == ['B', 'Brainstorm', 1]
+    stats = my.Status.objects.all()
+    assert len(stats) == 3
+    assert [stats[0].value, stats[0].title, stats[0].order] == [0, 'created', 0]
+    assert [stats[1].value, stats[1].title, stats[1].order] == [2, 'done', 1]
+    assert [stats[2].value, stats[2].title, stats[2].order] == [3, 'reopened', 2]
+
+
+@pytest.mark.django_db
+def _test_settings_write(monkeypatch, capsys):
     my.Page.objects.create(order='1', title='page1', link='/there')
     my.Soort.objects.create(order='1', value='P', title='Problem')
     my.Status.objects.create(order='1', value='0', title='started')

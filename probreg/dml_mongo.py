@@ -1,12 +1,12 @@
 "data managenent voor ProbReg mongodb versie"
 ## import sys
 import os
-import pathlib
-import base64  # gzip
+# import pathlib
+# import base64  # gzip
 import datetime as dt
-from shutil import copyfile
+# from shutil import copyfile
 from pymongo import MongoClient
-from pymongo.collection import Collection
+# from pymongo.collection import Collection
 # ingekopieerd vanwege cirular import, hetzelfde geldt voor logging
 # from probreg.shared import DataError, kopdict, statdict, catdict
 cl = MongoClient()
@@ -44,7 +44,6 @@ catdict = {
 
 class DataError(ValueError):    # Exception):
     "Eigen all-purpose exception - maakt resultaat testen eenvoudiger"
-    pass
 
 
 def get_nieuwetitel(fnaam, jaar=None):
@@ -141,10 +140,10 @@ def get_acties(fnaam, select=None, arch="", user=None):
     if textsel:
         # textsel = '"titel": {"regex": "\.*' + textclause + '\.*"}'
         # selections.append(textsel)
-        selections['titel'] = {"regex": "\.*" + textsel + "\.*"}
+        selections['titel'] = {"regex": "\\.*" + textsel + "\\.*"}
     subjectsel = select.pop('onderwerp', '')
     if subjectsel:
-        selections['onderwerp'] = {"regex": "\.*" + subjectsel + "\.*"}
+        selections['onderwerp'] = {"regex": "\\.*" + subjectsel + "\\.*"}
 
     if select:
         raise DataError("Foutief selectie-argument opgegeven")
@@ -186,13 +185,13 @@ class Settings:
         if exists:
             self.settings_id = settings['_id']
             self.kop = {x: (y[0],) for x, y in settings['headings'].items()}
-            self.stat = {x: y for x, y in settings['statuses'].items()}
-            self.cat = {x: y for x, y in settings['categories'].items()}
+            self.stat = dict(settings['statuses'].items())
+            self.cat = dict(settings['categories'].items())
             self.imagecount = settings['imagecount']
             self.startitem = settings['startitem']
         return exists
 
-    def write(self, srt=None):  # extra argument ivm compat sql-versie
+    def write(self):
         "settings terugschrijven"
         if not self.exists:
             self.settings_id = coll.insert_one({'name': 'settings'}).inserted_id
@@ -220,7 +219,7 @@ class Actie:
         self.status, self.arch = '0', False
         self.melding = ''
         self.events = []
-        if actiekey == 0 or actiekey == "0":
+        if actiekey in (0, "0"):
             self.nieuw()
         else:
             self.read()
@@ -266,8 +265,8 @@ class Actie:
             return self.settings.stat[str(waarde)][0]
 
         ## else:
-        except KeyError:
-            raise DataError("Geen tekst gevonden bij statuscode {}".format(waarde))
+        except KeyError as exc:
+            raise DataError(f"Geen tekst gevonden bij statuscode {waarde}") from exc
 
     def get_soorttext(self):
         "geef tekst bij soortcode"
@@ -276,8 +275,8 @@ class Actie:
         try:
             return self.settings.cat[waarde][0]
         ## else:
-        except KeyError:
-            raise DataError("Geen tekst gevonden bij soortcode {}".format(waarde))
+        except KeyError as exc:
+            raise DataError(f"Geen tekst gevonden bij soortcode {waarde}") from exc
 
     def add_event(self, txt):
         "voeg tekstregel toe aan events"

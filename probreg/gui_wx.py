@@ -7,14 +7,14 @@ import collections
 import tempfile
 # import functools
 import wx
-import wx.html as html
+from wx import html
 import wx.lib.mixins.listctrl as listmix
 import wx.adv
 import wx.richtext as wxrt
 # import wx.gizmos as gizmos
 from mako.template import Template
-import probreg.shared as shared
-LIN = True if os.name == 'posix' else False
+from probreg import shared
+LIN = os.name == 'posix'
 HERE = os.path.abspath(os.path.dirname(__file__))
 xmlfilter = "XML files (*.xml)|*.xml|all files (*.*)|*.*"
 
@@ -92,8 +92,8 @@ def setup_accels(win, accel_data, accel_list=None):
 class EditorPanel(wx.TextCtrl):
     "Temporary (?) replacement for RichTextCtrl"
     def __init__(self, parent=None, size=(400, 200)):
-        super().__init__(parent, size=size, style=wx.TE_MULTILINE | wx.TE_PROCESS_TAB |
-                                                  wx.TE_RICH2 | wx.TE_WORDWRAP)
+        super().__init__(parent, size=size,
+                         style=wx.TE_MULTILINE | wx.TE_PROCESS_TAB | wx.TE_RICH2 | wx.TE_WORDWRAP)
 
     def set_contents(self, data):
         "load contents into editor"
@@ -588,8 +588,7 @@ class Page0Gui(PageGui, listmix.ColumnSorterMixin):
                                                             wx.BITMAP_TYPE_PNG)))
         self.down_arrow = self.imglist.Add(wx.Bitmap(wx.Image(os.path.join(HERE, 'icons/down.png'),
                                                               wx.BITMAP_TYPE_PNG)))
-        self.p0list = MyListCtrl(self, style=wx.LC_REPORT | wx.BORDER_SUNKEN |  # wx.LC_HRULES |
-                                             wx.LC_SINGLE_SEL)
+        self.p0list = MyListCtrl(self, style=wx.LC_REPORT | wx.BORDER_SUNKEN | wx.LC_SINGLE_SEL)
         ## high = 400 if LIN else 444
         ## self.p0list.SetMinSize((440, high))
         self.p0list.SetImageList(self.imglist, wx.IMAGE_LIST_SMALL)
@@ -1003,8 +1002,7 @@ class Page6Gui(PageGui):
         self.pnl = wx.SplitterWindow(self, size=(500, 400), style=wx.SP_LIVE_UPDATE)
 
         self.progress_list = MyListCtrl(self.pnl, size=(250, -1),  # high),
-                                        style=wx.LC_REPORT | wx.LC_HRULES | wx.LC_VRULES |
-                                              wx.LC_SINGLE_SEL)
+                                style=wx.LC_REPORT | wx.LC_HRULES | wx.LC_VRULES | wx.LC_SINGLE_SEL)
         accel_data = []
         if not parent.parent.work_with_user:
             self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.on_activate_item, self.progress_list)
@@ -1096,11 +1094,13 @@ class Page6Gui(PageGui):
     #     # self.nieuw_item = True
     #     self.enable_buttons()
     def add_new_item_to_list(self, datum, oldtext):
-          self.progress_list.InsertItem(1, '{} - {}'.format(datum, oldtext))
-          self.progress_list.select(1)
-          self.progress_text.set_contents(oldtext)
-          self.progress_text.enable(True)
-          self.progress_text.setfocus()
+        """update widgets with new event
+        """
+        self.progress_list.InsertItem(1, '{datum} - {oldtext}')
+        self.progress_list.select(1)
+        self.progress_text.set_contents(oldtext)
+        self.progress_text.enable(True)
+        self.progress_text.setfocus()
 
     def on_deselect_item(self, evt):
         """callback voor het niet meer geselecteerd zijn van een item
@@ -1123,8 +1123,7 @@ class Page6Gui(PageGui):
             self.master.oldtext = tekst
             short_text = tekst.split("\n")[0]
             short_text = short_text if len(short_text) < 80 else short_text[:80] + "..."
-            self.progress_list.SetItem(idx, 0, "{} - {}".format(self.master.event_list[idx - 1],
-                                                                short_text))
+            self.progress_list.SetItem(idx, 0, "{self.master.event_list[idx - 1]} - {short_text}")
             self.progress_list.SetItemData(idx, idx - 1)
         evt.Skip()
 
@@ -1181,7 +1180,7 @@ class Page6Gui(PageGui):
         # if self.parent.parent.datatype == shared.DataType.SQL:
         if len(datum) > 18:
             datum = datum[:19]
-        self.progress_list.SetItem(index, 0, "{} - {}".format(datum, text))
+        self.progress_list.SetItem(index, 0, "{datum} - {text}")
                 # datum, text.encode('latin-1')))
         self.progress_list.SetItemData(index, idx)
 
@@ -1292,7 +1291,7 @@ class SortOptionsDialog(wx.Dialog):
         self._widgets = []
         row += 1
         while row < len(lijst):
-            lbl = wx.StaticText(self, label=" {}.".format(row))
+            lbl = wx.StaticText(self, label=" {row}.")
             grid.Add(lbl, (row, 0), flag=wx.ALIGN_CENTER_VERTICAL)
             cmb = wx.ComboBox(self, size=(90, -1), choices=lijst, style=wx.CB_DROPDOWN)
             cmb.SetSelection(0)
@@ -1867,7 +1866,7 @@ class MainGui(wx.Frame):
                 wat = 'bestand'
             elif self.master.multiple_projects:  # datatype == shared.DataType.SQL.name:
                 wat = 'project'
-            msg = "Kies eerst een {} om mee te werken".format(wat)
+            msg = "Kies eerst een {wat} om mee te werken"
             mag_weg = False
         elif not self.master.book.data and not self.master.book.newitem:
             # bestand bevat nog geen gegevens en we zijn nog niet bezig met de eerste opvoeren
@@ -1910,7 +1909,7 @@ class MainGui(wx.Frame):
             print('in MainGui.on_page_changed before calling vulp')
             self.master.book.pages[new].vulp()
             print('in MainGui.on_page_changed after  calling vulp')
-        elif new == 0 or new == 6:
+        elif new in (0, 6):
             if old == new:
                 item = self.master.book.pages[new].gui.get_list_row()  # remember current item
             self.master.book.pages[new].vulp()
@@ -1988,8 +1987,8 @@ class MainGui(wx.Frame):
             self.css = self.css.join(("<style>", "</style>"))
             self.master.printdict['css'] = self.css
         self.master.printdict['hdr'] = self.master.hdr
-        html = Template(filename=os.path.join(os.path.dirname(__file__), 'actie.tpl')).render(
-                **self.master.printdict)
+        html = Template(filename=os.path.join(os.path.dirname(__file__),
+                                              'actie.tpl')).render(**self.master.printdict)
         self.printer.print_(html, self.master.hdr)
 
     def enable_settingsmenu(self):

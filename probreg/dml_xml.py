@@ -1,7 +1,7 @@
 "data managenent voor ProbReg XML versie"
 ## import sys
 import os
-import pathlib
+# import pathlib
 import base64  # gzip
 import datetime as dt
 from shutil import copyfile
@@ -44,7 +44,6 @@ catdict = {
 
 class DataError(ValueError):    # Exception):
     "Eigen all-purpose exception - maakt resultaat testen eenvoudiger"
-    pass
 
 
 def check_filename(fnaam):
@@ -99,7 +98,7 @@ def get_nieuwetitel(fnaam, jaar=None):
         # if test.exists():
         #     dnaam = str(test)
         # else:
-            raise DataError("Datafile bestaat niet")
+        raise DataError("Datafile bestaat niet")
     if jaar is None:
         jaar = dt.date.today().year
     tree = ElementTree(file=dnaam)
@@ -168,7 +167,7 @@ def get_acties(fnaam, select=None, arch="", user=None):
                 continue
         nr = x.get("id")
         if "id" in select and select["id"] == "or":
-            if nr <= select["idgt"] and nr >= select["idlt"]:
+            if select["idlt"] <= nr <= select["idgt"]:
                 continue
         else:
             if ("idgt" in select and nr <= select["idgt"]) \
@@ -266,7 +265,7 @@ class Settings:
                 for y in h.findall("kop"):
                     self.kop[y.get("value")] = (y.text,)
 
-    def write(self, srt=None):  # extra argument ivm compat sql-versie
+    def write(self):
         "settings terugschrijven"
         fnaam = str(self.fn)
         if not self.exists:
@@ -289,7 +288,7 @@ class Settings:
                 el.remove(x)
         h = SubElement(el, "stats")
         for x in list(self.stat.keys()):
-            y = str(x) if type(x) is int else x
+            y = str(x) if isinstance(x, int) else x
             j = SubElement(h, "stat", value=y)
             j.set("order", str(self.stat[x][1]))
             j.text = self.stat[x][0]
@@ -300,7 +299,7 @@ class Settings:
             j.text = self.cat[x][0]
         h = SubElement(el, "koppen")
         for x in list(self.kop.keys()):
-            y = str(x) if type(x) is int else x
+            y = str(x) if isinstance(x, int) else x
             j = SubElement(h, "kop", value=y)
             j.text = self.kop[x][0]
         copyfile(fnaam, fnaam + ".old")
@@ -327,7 +326,7 @@ class Actie:
         self.melding = self.oorzaak = self.oplossing = self.vervolg = self.stand = ''
         self.events = []
         ## self.fno = str(self.fn) + ".old"     # naam van de backup van het xml bestand
-        if _id == 0 or _id == "0":
+        if _id in (0, "0"):
             if not self.file_exists:
                 self.nieuwfile()
             self.nieuw()
@@ -413,8 +412,8 @@ class Actie:
         try:
             return self.settings.stat[str(waarde)][0]
         ## else:
-        except KeyError:
-            raise DataError("Geen tekst gevonden bij statuscode {}".format(waarde))
+        except KeyError as exc:
+            raise DataError(f"Geen tekst gevonden bij statuscode {waarde}") from exc
 
     def get_soorttext(self):
         "geef tekst bij soortcode"
@@ -423,8 +422,8 @@ class Actie:
         try:
             return self.settings.cat[waarde][0]
         ## else:
-        except KeyError:
-            raise DataError("Geen tekst gevonden bij soortcode {}".format(waarde))
+        except KeyError as exc:
+            raise DataError(f"Geen tekst gevonden bij soortcode {waarde}") from exc
 
     def add_event(self, txt):
         "voeg tekstregel toe aan events"
@@ -442,8 +441,9 @@ class Actie:
             sett = SubElement(rt, 'settings')
         # terugschrijven imagecount
         sett.set('imagecount', str(self.imagecount))  # moet dit niet parent.parent.imagecount zijn?
-        if self.startitem:
-            sett.set('startitem', str(self.startitem))
+        # if self.startitem:   # heeft volgens pylint geen attribuut `startitem`
+        #     sett.set('startitem', str(self.startitem))
+        sett.set('startitem', self.id)
 
         if not self.exists:
             x = SubElement(rt, "actie")
@@ -535,19 +535,16 @@ class Actie:
             status = status + ' ' + self.get_statustext()
         except DataError:
             pass
-        result = ["%s %s gemeld op %s status %s" % (soort,
-                                                    self.id,
-                                                    self.datum,
-                                                    status)]
-        result.append("Titel: {}".format(self.titel))
-        result.append("Melding: {}".format(self.melding))
-        result.append("Oorzaak: {}".format(self.oorzaak))
-        result.append("Oplossing: {}".format(self.oplossing))
-        result.append("Vervolg: {}".format(self.vervolg))
+        result = [f"{soort} {self.id} gemeld op {self.datum} status {status}"]
+        result.append(f"Titel: {self.titel}")
+        result.append(f"Melding: {self.melding}")
+        result.append(f"Oorzaak: {self.oorzaak}")
+        result.append(f"Oplossing: {self.oplossing}")
+        result.append(f"Vervolg: {self.vervolg}")
         # result.append("Stand: {}".format(self.stand))
         result.append("Verslag:")
         for date, text in self.events:
-            result.append("\t{} - {}".format(date, text))
+            result.append(f"\t{date} - {text}")
         if self.arch:
             result.append("Actie is gearchiveerd.")
         # for now

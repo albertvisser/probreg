@@ -8,7 +8,7 @@ kopdict - dictionary van tabs in de vorm                 volgorde: (tab titel,  
 statdict: dictionary van mogelijke statussen in de vorm  volgorde: (omschrijving, code, id in tabel)
 catdict: dictionary van mogelijke soorten in de vorm     volgorde: (omschrijving, code, id in tabel)
 """
-import sys
+# import sys
 import os
 import enum
 import logging

@@ -6,12 +6,14 @@ import os
 import pathlib
 import datetime
 import functools
-import probreg.gui as gui
-import probreg.shared as shared   # import DataError, et_projnames
+# import probreg.gui as gui
+from probreg import gui
+# import probreg.shared as shared   # import DataError, et_projnames
+from probreg import shared   # import DataError, et_projnames
 import probreg.dml_django as dmls
 import probreg.dml_xml as dmlx
-import probreg.dml_mongo as dmlm
-LIN = True if os.name == 'posix' else False
+# import probreg.dml_mongo as dmlm
+LIN = os.name == 'posix'
 
 
 def db_stat_to_book_stat(item_value, item):
@@ -19,8 +21,6 @@ def db_stat_to_book_stat(item_value, item):
 
     subroutine van gemaakt omdat dit op meerdere plekken gebruikt wordt"""
     retval = [item[0], item_value]
-    if len(item) > 2:
-        retval.append(item[2])
     return retval
 
 
@@ -29,8 +29,6 @@ def db_cat_to_book_cat(item_value, item):
 
     subroutine van gemaakt omdat dit op meerdere plekken gebruikt wordt"""
     retval = [item[0], item_value]
-    if len(item) > 2:
-        retval.append(item[2])
     return retval
 
 
@@ -47,7 +45,7 @@ def dbdate2listdate(datestring):
         date = datetime.datetime.strptime(datestring, '%Y-%m-%d %H:%M:%S')
         return date.strftime('%d-%m-%Y %H:%M:%S')
     except ValueError:
-        return datestring # assume other format
+        return datestring  # assume other format
 
 
 def listdate2dbdate(datestring):
@@ -56,7 +54,7 @@ def listdate2dbdate(datestring):
         date = datetime.datetime.strptime(datestring, '%d-%m-%Y %H:%M:%S')
         return date.strftime('%Y-%m-%d %H:%M:%S')
     except ValueError:
-        return datestring # assume already converted
+        return datestring  # assume already converted
 
 
 class Page():
@@ -118,7 +116,7 @@ class Page():
         if self.parent.current_tab == 0:
             text = self.seltitel
         else:
-            state = True if self.parent.current_tab == 1 and self.parent.newitem else False
+            state = self.parent.current_tab == 1 and self.parent.newitem
             self.enable_buttons(state)
             text = self.parent.tabs[self.parent.current_tab].split(None, 1)
             if self.parent.pagedata:
@@ -128,7 +126,7 @@ class Page():
                 text = f'{self.parent.pagedata.id} {text}'
         test = self.parent.parent.title
         if test:
-            self.parent.parent.set_windowtitle("{} | {}".format(test, text))
+            self.parent.parent.set_windowtitle(f"{test} | {text}")
         else:
             self.parent.parent.set_windowtitle(text)
         self.parent.parent.set_statusmessage()
@@ -148,14 +146,15 @@ class Page():
         self.initializing = False
 
     def get_pagetext(self):
+        "read the textfield on the given page"
         text = ''
-        if self.parent.current_tab== 2:
+        if self.parent.current_tab == 2:
             text = self.parent.pagedata.melding
-        elif self.parent.current_tab== 3:
+        elif self.parent.current_tab == 3:
             text = self.parent.pagedata.oorzaak
-        elif self.parent.current_tab== 4:
+        elif self.parent.current_tab == 4:
             text = self.parent.pagedata.oplossing
-        elif self.parent.current_tab== 5:
+        elif self.parent.current_tab == 5:
             text = self.parent.pagedata.vervolg
         return text
 
@@ -207,7 +206,7 @@ class Page():
                 elif self.parent.multiple_projects:  # datatype == shared.DataType.SQL.name:
                     wat = 'project'
                 if wat:
-                    msg = "Kies eerst een {} om mee te werken".format(wat)
+                    msg = f"Kies eerst een {wat} om mee te werken"
                     ok_to_leave = False
             elif not self.parent.data and not self.parent.newitem:
                 # bestand bevat nog geen gegevens en we zijn nog niet bezig met de eerste opvoeren
@@ -307,13 +306,14 @@ class Page():
             if self.parent.parent.use_text_panels and self.parent.current_tab >= 3:
                 self.parent.pagedata.status = '1'
                 sel = [y for x, y in self.parent.stats.items() if y[1] == '1'][0]
-                self.parent.pagedata.add_event('Status gewijzigd in "{0}"'.format(sel[0]))
+                self.parent.pagedata.add_event(f'Status gewijzigd in "{sel[0]}"')
 
-        # self.parent.pagedata.id onthouden voor de nieuwe startpositie
-        if self.parent.pagedata:
-            self.parent.pagedata.startitem = self.parent.pagedata.id
-        else:                                       #FIXME: kan dit nog wel?
-            self.parent.pagedata.startitem = ''
+        # verplaatst naar dml module: neem id van huidige actie
+        # # self.parent.pagedata.id onthouden voor de nieuwe startpositie
+        # if self.parent.pagedata:
+        #     self.parent.pagedata.startitem = self.parent.pagedata.id
+        # else:                                       # FIXME: kan dit nog wel?
+        #     self.parent.pagedata.startitem = ''
         if self.parent.parent.work_with_user:
             self.parent.pagedata.write(self.parent.parent.user)
         else:
@@ -474,7 +474,7 @@ class Page0(Page):
                                          ".".join((item[2][1], item[2][0])),
                                          item[5],
                                          item[4],
-                                         True if item[6] == 'arch' else False)
+                                         item[6] == 'arch')
             elif len(item) == 8:  # type == self.parent.parent.shared.DataType.MNG:
                 cats = {y: x for x, y in self.parent.cats.values()}
                 stats = {y: x for x, y in self.parent.stats.values()}
@@ -573,7 +573,7 @@ class Page0(Page):
             gui.show_message(self.gui, 'Sorry, multi-column sorteren werkt nog niet')
             return
         if not sortlist:  # kan dit? Nu dat deze in dmls geïmporteerd wordt niet meer denk ik
-            sortlist = [x for x in self.parent.ctitels]
+            sortlist = list(self.parent.ctitels)  # [x for x in self.parent.ctitels]
             sortlist[1] = "Soort"
         sortlist.insert(0, "(geen)")
         args = sortopts, sortlist
@@ -597,7 +597,7 @@ class Page0(Page):
         self.readp(self.gui.get_selected_action())
         self.parent.pagedata.arch = not self.parent.pagedata.arch
         hlp = "gearchiveerd" if self.parent.pagedata.arch else "herleefd"
-        self.parent.pagedata.add_event("Actie {0}".format(hlp))
+        self.parent.pagedata.add_event(f"Actie {hlp}")
         self.update_actie()  # self.parent.pagedata.write()
         self.parent.rereadlist = True  # wordt uitgezet in vulp
         self.vulp()
@@ -707,26 +707,26 @@ class Page1(Page):
         if procdesc != self.parent.pagedata.titel:
             if self.parent.parent.use_separate_subject:
                 self.parent.pagedata.over = proc
-                self.parent.pagedata.add_event('Onderwerp gewijzigd in "{0}"'.format(proc))
+                self.parent.pagedata.add_event(f'Onderwerp gewijzigd in "{proc}"')
                 self.parent.pagedata.titel = procdesc = desc
             else:
                 self.parent.pagedata.titel = procdesc
-            self.parent.pagedata.add_event('Titel gewijzigd in "{0}"'.format(procdesc))
+            self.parent.pagedata.add_event(f'Titel gewijzigd in "{procdesc}"')
             wijzig = True
         newstat, sel = self.gui.get_choice_data('stat')
         if newstat != self.parent.pagedata.status:
             self.parent.pagedata.status = newstat
-            self.parent.pagedata.add_event('Status gewijzigd in "{0}"'.format(sel))
+            self.parent.pagedata.add_event(f'Status gewijzigd in "{sel}"')
             wijzig = True
         newcat, sel = self.gui.get_choice_data('cat')
         if newcat != self.parent.pagedata.soort:
             self.parent.pagedata.soort = newcat
-            self.parent.pagedata.add_event('Categorie gewijzigd in "{0}"'.format(sel))
+            self.parent.pagedata.add_event(f'Categorie gewijzigd in "{sel}"')
             wijzig = True
         if self.parch != self.parent.pagedata.arch:
             self.parent.pagedata.arch = self.parch
             hlp = "gearchiveerd" if self.parch else "herleefd"
-            self.parent.pagedata.add_event("Actie {0}".format(hlp))
+            self.parent.pagedata.add_event(f"Actie {hlp}")
             wijzig = True
         if not self.parent.parent.use_text_panels:
             new_summary = self.gui.get_text('summary')
@@ -816,12 +816,12 @@ class Page6(Page):
         if self.event_data[idx] != hlp:
             self.event_data[idx] = hlp
             self.oldtext = hlp
-            short_text = hlp.split("\n")[0]
+            short_text = hlp.split("\n", 1)[0]
             if len(short_text) < 80:
                 short_text = short_text[:80] + "..."
             # if self.parent.parent.datatype == shared.DataType.XML:
             #     short_text = short_text.encode('latin-1')       #FIXME: is dit nodig?
-            self.gui.set_listitem_text(idx + 1, "{} - {}".format(self.event_list[idx], short_text))
+            self.gui.set_listitem_text(idx + 1, f"{self.event_list[idx]} - {short_text}")
             self.gui.set_listitem_data(idx + 1)
         wijzig = False
         if self.event_list != self.old_list or self.event_data != self.old_data:
@@ -893,15 +893,16 @@ class Page6(Page):
                 self.gui.set_listitem_text(self.current_item, short_text)
 
     def initialize_new_event(self):
+        "set up entering new event in GUI"
         if not self.parent.parent.is_user:
             return
         if self.parent.pagedata.status == '0':
-            if ((self.parent.parent.use_text_panels and self.parent.current_tab >= 3) or
-                    (not self.parent.parent.use_text_panels and self.parent.current_tab == 2)):
+            if ((self.parent.parent.use_text_panels and self.parent.current_tab >= 3)
+                    or (not self.parent.parent.use_text_panels and self.parent.current_tab == 2)):
                 self.parent.pagedata.status = '1'
                 self.status_auto_changed = True
                 sel = [y for x, y in self.parent.stats.items() if y[1] == '1'][0]
-                datum, oldtext = shared.get_dts(), 'Status gewijzigd in "{0}"'.format(sel[0])
+                datum, oldtext = shared.get_dts(), f'Status gewijzigd in "{sel[0]}"'
                 self.gui.add_new_item_to_list(datum, oldtext)
                 self.event_list.insert(0, datum)
                 self.event_data.insert(0, oldtext)
@@ -940,19 +941,11 @@ class StatOptions:
     def initstuff(self, parent):
         "aanvullende initialisatie"
         self.titel = "Status codes en waarden"
-        self.data = []
-        for key in sorted(parent.master.book.stats.keys()):
-            # if parent.master.datatype == shared.DataType.XML:
-            #     item_text, item_value = parent.master.book.stats[key]
-            #     self.data.append(": ".join((item_value, item_text)))
-            # elif parent.master.datatype == shared.DataType.SQL:
-            #     item_text, item_value, row_id = parent.master.book.stats[key]
-            #     self.data.append(": ".join((item_value, item_text, row_id)))
-            item_text, item_value, *row_id = parent.master.book.stats[key]
-            statitems = [item_value, item_text]
-            if row_id:
-                statitems.append(row_id[0])
-            self.data.append(': '.join(statitems))
+        statitems = []
+        for row_id in parent.master.book.stats.keys():
+            item_text, item_value = parent.master.book.stats[row_id]
+            statitems.append((row_id, item_value, item_text))
+        self.data = [': '.join((str(y), z)) for x, y, z in sorted(statitems)]
         self.tekst = ["De waarden voor de status worden getoond in dezelfde volgorde",
                       "als waarin ze in de combobox staan.",
                       "Vóór de dubbele punt staat de code, erachter de waarde.",
@@ -979,19 +972,11 @@ class CatOptions:
     def initstuff(self, parent):
         "aanvullende initialisatie"
         self.titel = "Soort codes en waarden"
-        self.data = []
-        for key in sorted(parent.master.book.cats.keys()):
-            # if parent.master.datatype == shared.DataType.XML:
-            #     item_value, item_text = parent.master.book.cats[key]
-            #     self.data.append(": ".join((item_text, item_value)))
-            # elif parent.master.datatype == shared.DataType.SQL:
-            #     item_value, item_text, row_id = parent.master.book.cats[key]
-            #     self.data.append(": ".join((item_text, item_value, str(row_id))))
-            item_text, item_value, *row_id = parent.master.book.cats[key]
-            catitems = [item_value, item_text]
-            if row_id:
-                catitems.append(row_id[0])
-            self.data.append(': '.join(catitems))
+        catitems = []
+        for row_id in parent.master.book.cats.keys():
+            item_text, item_value = parent.master.book.cats[row_id]
+            catitems.append((row_id, item_value, item_text))
+        self.data = [': '.join((str(y), z)) for x, y, z in sorted(catitems)]
         self.tekst = ["De waarden voor de soorten worden getoond in dezelfde volgorde",
                       "als waarin ze in de combobox staan.",
                       "Vóór de dubbele punt staat de code, erachter de waarde.",
@@ -1062,6 +1047,7 @@ class MainWindow():
         self.initializing = False
 
     def determine_datatype_from_filename(self, fnaam):
+        "get datatype from input parameters"
         if fnaam == 'xml' or (os.path.exists(fnaam) and os.path.isfile(fnaam)):
             self.datatype = shared.DataType.XML
             if fnaam != 'xml':
@@ -1079,6 +1065,7 @@ class MainWindow():
             self.datatype = shared.DataType.MNG
 
     def select_datatype(self):
+        "get datatype from user if not determinable from filename"
         self.filename = ''
         choice = gui.get_choice_item(None, 'Select Mode', ['XML', 'SQL', 'MNG'])
         if choice == 'XML':
@@ -1119,9 +1106,8 @@ class MainWindow():
                 ("&Help", (("&About", self.about_help, 'F1', " Information about this program"),
                            ("&Keys", self.hotkey_help, 'Ctrl+H', " List of shortcut keys")))]
         for tabnum, tabtitle in self.book.tabs.items():
-            data[3][1].append(('&{}'.format(tabtitle),
-                               functools.partial(self.gui.go_to, int(tabnum)),
-                               'Alt+{}'.format(tabnum), "switch to tab"))
+            data[3][1].append((f'&{tabtitle}', functools.partial(self.gui.go_to, int(tabnum)),
+                               f'Alt+{tabnum}', "switch to tab"))
         if not self.work_with_user:
             data.pop(1)     # remove login menu
         if self.multiple_projects:
@@ -1249,8 +1235,8 @@ class MainWindow():
     def print_scherm(self, event=None):
         "Menukeuze: print dit scherm"
         self.printdict = {'lijst': [], 'actie': [], 'sections': [], 'events': []}
-        self.hdr = "Actie: {} {}".format(self.book.pagedata.id,
-                                         self.book.pagedata.titel)
+        self.hdr = f"Actie: {self.book.pagedata.id} {self.book.pagedata.titel}"
+
         if self.book.current_tab == 0:
             self.hdr = "Overzicht acties uit " + self.filename
             lijst = []
@@ -1276,18 +1262,18 @@ class MainWindow():
                 if status != self.book.stats[0][0]:
                     if l_wijz:
                         l_wijz = ", laatst behandeld op " + l_wijz
-                    l_wijz = "status: {}{}".format(status, l_wijz)
+                    l_wijz = f"status: {status}{l_wijz}"
                 else:
-                    hlp = "status: {}".format(status)
+                    hlp = f"status: {status}"
                     if l_wijz and not started:
-                        hlp += ' op {}'.format(l_wijz)
+                        hlp += f' op {l_wijz}'
                     l_wijz = hlp
                 lijst.append((actie, titel, soort, started, l_wijz))
             self.printdict['lijst'] = lijst
         elif self.book.current_tab == 1:
             data = {x: self.book.pages[1].get_field_text(x) for x in ('actie', 'datum', 'oms',
                                                                       'tekst', 'soort', 'status')}
-            self.hdr = "Informatie over actie {}: samenvatting".format(data["actie"])
+            self.hdr = f"Informatie over actie {data['actie']}: samenvatting"
             self.printdict.update(data)
         elif 2 <= self.book.current_tab <= 5:
             title = self.book.tabs[self.book.current_tab].split(None, 1)[1]
@@ -1312,10 +1298,10 @@ class MainWindow():
 
     def print_actie(self, event=None):
         "Menukeuze: print deze actie"
-        if self.book.pagedata is None:  #  or self.book.newitem:
+        if self.book.pagedata is None:  # or self.book.newitem:
             gui.show_message(self.gui, "Wel eerst een actie kiezen om te printen")
             return
-        self.hdr = ("Actie: {} {}".format(self.book.pagedata.id, self.book.pagedata.titel))
+        self.hdr = f"Actie: {self.book.pagedata.id} {self.book.pagedata.titel}"
         tekst = self.book.pagedata.titel
         try:
             oms, tekst = tekst.split(" - ", 1)
@@ -1333,11 +1319,11 @@ class MainWindow():
                 srt = soort[0]
                 break
         stat = "(onbekende status)"
-        #for statoms, statcode in self.book.stats.values():
+        # for statoms, statcode in self.book.stats.values():
         for stat in self.book.stats.values():
-            #if statcode == self.book.pagedata.status:
+            # if statcode == self.book.pagedata.status:
             if stat[1] == self.book.pagedata.status:
-                #stat = statoms
+                # stat = statoms
                 stat = stat[0]
                 break
         self.printdict = {'lijst': [],
@@ -1360,7 +1346,7 @@ class MainWindow():
             self.printdict['sections'] = sections
         else:
             self.printdict['sections'] = [['Probleem/wens', self.book.pagedata.melding]]
-        self.printdict['events'] = [(x, y) for x, y in self.book.pagedata.events] or []
+        self.printdict['events'] = list(self.book.pagedata.events)  # [(x, y) for x, y in self.book.pagedata.events] or []
         self.gui.preview()
 
     def exit_app(self, event=None):
@@ -1531,13 +1517,21 @@ class MainWindow():
                 self.gui.set_page_title(int(item_value), item[0])
         elif srt == "stat":
             settings.stat = data
-            settings.write()
+            result = settings.write()
+            if result:
+                gui.show_message(self.gui, f'Kan status {result[1]} niet verwijderen,'
+                                 ' wordt nog gebruikt in één of meer acties')
+                return
             self.book.stats = {}
             for item_value, item in data.items():
                 self.book.stats[int(item[1])] = db_stat_to_book_stat(item_value, item)
         elif srt == "cat":
             settings.cat = data
-            settings.write()
+            result = settings.write()
+            if result:
+                gui.show_message(self.gui, f'Kan soort {result[1]} niet verwijderen,'
+                                 ' wordt nog gebruikt in één of meer acties')
+                return
             self.book.cats = {}
             for item_value, item in data.items():
                 self.book.cats[int(item[1])] = db_cat_to_book_cat(item_value, item)
@@ -1582,11 +1576,11 @@ class MainWindow():
         if not msg:
             msg = self.book.pagehelp[self.book.current_tab]
             if self.book.current_tab == 0:
-                msg += ' - {} items'.format(len(self.book.data))
+                msg += f' - {len(self.book.data)} items'
         self.gui.set_statusmessage(msg)  # FIXME: deze wel of niet inspringen? volgens mij niet
         if self.work_with_user:
             if self.user:
-                msg = 'Aangemeld als {}'.format(self.user.username)
+                msg = f'Aangemeld als {self.user.username}'
             else:
                 msg = 'Niet aangemeld'
             self.gui.show_username(msg)

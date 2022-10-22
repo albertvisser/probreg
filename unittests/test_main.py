@@ -5,12 +5,10 @@ import probreg.main as main
 
 def test_dbstat2bookstat():
     assert main.db_stat_to_book_stat('x', (1, 2)) == [1, 'x']
-    assert main.db_stat_to_book_stat('x', (1, 2, 3)) == [1, 'x', 3]
 
 
 def test_dbcat2bookcat():
     assert main.db_cat_to_book_cat('x', (1, 2)) == [1, 'x']
-    assert main.db_cat_to_book_cat('x', (1, 2, 3)) == [1, 'x', 3]
 
 
 def test_dbhead2bookhead():
@@ -2113,8 +2111,8 @@ def test_page6_initialize_new_event(monkeypatch, capsys):
 class MockOptionsMaster:
     def __init__(self):
         self.book = types.SimpleNamespace(tabs={1: '1 eerste', 3: '3 derde', 2: '2 tweede'},
-                stats={1: ('opgepakt', '1'), 2: ('afgehandeld', '2', '2'), 0: ('gemeld', '0')},
-                cats={1: ('probleem', 'P', '1'), 2: ('wens', 'W'), 0: ('Onbekend', ' ', '0')})
+                stats={1: ('opgepakt', '1'), 2: ('afgehandeld', '2'), 0: ('gemeld', '0')},
+                cats={1: ('probleem', 'P'), 2: ('wens', 'W'), 0: ('Onbekend', ' ')})
     def save_settings(self, type, data):
         print(f'called master.save_settings() with args `{type}` `{data}`')
 
@@ -2142,7 +2140,7 @@ def test_statoptions_initstuff():
     parent = types.SimpleNamespace(master=MockOptionsMaster())
     testobj.initstuff(parent)
     assert testobj.titel == 'Status codes en waarden'
-    assert testobj.data == ['0: gemeld', '1: opgepakt', '2: afgehandeld: 2']
+    assert testobj.data == ['0: gemeld', '1: opgepakt', '2: afgehandeld']
     assert testobj.tekst == ["De waarden voor de status worden getoond in dezelfde volgorde",
                              "als waarin ze in de combobox staan.",
                              "Vóór de dubbele punt staat de code, erachter de waarde.",
@@ -2165,7 +2163,7 @@ def test_catoptions_initstuff():
     parent = types.SimpleNamespace(master=MockOptionsMaster())
     testobj.initstuff(parent)
     assert testobj.titel == 'Soort codes en waarden'
-    assert testobj.data == [' : Onbekend: 0', 'P: probleem: 1', 'W: wens']
+    assert testobj.data == [' : Onbekend', 'P: probleem', 'W: wens']
     assert testobj.tekst == ["De waarden voor de soorten worden getoond in dezelfde volgorde",
                              "als waarin ze in de combobox staan.",
                              "Vóór de dubbele punt staat de code, erachter de waarde.",
@@ -3288,6 +3286,8 @@ def test_mainwindow_save_settings(monkeypatch, capsys):
         print('called MainGui.set_page_title() with args', args)
     def mock_vul_combos(*args):
         print('called MainWindow.book.vul_combos()')
+    def mock_show_message(win, message):
+        print(f'called gui.show_message(`{message}`')
     monkeypatch.setattr(main.MainWindow, '__init__', mock_init_mainwindow)
     monkeypatch.setattr(main.gui.MainGui, 'set_page_title', mock_set_page_title)
     testobj = main.MainWindow()
@@ -3311,6 +3311,14 @@ def test_mainwindow_save_settings(monkeypatch, capsys):
     assert testobj.book.cats == {0: ['newcat', 0]}
     assert capsys.readouterr().out == ('called Settings.write()\n'
                                        'called MainWindow.book.vul_combos()\n')
+    monkeypatch.setattr(MockSettings, 'write', lambda *x: ('error', 'message'))
+    monkeypatch.setattr(main.gui, 'show_message', mock_show_message)
+    testobj.save_settings('stat', 'x')
+    assert capsys.readouterr().out == ('called gui.show_message(`Kan status message niet verwijderen,'
+                                       ' wordt nog gebruikt in één of meer acties`\n')
+    testobj.save_settings('cat', 'x')
+    assert capsys.readouterr().out == ('called gui.show_message(`Kan soort message niet verwijderen,'
+                                       ' wordt nog gebruikt in één of meer acties`\n')
 
 def test_mainwindow_save_startitem_on_exit(monkeypatch, capsys):
     class MockSettings:

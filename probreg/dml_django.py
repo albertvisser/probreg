@@ -9,21 +9,22 @@ import sys
 import os
 import datetime as dt
 import collections
+import importlib
 
 import pathlib
 ROOT = pathlib.Path("~/projects/actiereg").expanduser()   # location of actiereg project
 sys.path.append(str(ROOT))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "actiereg.settings")
+APPS = ROOT / 'actiereg' / "apps.dat"
 
 import django
 django.setup()
 
 from django.core.exceptions import ObjectDoesNotExist
 import django.contrib.auth.models as auth
-import django.contrib.auth.hashers as hashers
+from django.contrib.auth import hashers
 
-import importlib
-APPS = ROOT / 'actiereg' / "apps.dat"
+
 def get_projnames():
     "return a list of registered projects"
     data = []
@@ -32,17 +33,17 @@ def get_projnames():
             sel, naam, titel, oms = line.strip().split(";")
             if sel == "X":
                 data.append((naam, titel, oms))
-    data = data
     return sorted(data)
+
 
 MY = {}
 for proj in get_projnames():
     name = proj[0]
     if name == 'basic':
         name = '_basic'
-    MY[name] = importlib.import_module('actiereg.{}.models'.format(name))
+    MY[name] = importlib.import_module(f'actiereg.{name}.models')
 
-import actiereg.core as core
+from actiereg import core
 from actiereg._basic.models import SORTFIELDS   # used in main.py
 dtformat = '%d-%m-%Y %H:%I:%S'  # was '%x %X' en daarvoor .isoformat(' ')
 
@@ -71,7 +72,6 @@ def validate_user(naam, passw, project):
 
 class DataError(ValueError):    # Exception):
     "Eigen all-purpose exception - maakt resultaat testen eenvoudiger"
-    pass
 
 
 def get_acties(naam, select=None, arch="", user=None):
@@ -84,8 +84,8 @@ def get_acties(naam, select=None, arch="", user=None):
     """
     try:
         my = MY[naam]
-    except KeyError:
-        raise DataError(naam + " bestaat niet")
+    except KeyError as exc:
+        raise DataError(naam + " bestaat niet") from exc    # pylint W0707
 
     userid = user.id if user else 0
     data = core.get_acties(my, userid)
@@ -124,12 +124,12 @@ class SortOptions:
         data = {}
         for sorter in self.my.SortOrder.objects.filter(user=self.user):
             data[sorter.volgnr] = (sorter.veldnm, sorter.richting)
-        self.olddata = collections.OrderedDict({x: y for x, y in data.items()})
+        self.olddata = dict(data.items())  # collections.OrderedDict({x: y for x, y in data.items()})
         return data
 
     def save_options(self, data):
         "schrijf opties terug"
-        newdata = collections.OrderedDict({ix: sorter for ix, sorter in data.items()})
+        newdata = dict(data.items())  # collections.OrderedDict({ix: sorter for ix, sorter in data.items()})
         if newdata == self.olddata:
             return "no changes"
         self.my.SortOrder.objects.filter(user=self.user).delete()
@@ -140,6 +140,7 @@ class SortOptions:
                                                  volgnr=ix,
                                                  veldnm=field,
                                                  richting=orient)
+        return ''
 
 
 class SelectOptions:
@@ -184,7 +185,7 @@ class SelectOptions:
                     data["titel"].append((sel.extra.lower(),))
                 data["titel"].append((sel.veldnm, sel.value))
         data['arch'] = {0: '', 1: "arch", 2: "alles"}[data['arch']]
-        self.olddata = collections.OrderedDict({x: y for x, y in sorted(data.items())})
+        self.olddata = dict(sorted(data.items()))
         return data
 
     def save_options(self, data):
@@ -268,6 +269,7 @@ class SelectOptions:
                 ok = self.my.Selection.objects.create(user=self.user,
                                                       veldnm="arch", operator="EQ",
                                                       extra=no_extra, value=True)
+        return ''
 
 
 class Settings:
@@ -298,26 +300,72 @@ class Settings:
         for page in self.my.Page.objects.all().order_by('order'):
             self.kop[str(page.order)] = (page.title, page.link)
         for stat in self.my.Status.objects.all().order_by('order'):
-            self.stat[str(stat.value)] = (stat.title, stat.order, stat.value)
+            # self.stat[str(stat.value)] = (stat.title, stat.order, stat.value)
+            # self.stat[str(stat.value)] = (stat.title, stat.order)
+            self.stat[stat.value] = (stat.title, stat.order)
         for cat in self.my.Soort.objects.all().order_by('order'):
-            self.cat[cat.value] = (cat.title, cat.order, cat.value)
+            # self.cat[cat.value] = (cat.title, cat.order, cat.value)
+            self.cat[cat.value] = (cat.title, cat.order)
         self.naam = fnaam
 
-    def write(self, srt, sett_id):
+    # def write(self, srt, sett_id):
+    #     "schrijf alle settings terug"
+    #     # als ik ze stuk voor stuk ga schrijven hier moet ik verwijderen mogelijk maken
+    #     if srt == 'kop':
+    #         item = self.my.Page.objects.get_or_create(order='{}'.format(sett_id))[0]
+    #         item.title, item.link = self.kop[sett_id]
+    #         item.save()
+    #     elif srt == 'stat':
+    #         item = self.my.Status.objects.get_or_create(value='{}'.format(sett_id))[0]
+    #         item.title, item.order, _ = self.stat[sett_id]
+    #         item.save()
+    #     elif srt == 'cat':
+    #         item = self.my.Soort.objects.get_or_create(value='{}'.format(sett_id))[0]
+    #         item.title, item.order, _ = self.cat[sett_id]
+    #         item.save()
+
+    def write(self):
         "schrijf alle settings terug"
-        # als ik ze stuk voor stuk ga schrijven hier moet ik verwijderen mogelijk maken
-        if srt == 'kop':
-            item = self.my.Page.objects.get_or_create(order='{}'.format(sett_id))[0]
-            item.title, item.link = self.kop[sett_id]
-            item.save()
-        elif srt == 'stat':
-            item = self.my.Status.objects.get_or_create(value='{}'.format(sett_id))[0]
-            item.title, item.order, _ = self.stat[sett_id]
-            item.save()
-        elif srt == 'cat':
-            item = self.my.Soort.objects.get_or_create(value='{}'.format(sett_id))[0]
-            item.title, item.order, _ = self.cat[sett_id]
-            item.save()
+        # eerst controle of te verwijderen statussen / soorten nog gebruikt worden
+        stats_to_delete = []
+        for stat in self.my.Status.objects.all():
+            if stat.value not in self.stat:  # .keys():
+                data = self.my.Actie.objects.filter(status=stat)
+                if data:
+                    return 'status', stat.value  # status wordt nog gebruikt, afbreken
+                stats_to_delete.append(stat.id)
+        cats_to_delete = []
+        for cat in self.my.Soort.objects.all():
+            if cat.value not in self.cat:  # .keys():
+                data = self.my.Actie.objects.filter(soort=cat)
+                if data:
+                    return 'soort', cat.value  # soort wordt nog gebruikt, afbreken
+                cats_to_delete.append(cat.id)
+        for order, heading in self.kop.items():
+            page = self.my.Page.objects.get(order=order)
+            page.title, page.link = heading
+            page.save()
+        self.my.Status.objects.filter(id__in=stats_to_delete).delete()
+        for value, statdata in self.stat.items():
+            name, row = statdata
+            try:
+                stat = self.my.Status.objects.get(value=value)
+            except self.my.Status.DoesNotExist:
+                self.my.Status.objects.create(value=value, title=name, order=row)
+            else:
+                stat.title, stat.order = name, row
+                stat.save()
+        self.my.Soort.objects.filter(id__in=cats_to_delete).delete()
+        for value, catdata in self.cat.items():
+            name, row = catdata
+            try:
+                cat = self.my.Soort.objects.get(value=value)
+            except self.my.Soort.DoesNotExist:
+                self.my.Soort.objects.create(value=value, title=name, order=row)
+            else:
+                cat.title, cat.order = name, row
+                cat.save()
+        return ''
 
 
 class Actie:
@@ -346,7 +394,7 @@ class Actie:
         if self.id in (0, "0"):
             self.nieuw(user)
         else:
-            self._actie = self.my.Actie.objects.get(nummer='{}'.format(self.id))
+            self._actie = self.my.Actie.objects.get(nummer=f'{self.id}')
         self.read()
 
     def nieuw(self, user):
@@ -363,7 +411,7 @@ class Actie:
             volgnr = int(volgnr) if int(jaar) == nw_date.year else 0
         volgnr += 1
         # end replace
-        self._actie.nummer = "{0}-{1:04}".format(nw_date.year, volgnr)
+        self._actie.nummer = f"{nw_date.year}-{volgnr:04}"
         try:
             self._actie.soort = self.my.Soort.objects.get(value="")
         except ObjectDoesNotExist:
@@ -413,10 +461,9 @@ class Actie:
             return self.settings.stat[waarde][0]
         except KeyError:
             for text, sortkey, row_id in self.settings.stat.values():
-                if waarde == sortkey or waarde == row_id:
+                if waarde in (sortkey, row_id):
                     return text
-        raise DataError("Geen omschrijving gevonden bij statuscode of -id '{}'".format(
-            waarde))
+        raise DataError(f"Geen omschrijving gevonden bij statuscode of -id '{waarde}'")
 
     def get_soorttext(self):
         "geef tekst bij soortcode"
@@ -426,10 +473,9 @@ class Actie:
             return self.settings.cat[waarde][0]
         except KeyError:
             for text, sortkey, row_id in self.settings.cat.values():
-                if waarde == sortkey or waarde == row_id:
+                if waarde in (sortkey, row_id):
                     return text
-        raise DataError("Geen omschrijving gevonden bij soortcode of -id '{}'".format(
-            waarde))
+        raise DataError(f"Geen omschrijving gevonden bij soortcode of -id '{waarde}'")
 
     def add_event(self, txt):
         "voeg tekstregel toe aan events"
@@ -465,4 +511,3 @@ class Actie:
 
     def cleanup(self):                            # compatibility with dml_xml.py
         "images opruimen"
-        pass
