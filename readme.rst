@@ -1,46 +1,37 @@
 ProbReg
 =======
 
-ProbReg stands for Problem Registration, which is what this tool was originally
-developed for. It's actually a port of a mainframe application I built over twenty
-years ago after a co-worker's design, in which our team meant to keep track of
-various issues occurring with the applications we maintained. This was before we knew about
-issue trackers and such (probably because there wasn't much on the market - we're talking the
-Information Era's Iron Age here).
+ProbReg stands for Problem Registration, which is what this tool was originally developed for. 
+We fixed problems in the nightly batch runs on the mainframe and registered them in this tool 
+so we could research them when a similar problem occurred.
 
-This application was initially built using Python with wxPython for the GUI bit and
-ElementTree XML processing for the data handling bit.
+I tried to turn it into something that could be used as a tool for bug-tracking and new developments
+to make my life easier when I maintained an application for migrating mainframe JCL.
+And then I couldn't keep myself from trying to develop it further.
 
-To make it work for Python 3 I had to switch to PyQt. This posed a bit of a challenge as I 
-couldn't find a way to stop a page from advancing to another the way I had in the wxPython 
-version, so instead I made the tabs inaccessible when appropriate.
-
-This difference is deliberately kept intact now that I've also made a wxPhoenix version.
-
-
-In the mean time I made a web version using the Django framework (see
-`ActieReg </albertvisser/actiereg/>`_), switching to Sqlite for the data handling
-and adding some user management.
-
-It felt appropriate to adapt this program to work with the same data as the Django version, 
-and have the same functionality. 
-So there are also slight differences between the XML and the SQL version.
-
+Similar to other projects of mine there is the possibilty to switch out 
+the GUI toolkit the application uses and also the data backend; 
+though the application's behaviour is slightly different related to which backend is used: 
+the Django version has user support and the Mongo version has lesser panels.
 
 Usage
 -----
 
-Call ``start.py`` from the top directory.
+Call ``start.py`` from the top directory to start the application.
+
 Use a filename or an empty string as first argument to indicate you want the xml version.
-Use a known project name or literal `sql` to use the Django/SQL version. 
+
+Use a known project name (registered in the Actiereg application) or literal `sql` 
+to use the Django/SQL version. 
+
+Use `mongo` or `mongodb` to start the version with only 3 tabs. 
+It uses a single database, so no file- or project name needed.
 
 Requirements
 ------------
 
-- Python (including ElementTree, and Sqlite for the sql version)
+- Python (including ElementTree for the XML version and Sqlite for the SQL/Django version)
 - wxPython or PyQt for the GUI part
-- the XML version currently requires ElementTree from the stdlib, 
-  the Django/SQL version won't work without installing the ActieReg project, since it uses its 
-  components (not just Django itself) 
-- PocketPyGUI for a PocketPC version (actually discontinued)
-
+- the Django/SQL version won't work without Django but also not without installing
+  my `ActieReg <https://github.com/albertvisser/actiereg/>`_ project, since it uses its components
+- the MongoDB version needs MongoDB and PyMongo to work 
