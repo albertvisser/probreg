@@ -84,6 +84,8 @@ def test_checkfile(monkeypatch, capsys):
     assert dml.checkfile(pathlib.Path('/tmp/name')) == '/tmp/name is geen bruikbaar xml bestand'
     filename.write_text('<acties><actie/></acties>')
     assert dml.checkfile(pathlib.Path('/tmp/name')) == ''
+    data = filename.read_text()
+    assert data == '<acties><actie/></acties>'
     assert dml.checkfile(pathlib.Path('/tmp/name'), new=True) == ''
     data = filename.read_text()
     assert data == ("<?xml version='1.0' encoding='utf-8'?>\n"
