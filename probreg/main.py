@@ -526,7 +526,7 @@ class Page0(Page):
         niet alleen selecteren op tekst(deel) maar ook op status, soort etc
         """
         args = self.sel_args, None
-        if self.parent.parent.use_separate_subject:
+        if self.parent.parent.work_with_user:
             data = dmls.SelectOptions(self.parent.fnaam, self.parent.parent.user)
             args, sel_args = data.load_options(), {}
             for key, value in args.items():
