@@ -151,10 +151,8 @@ def get_acties(fnaam, select=None, arch="", user=None):
     # archsel = '"arch": true' if arch == "arch" else '"arch": false' if arch == "" else ''
     # if archsel:
     #     selections.append(archsel)
-    archsel = True if arch == 'arch' else False if arch == '' else None
-    if archsel is not None:
-        selections['archived'] = archsel
-
+    archsel = True if arch == 'arch' else False if arch == '' else {'$in': [True, False]}
+    selections['archived'] = archsel
     lijst = coll.find(selections)
     return [(f'{x["jaar"]:04}-{x["nummer"]:04}', x['gemeld'], x['soort'], x['status'],
             x['bijgewerkt'], x['onderwerp'], x['titel'], x['archived']) for x in lijst]
