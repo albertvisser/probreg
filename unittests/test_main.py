@@ -92,7 +92,7 @@ class MockMainGui:
 class MockPage:
     def __init__(self, *args, **kwargs):
         print('called Page.__init__() with args', args, kwargs)
-        self.gui = MockPageGui()       #TODO kijken of dit in de module PageGui definitie kan
+        self.gui = MockPageGui()
 
 class MockPageGui:
     def __init__(self, *args, **kwargs):

@@ -13,8 +13,6 @@ from mako.template import Template
 from probreg import shared
 LIN = os.name == 'posix'
 HERE = os.path.dirname(__file__)
-sortorder = {shared.Order.A.name: core.Qt.AscendingOrder,
-             shared.Order.D.name: core.Qt.DescendingOrder}
 xmlfilter = "XML files (*.xml);;all files (*.*)"
 
 
@@ -51,7 +49,8 @@ def get_choice_item(win, caption, choices, current=0):
 def ask_cancel_question(win, message):
     "ask the user a question with an option to cancel the process"
     retval = qtw.QMessageBox.question(win, shared.app_title, message,
-                                  qtw.QMessageBox.Yes | qtw.QMessageBox.No | qtw.QMessageBox.Cancel)
+                                      qtw.QMessageBox.Yes | qtw.QMessageBox.No |
+                                      qtw.QMessageBox.Cancel)
     return retval == qtw.QMessageBox.Yes, retval == qtw.QMessageBox.Cancel
 
 
@@ -904,7 +903,8 @@ class Page1Gui(PageGui):
     def get_fieldvalues(self):
         "collect values of the fields that can be changed"
         fields = [self.proc_entry.text(), self.desc_entry.text(),
-                int(self.stat_choice.currentIndex()), int(self.cat_choice.currentIndex())]
+                  int(self.stat_choice.currentIndex()),
+                  int(self.cat_choice.currentIndex())]
         if not self.parent.parent.use_text_panels:
             fields.append(self.summary_entry.toPlainText())
         return fields

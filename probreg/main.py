@@ -112,7 +112,6 @@ class Page():
         methode aan te roepen voorafgaand aan het tonen van de pagina"""
         self.initializing = True
         # if self.parent.parent.datatype != shared.DataType.MNG:
-        self.parent.parent.enable_settingsmenu()  # FIXME: waarom hier?
         if self.parent.current_tab == 0:
             text = self.seltitel
         else:
@@ -308,12 +307,6 @@ class Page():
                 sel = [y for x, y in self.parent.stats.items() if y[1] == '1'][0]
                 self.parent.pagedata.add_event(f'Status gewijzigd in "{sel[0]}"')
 
-        # verplaatst naar dml module: neem id van huidige actie
-        # # self.parent.pagedata.id onthouden voor de nieuwe startpositie
-        # if self.parent.pagedata:
-        #     self.parent.pagedata.startitem = self.parent.pagedata.id
-        # else:                                       # FIXME: kan dit nog wel?
-        #     self.parent.pagedata.startitem = ''
         if self.parent.parent.work_with_user:
             self.parent.pagedata.write(self.parent.parent.user)
         else:
@@ -819,8 +812,6 @@ class Page6(Page):
             short_text = hlp.split("\n", 1)[0]
             if len(short_text) < 80:
                 short_text = short_text[:80] + "..."
-            # if self.parent.parent.datatype == shared.DataType.XML:
-            #     short_text = short_text.encode('latin-1')       #FIXME: is dit nodig?
             self.gui.set_listitem_text(idx + 1, f"{self.event_list[idx]} - {short_text}")
             self.gui.set_listitem_data(idx + 1)
         wijzig = False
@@ -1025,6 +1016,7 @@ class MainWindow():
         else:
             self.user = 1                           # pretend user
             self.is_user = self.is_admin = True     # force editability
+        self.enable_settingsmenu()
         self.multiple_files = self.datatype == shared.DataType.XML
         self.multiple_projects = self.datatype == shared.DataType.SQL
         self.use_text_panels = self.datatype != shared.DataType.MNG
@@ -1351,8 +1343,8 @@ class MainWindow():
 
     def exit_app(self, event=None):
         "Menukeuze: exit applicatie"
-        self.exiting = True    # TODO ook weer uitzetten?
-        ok_to_leave = True  # while we don't have pages yet
+        self.exiting = True
+        ok_to_leave = True
         if self.book.current_tab > -1:
             ok_to_leave = self.book.pages[self.book.current_tab].leavep()
         if ok_to_leave:
@@ -1377,6 +1369,7 @@ class MainWindow():
             self.user, self.is_user, self.is_admin = test
             # print('in signin:', self.user, self.is_user)
             self.book.rereadlist = True
+            self.enable_settingsmenu()
             self.gui.refresh_page()
 
     def tab_settings(self, event=None):
@@ -1540,9 +1533,7 @@ class MainWindow():
     def save_startitem_on_exit(self):
         "bijwerken geselecteerde actie om te onthouden voor de volgende keer"
         data = shared.Settings[self.datatype](self.book.fnaam)
-        # if getattr(data, 'startitem') and self.book.pagedata:
-        # if hasattr(data, 'startitem') and self.book.pagedata:  # FIXME: is dit juiste correctie?`
-        if data.startitem and self.book.pagedata:                # nee maar dit wel
+        if data.startitem and self.book.pagedata:
             data.startitem = self.book.pagedata.id
             data.write()
 
@@ -1577,7 +1568,7 @@ class MainWindow():
             msg = self.book.pagehelp[self.book.current_tab]
             if self.book.current_tab == 0:
                 msg += f' - {len(self.book.data)} items'
-        self.gui.set_statusmessage(msg)  # FIXME: deze wel of niet inspringen? volgens mij niet
+        self.gui.set_statusmessage(msg)
         if self.work_with_user:
             if self.user:
                 msg = f'Aangemeld als {self.user.username}'
