@@ -328,8 +328,8 @@ class Page():
             itemdata = (pagegui.get_text('date'),
                         " - ".join((pagegui.get_text('proc'),
                                     pagegui.get_text('desc'))),
-                        pagegui.get_choice_data('stat')[0],
-                        pagegui.get_choice_data('cat')[0],
+                        pagegui.get_choice_data(self.gui.stat_choice)[0],
+                        pagegui.get_choice_data(self.gui.cat_choice)[0],
                         pagegui.get_text('id'))
             self.parent.data[newindex] = itemdata
             # ook nieuwe entry maken in de visuele tree
@@ -566,7 +566,7 @@ class Page0(Page):
         if self.saved_sortopts:
             sortopts = self.saved_sortopts.load_options()
             # try:
-            sortlist = [x[0] for x in dmls.SORTFIELDS]
+            sortlist = [x[0] for x in dmls.my.SORTFIELDS]
             # except AttributeError:
             #     pass
         else:
@@ -658,8 +658,8 @@ class Page1(Page):
                     self.gui.set_text('proc', hlp[0])
                     if len(hlp) > 1:
                         self.gui.set_text('desc', hlp[1])
-            self.gui.set_choice('stat', self.parent.pagedata.status)
-            self.gui.set_choice('cat', self.parent.pagedata.soort)
+            self.gui.set_choice(self.parent.stats, self.gui.stat_choice, self.parent.pagedata.status)
+            self.gui.set_choice(self.parent.cats, self.gui.cat_choice, self.parent.pagedata.soort)
             if not self.parent.parent.use_text_panels:
                 self.gui.set_text('summary', self.parent.pagedata.melding)
 
@@ -713,12 +713,12 @@ class Page1(Page):
                 self.parent.pagedata.titel = procdesc
             self.parent.pagedata.add_event(f'Titel gewijzigd in "{procdesc}"')
             wijzig = True
-        newstat, sel = self.gui.get_choice_data('stat')
+        newstat, sel = self.gui.get_choice_data(self.gui.stat_choice)
         if newstat != self.parent.pagedata.status:
             self.parent.pagedata.status = newstat
             self.parent.pagedata.add_event(f'Status gewijzigd in "{sel}"')
             wijzig = True
-        newcat, sel = self.gui.get_choice_data('cat')
+        newcat, sel = self.gui.get_choice_data(self.gui.cat_choice)
         if newcat != self.parent.pagedata.soort:
             self.parent.pagedata.soort = newcat
             self.parent.pagedata.add_event(f'Categorie gewijzigd in "{sel}"')

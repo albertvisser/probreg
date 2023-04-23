@@ -41,9 +41,16 @@ class MockMainWindow:
     def enable_all_book_tabs(self, value):
         print(f'call MainWindow.enable_all_book_tabs({value})')
 
+class MockMainWindow2:
+    def __init__(self, *args):
+        print('called MainWindow.__init__() with args', args)
+        self.gui = MockMainGui(self)
+
 class MockMainGui:
     def __init__(self, master):
         print('called MainGui.__init__()')
+    def go(self):
+        print('called MainGui.go()')
     def create_menu(self):
         print('called MainGui.create_menu()')
     def create_actions(self):
@@ -90,6 +97,8 @@ class MockPage:
 class MockPageGui:
     def __init__(self, *args, **kwargs):
         print('called PageGui.__init__() with args', args, kwargs)
+        self.cat_choice = 'cat'
+        self.stat_choice = 'stat'
     def enable_buttons(self, *args):
         print('called PageGui.enable_buttons() with args', args)
     def enable_fields(self, *args):
@@ -190,8 +199,8 @@ class MockPageGui:
         return 'oldbuf'
     def set_text(self, fieldname, text):
         print(f'called PageGui.set_text() for field `{fieldname}` text `{text}`')
-    def set_choice(self, fieldname, text):
-        print(f'called PageGui.set_choice() for field `{fieldname}` text `{text}`')
+    def set_choice(self, *args):
+        print('called PageGui.set_choice() with args', args)
     def get_item_by_id(self, *args):
         print('called PageGui.get_item_by_id() with args', args)
         return 'item_by_id'
@@ -203,6 +212,16 @@ class MockSortOpts:
     def __init__(self, *args):
         print('called dmls.SortOptions() with args', args)
 
+def test_main(monkeypatch, capsys):
+    monkeypatch.setattr(main, 'MainWindow', MockMainWindow2)
+    main.main()
+    assert capsys.readouterr().out == ('called MainWindow.__init__() with args (None, None)\n'
+                                       'called MainGui.__init__()\n'
+                                       'called MainGui.go()\n')
+    main.main('filenaam')
+    assert capsys.readouterr().out == ("called MainWindow.__init__() with args (None, 'filenaam')\n"
+                                       'called MainGui.__init__()\n'
+                                       'called MainGui.go()\n')
 
 def test_page_init(monkeypatch, capsys):
     monkeypatch.setattr(main.gui, 'PageGui', MockPageGui)
@@ -1262,12 +1281,14 @@ def test_page0_select_items(monkeypatch, capsys):
     monkeypatch.setattr(main.gui, 'show_dialog', mock_show_dialog)
     monkeypatch.setattr(main.gui, 'show_message', mock_show_message)
     testobj.parent.parent.use_separate_subject = False
+    testobj.parent.parent.work_with_user = False
     testobj.sel_args = {'sel': 'args'}
     testobj.select_items()
     assert capsys.readouterr().out == ('called gui.show_dialog() for SelectOptions'
                                        " with selargs {'sel': 'args'}\n")
 
     testobj.parent.parent.use_separate_subject = True
+    testobj.parent.parent.work_with_user = True
     testobj.parent.parent.user = 'me'
     monkeypatch.setattr(main.shared, 'DataError', {'X': AttributeError})
     testobj.parent.parent.datatype = 'X'
@@ -1330,7 +1351,7 @@ def test_page0_sort_items(monkeypatch, capsys):
                                        '`Sorry, multi-column sorteren werkt nog niet`)\n')
 
     testobj.saved_sortopts = MockSortOptions()
-    monkeypatch.setattr(main.dmls, 'SORTFIELDS', [])
+    monkeypatch.setattr(main.dmls.my, 'SORTFIELDS', [])
     testobj.parent.ctitels = ['dit', 'dat']
     testobj.sort_items()
     assert capsys.readouterr().out == ('called gui.show_dialog() for SelectOptions with sortargs'
@@ -1339,7 +1360,7 @@ def test_page0_sort_items(monkeypatch, capsys):
     testobj.saved_sortopts = MockSortOptions2()
     testobj.sort_via_options = False
     monkeypatch.setattr(main.gui, 'show_dialog', mock_show_dialog_ok)
-    monkeypatch.setattr(main.dmls, 'SORTFIELDS', [('col0', 0), ('col1', 1)])
+    monkeypatch.setattr(main.dmls.my, 'SORTFIELDS', [('col0', 0), ('col1', 1)])
     testobj.sort_items()
     assert capsys.readouterr().out == ("called gui.show_dialog() for SelectOptions with sortargs"
                                        " ({'sort': 'options'}, ['(geen)', 'col0', 'col1'])\n"
@@ -1525,7 +1546,7 @@ def test_page1_vulp(monkeypatch, capsys):
                                        'called PageGui.enable_fields() with args (True,)\n')
 
     mock_book = types.SimpleNamespace(parent=MockMainWindow(), pagedata=MockActie(),
-                                      pages=[MockPage()])
+                                      pages=[MockPage()], cats=[], stats=[])
     assert capsys.readouterr().out == ('called MainWindow.__init__()\ncalled MainGui.__init__()\n'
                                        'called Page.__init__() with args () {}\n'
                                        'called PageGui.__init__() with args () {}\n')
@@ -1542,8 +1563,8 @@ def test_page1_vulp(monkeypatch, capsys):
                       'called PageGui.set_text() for field `date` text `datestring`\n'
                       'called PageGui.set_text() for field `proc` text `subject`\n'
                       "called PageGui.set_text() for field `desc` text `it's: the arts`\n"
-                      'called PageGui.set_choice() for field `stat` text `0`\n'
-                      'called PageGui.set_choice() for field `cat` text `I`\n'
+                      "called PageGui.set_choice() with args ([], 'stat', 0)\n"
+                      "called PageGui.set_choice() with args ([], 'cat', 'I')\n"
                       'called PageGui.set_text() for field `arch` text `Deze actie is gearchiveerd`\n'
                       'called PageGui.set_archive_button_text(`Herleven`)\n'
                       'called PageGui.enable_fields() with args (False,)\n')
@@ -1559,8 +1580,8 @@ def test_page1_vulp(monkeypatch, capsys):
                       'called PageGui.set_text() for field `date` text `datestring`\n'
                       "called PageGui.set_text() for field `proc` text `it's`\n"
                       "called PageGui.set_text() for field `desc` text `the arts`\n"
-                      'called PageGui.set_choice() for field `stat` text `0`\n'
-                      'called PageGui.set_choice() for field `cat` text `I`\n'
+                      "called PageGui.set_choice() with args ([], 'stat', 0)\n"
+                      "called PageGui.set_choice() with args ([], 'cat', 'I')\n"
                       'called PageGui.set_text() for field `summary` text `in short: this`\n'
                       'called PageGui.set_text() for field `arch` text ``\n'
                       'called PageGui.set_archive_button_text(`Archiveren`)\n'
@@ -1577,8 +1598,8 @@ def test_page1_vulp(monkeypatch, capsys):
                       'called PageGui.set_text() for field `date` text `datestring`\n'
                       "called PageGui.set_text() for field `proc` text `onderwerp`\n"
                       "called PageGui.set_text() for field `desc` text `beschrijving`\n"
-                      'called PageGui.set_choice() for field `stat` text `0`\n'
-                      'called PageGui.set_choice() for field `cat` text `I`\n'
+                      "called PageGui.set_choice() with args ([], 'stat', 0)\n"
+                      "called PageGui.set_choice() with args ([], 'cat', 'I')\n"
                       'called PageGui.set_text() for field `summary` text `in short: this`\n'
                       'called PageGui.set_text() for field `arch` text ``\n'
                       'called PageGui.set_archive_button_text(`Archiveren`)\n'
@@ -3473,8 +3494,3 @@ def test_mainwindow_enable_all_book_tabs(monkeypatch, capsys):
     testobj.enable_all_book_tabs(True)
     assert capsys.readouterr().out == ("called MainGui.enable_book_tabs() with args (True,)"
                                        " {'tabfrom': 1}\n")
-
-
-
-
-

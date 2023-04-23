@@ -903,34 +903,19 @@ class Page1Gui(PageGui):
             value = self.summary_entry.GetValue()
         return value
 
-    def set_choice(self, fieldtype, value):
+    def set_choice(self, domain, field, value):
         "set selected entry in a combobox"
-        if fieldtype == 'stat':
-            domain = self.parent.stats
-            field = self.stat_choice
-        elif fieldtype == 'cat':
-            domain = self.parent.cats
-            field = self.cat_choice
         for x in range(len(domain)):
             code = field.GetClientData(x)
-            if self.parent.parent.datatype == shared.DataType.SQL:
-                code = int(code)
             if code == value:
                 field.Select(x)
                 break
 
-    def get_choice_data(self, fieldtype):
+    def get_choice_data(self, field):
         "get selected entry in a combobox"
-        if fieldtype == 'stat':
-            idx = self.stat_choice.GetSelection()
-            code = self.stat_choice.GetClientData(idx)
-            if self.parent.parent.datatype == shared.DataType.SQL:
-                code = int(code)
-            text = self.stat_choice.GetStringSelection()
-        elif fieldtype == 'cat':
-            idx = self.cat_choice.GetSelection()
-            code = self.cat_choice.GetClientData(idx)
-            text = self.cat_choice.GetStringSelection()
+        idx = field.GetSelection()
+        code = field.GetClientData(idx)
+        text = str(field.GetStringSelection())  # make sure it's a string - necessary?
         return code, text
 
     def set_oldbuf(self):

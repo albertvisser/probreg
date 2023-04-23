@@ -827,30 +827,19 @@ class Page1Gui(PageGui):
             value = str(self.summary_entry.toPlainText())
         return value
 
-    def set_choice(self, fieldtype, value):
+    def set_choice(self, domain, field, value):
         "set selected entry in a combobox"
-        if fieldtype == 'stat':
-            domain = self.parent.stats
-            field = self.stat_choice
-        elif fieldtype == 'cat':
-            domain = self.parent.cats
-            field = self.cat_choice
         for x in range(len(domain)):
             code = field.itemData(x)
             if code == value:
                 field.setCurrentIndex(x)
                 break
 
-    def get_choice_data(self, fieldtype):
+    def get_choice_data(self, field):
         "get selected entry in a combobox"
-        if fieldtype == 'stat':
-            idx = self.stat_choice.currentIndex()
-            code = self.stat_choice.itemData(idx)
-            text = self.stat_choice.currentText()
-        elif fieldtype == 'cat':
-            idx = self.cat_choice.currentIndex()
-            code = self.cat_choice.itemData(idx)
-            text = str(self.cat_choice.currentText())
+        idx = field.currentIndex()
+        code = field.itemData(idx)
+        text = str(field.currentText())   # make sure it's a string - necessary?
         return code, text
 
     def set_oldbuf(self):
