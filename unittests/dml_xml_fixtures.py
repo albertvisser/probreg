@@ -4,10 +4,10 @@ import probreg.dml_xml as dml
 
 
 @pytest.fixture
-def get_acties_fixture():
+def get_acties_fixture(tmp_path):
     """creates sample XML file for get_acties unittest
     """
-    testfilename = '/tmp/testprobregdml.xml'
+    testfilepath = tmp_path / 'testprobregdml.xml'
     testroot = dml.Element('acties')
     sett = dml.SubElement(testroot, 'settings')
     stats = dml.SubElement(sett, 'stats')
@@ -44,8 +44,8 @@ def get_acties_fixture():
     titel = dml.SubElement(actie, 'titel')
     # titel.text = 'Iets heel anders'
     titel.text = ''
-    tree = dml.ElementTree(testroot).write(testfilename)
-    return pathlib.Path(testfilename)
+    tree = dml.ElementTree(testroot).write(str(testfilepath))
+    return testfilepath
 
 
 @pytest.fixture
@@ -62,8 +62,8 @@ class SettingsFixture:
     - toplevels: a file with the settings element and its attributes + the elements directly under it
     - all_levels: a complete settings element
     """
-    def __init__(self):
-        self.path = pathlib.Path('/tmp/testprobregdml.xml')
+    def __init__(self, tmp_path):
+        self.path = tmp_path / 'testprobregdml.xml'
 
     def nosett(self):
         "create XML in memory: only the root"
@@ -239,8 +239,8 @@ class ActieFixture:
     - toplevels: a file with the settings element and its attributes + the elements directly under it
     - all_levels: a complete settings element
     """
-    def __init__(self):
-        self.path = pathlib.Path('/tmp/testprobregdml.xml')
+    def __init__(self, tmp_path):
+        self.path = tmp_path / 'testprobregdml.xml'
 
     def justaroot(self):
         "create XML in memory: only the root"
