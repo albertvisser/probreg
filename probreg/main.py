@@ -1016,7 +1016,6 @@ class MainWindow():
         else:
             self.user = 1                           # pretend user
             self.is_user = self.is_admin = True     # force editability
-        self.enable_settingsmenu()
         self.multiple_files = self.datatype == shared.DataType.XML
         self.multiple_projects = self.datatype == shared.DataType.SQL
         self.use_text_panels = self.datatype != shared.DataType.MNG
@@ -1024,6 +1023,7 @@ class MainWindow():
         self.use_separate_subject = self.datatype in (shared.DataType.SQL, shared.DataType.MNG)
         self.create_book()
         self.gui.create_menu()
+        self.enable_settingsmenu()
         self.gui.create_actions()
         self.create_book_pages()
 
