@@ -17,4 +17,4 @@ wx: probreg/gui_wx.py
 xml: probreg/dml_xml.py
 django: probreg/dml_django.py
 mongo: probreg/dml_mongo.py
-shered: probreg/shared.py
+shared: probreg/shared.py
