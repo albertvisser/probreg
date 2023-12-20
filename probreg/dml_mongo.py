@@ -237,7 +237,7 @@ class Actie:
     def read(self):
         "gegevens lezen van een bepaalde actie"
         self.exists = False
-        jaar, nummer = [int(x) for x in self.id.split('-')]
+        jaar, nummer = (int(x) for x in self.id.split('-'))
         # actie = coll.find_one({'_id': self.actie_id})
         actie = coll.find_one({'jaar': jaar, 'nummer': nummer})
         if actie is None:
@@ -283,7 +283,7 @@ class Actie:
 
     def write(self):
         "actiegegevens terugschrijven"
-        jaar, nummer = [int(x) for x in self.id.split('-')]
+        jaar, nummer = (int(x) for x in self.id.split('-'))
         if not self.exists:
             self.actie_id = coll.insert_one({'jaar': jaar, 'nummer': nummer}).inserted_id
             self.exists = True

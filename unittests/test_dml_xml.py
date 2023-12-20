@@ -110,14 +110,14 @@ def test_get_nieuwetitel(monkeypatch, capsys):
         return root
     def mock_getroot_2(*args):
         root = dml.Element('acties')
-        new = dml.SubElement(root, 'actie', id='2020-0001')
-        new = dml.SubElement(root, 'actie', id='2021-0001')
+        dml.SubElement(root, 'actie', id='2020-0001')
+        dml.SubElement(root, 'actie', id='2021-0001')
         return root
     def mock_getroot_3(*args):
         root = dml.Element('acties')
-        new = dml.SubElement(root, 'actie', id='2020-0001')
-        new = dml.SubElement(root, 'actie', id='2021-0001')
-        new = dml.SubElement(root, 'actie', id='2022-0001')
+        dml.SubElement(root, 'actie', id='2020-0001')
+        dml.SubElement(root, 'actie', id='2021-0001')
+        dml.SubElement(root, 'actie', id='2022-0001')
         return root
     monkeypatch.setattr(dml.dt, 'date', MockDate)
     monkeypatch.setattr(pathlib.Path, 'exists', lambda x: False)
@@ -227,9 +227,8 @@ def test_settings_init(monkeypatch, capsys):
     assert capsys.readouterr().out == 'called Settings.read()\n'
 
 
-def test_settings_read(monkeypatch, capsys, settings_fixture):
-    testfilename = '/tmp/testprobregdml.xml'
-    testpath = pathlib.Path(testfilename)
+def test_settings_read(monkeypatch, capsys, tmp_path, settings_fixture):
+    testpath = tmp_path / 'testprobregdml.xml'
     testobj = dml.Settings(settings_fixture.nosett())
     assert testobj.fn == testpath
     assert testobj.fnaam == testpath.name
@@ -300,7 +299,7 @@ def test_settings_write(monkeypatch, capsys, settings_output):
     testobj.cat = {}
     testobj.kop = {}
     testobj.write()
-    assert testobj.exists == True
+    assert testobj.exists
     assert capsys.readouterr().out == settings_output['new']
 
     monkeypatch.setattr(MockElement, '__iter__', mock_iter)
@@ -317,7 +316,7 @@ def test_settings_write(monkeypatch, capsys, settings_output):
     testobj.cat = {'a': ('something', '0'), 'b': ('anything', '1')}
     testobj.kop = {'1': ('ook',), 2: ('eek',)}
     testobj.write()
-    assert testobj.exists == True
+    assert testobj.exists
     assert capsys.readouterr().out == settings_output['existing']
 
 
@@ -374,7 +373,7 @@ def test_actie_nieuw(monkeypatch, capsys):
     testfilename = '/tmp/testactie.xml'
     def mock_init(self, *args):
         self.fn = pathlib.Path(testfilename)
-    monkeypatch.setattr(dml, 'get_nieuwetitel', lambda *x: 'nieuw item voor {}'.format(x[0]))
+    monkeypatch.setattr(dml, 'get_nieuwetitel', lambda *x: f'nieuw item voor {x[0]}')
     monkeypatch.setattr(dml.Actie, '__init__', mock_init)
     monkeypatch.setattr(dml.dt, 'datetime', MockDatetime)
     testobj = dml.Actie()
@@ -384,8 +383,8 @@ def test_actie_nieuw(monkeypatch, capsys):
 
 
 def test_actie_read(monkeypatch, capsys, actie_fixture):
-    testfilename = '/tmp/testactie.xml'
-    testpath = pathlib.Path(testfilename)
+    # testfilename = '/tmp/testactie.xml'
+    # testpath = pathlib.Path(testfilename)
     monkeypatch.setattr(dml.dt, 'datetime', MockDatetime)
     testobj = dml.Actie(actie_fixture.justaroot(), '1')
     testobj.read()
@@ -399,7 +398,7 @@ def test_actie_read(monkeypatch, capsys, actie_fixture):
     assert testobj.datum ==''
     assert testobj.status == '1'
     assert testobj.soort == 'P'
-    assert testobj.arch == False
+    assert not testobj.arch
     assert testobj.updated == '2020-01-01 00:00:00'
     assert testobj.titel == ''
     assert testobj.melding == ''
@@ -414,7 +413,7 @@ def test_actie_read(monkeypatch, capsys, actie_fixture):
     assert testobj.datum =='x'
     assert testobj.status == '1'
     assert testobj.soort == 'P'
-    assert testobj.arch == True
+    assert testobj.arch
     assert testobj.updated == 'y'
     assert testobj.titel == 'Dit'
     assert testobj.melding == 'Dat'
@@ -521,7 +520,7 @@ def test_actie_write(monkeypatch, capsys, actie_output):
     testobj.vervolg = 'Dit moet ook nog'
     testobj.events = [('ooit', 'deden we dit'), ('later', 'deden we dit')]
     testobj.imagelist = []
-    assert testobj.write() == True
+    assert testobj.write()
     assert capsys.readouterr().out == actie_output['new']
 
     # testobj.file_exists = False
@@ -559,7 +558,7 @@ def test_actie_write(monkeypatch, capsys, actie_output):
     testobj.vervolg = 'Dit moet ook nog'
     testobj.events = [('ooit', 'deden we dit'), ('later', 'deden we dit')]
     testobj.imagelist = []
-    assert testobj.write() == True
+    assert testobj.write()
     assert capsys.readouterr().out == actie_output['old']
 
 

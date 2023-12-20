@@ -26,15 +26,17 @@ def show_message(win, message, title=''):
     wx.MessageBox(message, title, parent=win)
 
 
-def get_open_filename(win, start=pathlib.Path.cwd()):
+def get_open_filename(win, start=None):
     "get the name of a file to open"
+    start = start or pathlib.Path.cwd()
     what = shared.app_title + " - kies een gegevensbestand"
     print('in get_open_filename with', win)
     return wx.LoadFileSelector(what, xmlfilter, default_name=str(start), parent=win)
 
 
-def get_save_filename(win, start=pathlib.Path.cwd()):
+def get_save_filename(win, start=None):
     "get the name of a file to save"
+    start = start or pathlib.Path.cwd()
     what = shared.app_title + " - nieuw gegevensbestand"
     return wx.SaveFileSelector(what, xmlfilter, default_name=str(start), parent=win)
 
@@ -60,10 +62,7 @@ def ask_cancel_question(win, message):
 
 def show_dialog(win, cls, args=None):
     "show a dialog and return if the dialog was confirmed / accepted"
-    if args is None:
-        dlg = cls(win)
-    else:
-        dlg = cls(win, args)
+    dlg = cls(win) if args is None else cls(win, args)
     with dlg:
         send = True
         while send:
@@ -194,11 +193,9 @@ class EditorPanelRt(wxrt.RichTextCtrl):
 
     def case_lower(self, event):
         "change case not implemented"
-        pass
 
     def case_upper(self, event):
         "change case not implemented"
-        pass
 
     def indent_more(self, event):
         "alinea verder laten inspringen"
@@ -293,13 +290,14 @@ class EditorPanelRt(wxrt.RichTextCtrl):
 
     def set_paragraph_spacing(self, more=False, less=False):
         "ruimte tussen alinea's instellen"
+        unit = 20
         attr = wxrt.RichTextAttr()
         if more:
-            factor = 20
+            factor = unit
         elif less:
-            if attr.GetParagraphSpacingAfter() < 20:
+            if attr.GetParagraphSpacingAfter() < unit:
                 return
-            factor = -20
+            factor = -1 * unit
         else:
             return  # for now only increase or decrease
         new_spacing = attr.GetParagraphSpacingAfter() + factor
@@ -401,15 +399,9 @@ class PageGui(wx.Panel):
         """
         if not parent:
             parent = self
-        high = 330 if LIN else 430
-        if self.master.parent.parent.use_rt:
-            cls = EditorPanelRt
-        else:
-            cls = EditorPanel
-        if size == wx.DefaultSize:
-            textfield = cls(parent)  # , size=(490, high))
-        else:
-            textfield = cls(parent, size=size)
+        # high = 330 if LIN else 430
+        cls = EditorPanelRt if self.master.parent.parent.use_rt else EditorPanel
+        textfield = cls(parent) if size == wx.DefaultSize else cls(parent, size=size)
         self.Bind(wx.EVT_TEXT, self.master.on_text, textfield)
         # textfield.Bind(wx.EVT_KEY_DOWN, self.on_key)
         # textfield.font_changed(textfield.font())
@@ -497,8 +489,8 @@ class PageGui(wx.Panel):
         with wx.FontDialog(self, data) as dlg:
             if dlg.ShowModal() == wx.ID_OK:
                 data = dlg.GetFontData()
-                font = data.GetChosenFont()
-                colour = data.GetColour()
+                # font = data.GetChosenFont()
+                # colour = data.GetColour()
                 # print(font.GetFaceName(), font.GetPointSize(), colour.Get()))
                 # self.curFont = font
                 # self.curClr = colour
@@ -528,8 +520,9 @@ class PageGui(wx.Panel):
 
     def enable_buttons(self, state=True):
         "buttons wel of niet klikbaar maken"
+        lasttab = 6
         self.save_button.Enable(state)
-        if self.parent.current_tab < 6:
+        if self.parent.current_tab < lasttab:
             self.saveandgo_button.Enable(state)
         self.cancel_button.Enable(state)
 
@@ -722,7 +715,7 @@ class Page0Gui(PageGui, listmix.ColumnSorterMixin):
         "get the item's text for a specified column"
         print('in get_item_text; item_or_index is', item_or_index)
         try:
-            test = int(item_or_index)
+            int(item_or_index)
         except TypeError:
             item_or_index = item_or_index.GetId()
         return self.p0list.GetItemText(item_or_index, column)
@@ -983,7 +976,7 @@ class Page6Gui(PageGui):
         self.master = master
         super().__init__(parent, master)
         # self.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_BTNFACE))
-        high = 200 if LIN else 280
+        # high = 200 if LIN else 280
         self.pnl = wx.SplitterWindow(self, size=(500, 400), style=wx.SP_LIVE_UPDATE)
 
         self.progress_list = MyListCtrl(self.pnl, size=(250, -1),  # high),
@@ -999,7 +992,7 @@ class Page6Gui(PageGui):
 
         self.progress_list.InsertColumn(0, 'Momenten')
 
-        high = 100 if LIN else 110
+        # high = 100 if LIN else 110
         self.textpanel = wx.Panel(self.pnl)
         self.actiondict = collections.OrderedDict()
         self.progress_text = super().create_text_field(parent=self.textpanel, size=(200, -1))
@@ -1100,14 +1093,14 @@ class Page6Gui(PageGui):
         print('in Page6.on_deselect_item, index is', idx)
         if idx == 0:
             return
-        # tekst = self.progress_text.GetValue()  # self.progress_list.GetItemText(idx)
+        maxlen = 80
         tekst = self.get_textfield_contents()
         print(tekst, self.master.oldtext)
         if tekst != self.master.oldtext:
             self.master.event_data[idx - 1] = tekst
             self.master.oldtext = tekst
             short_text = tekst.split("\n")[0]
-            short_text = short_text if len(short_text) < 80 else short_text[:80] + "..."
+            short_text = short_text if len(short_text) < maxlen else short_text[:maxlen] + "..."
             self.progress_list.SetItem(idx, 0, "{self.master.event_list[idx - 1]} - {short_text}")
             self.progress_list.SetItemData(idx, idx - 1)
         evt.Skip()
@@ -1154,16 +1147,17 @@ class Page6Gui(PageGui):
         """add an entry to the events list widget (when initializing)
         first convert to HTML (if needed) and back
         """
+        maxlen = 80
         print('add item to list')
         tekst_plat = self.convert_text(self.master.event_data[idx], to='plain')
         try:
             text = tekst_plat.split("\n")[0].strip()
         except AttributeError:
             text = tekst_plat or ""
-        text = text if len(text) < 80 else text[:80] + "..."
+        text = text if len(text) < maxlen else text[:maxlen] + "..."
         index = self.progress_list.InsertItem(sys.maxsize, datum)
         # if self.parent.parent.datatype == shared.DataType.SQL:
-        if len(datum) > 18:
+        if len(datum) > len('eejj-mm-dd hh:mm:ss'):  # 18:
             datum = datum[:19]
         self.progress_list.SetItem(index, 0, f"{datum} - {text}")
                 # datum, text.encode('latin-1')))
@@ -1493,12 +1487,12 @@ class SelectOptionsDialog(wx.Dialog):
         if "idlt" in sel_args:
             self.text_lt.SetValue(sel_args["idlt"])
         if "soort" in sel_args:
-            for x in self.parent.parent.cats.keys():
+            for x in self.parent.parent.cats:
                 if self.parent.parent.cats[x][-1] in sel_args["soort"]:
                     self.clb_soort.Check(int(x))
             self.cb_soort.SetValue(True)
         if "status" in sel_args:
-            for x in self.parent.parent.stats.keys():
+            for x in self.parent.parent.stats:
                 if self.parent.parent.stats[x][-1] in sel_args["status"]:
                     self.clb_stat.Check(int(x))
             self.cb_stat.SetValue(True)
@@ -1602,15 +1596,15 @@ class SettOptionsDialog(wx.Dialog):
     def __init__(self, parent, args):
         self.parent = parent
         cls = None
-        if len(args) == 1:
-            title = args[0]
-        elif len(args) > 1:
-            try:
-                cls = args[0]
-                title = args[1]
-                size = args[2]
-            except IndexError:
-                pass    # wat er niet is is er niet
+        # if len(args) == 1:
+        #     title = args[0]
+        # elif len(args) > 1:
+        if len(args) > 1:
+            # try:
+            cls = args[0]
+            # with contextlib.suppress(IndexError):
+            #     title = args[1]
+            #     size = args[2]
         self.cls = cls
         super().__init__(parent, title=shared.app_title, size=(300, 300))
         self.initstuff(parent)
@@ -1742,14 +1736,14 @@ class MainGui(wx.Frame):
             "parse line and create menu item"
             if len(menuitem) == 1:
                 menu.AppendSeparator()
-            elif len(menuitem) == 4:
+            elif len(menuitem) == len(['caption', 'callback', 'keys', 'tip']):
                 caption, callback, keys, tip = menuitem
                 if keys:  # altijd maar eén
-                    caption = '\t'.join((caption, keys))
+                    caption = f'{caption}\t{keys}'
                 action = menu.Append(-1, caption, tip)
                 # self.Connect(action.GetId(), -1, wx.wxEVT_COMMAND_MENU_SELECTED, callback)
                 self.Bind(wx.EVT_MENU, callback, action)
-            elif len(menuitem) == 2:
+            elif len(menuitem) == len(['title', 'items']):
                 title, items = menuitem
                 sub = wx.Menu()
                 if title == '&Data':
@@ -1851,7 +1845,7 @@ class MainGui(wx.Frame):
                 wat = 'bestand'
             elif self.master.multiple_projects:  # datatype == shared.DataType.SQL.name:
                 wat = 'project'
-            msg = "Kies eerst een {wat} om mee te werken"
+            msg = f"Kies eerst een {wat} om mee te werken"
             mag_weg = False
         elif not self.master.book.data and not self.master.book.newitem:
             # bestand bevat nog geen gegevens en we zijn nog niet bezig met de eerste opvoeren
@@ -1885,16 +1879,17 @@ class MainGui(wx.Frame):
             old = new = newtabnum
         else:
             return
+        notab, firsttab, lasttab = -1, 0, 6
         print('  old = new =', new)
         # sel = self.master.book.GetSelection() # unused
         # print('  old selection is', old)
-        if LIN and old == -1:  # bij initialisatie en bij afsluiten - op Windows is deze altijd -1?
+        if LIN and old == notab:  # bij initialisatie en bij afsluiten - op Windows is deze altijd -1?
             return
-        if 0 < new < 6:
+        if firsttab < new < lasttab:
             print('in MainGui.on_page_changed before calling vulp')
             self.master.book.pages[new].vulp()
             print('in MainGui.on_page_changed after  calling vulp')
-        elif new in (0, 6):
+        elif new in (firsttab, lasttab):
             if old == new:
                 item = self.master.book.pages[new].gui.get_list_row()  # remember current item
             self.master.book.pages[new].vulp()

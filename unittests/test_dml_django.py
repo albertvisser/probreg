@@ -28,8 +28,8 @@ class MockDatetime:
 @pytest.mark.django_db
 def test_get_projnames(monkeypatch, capsys):
     ""
-    myproj1 = dml.my.Project.objects.create(name='bep1', description='testapp #1')
-    myproj2 = dml.my.Project.objects.create(name='app1', description='testapp #2')
+    dml.my.Project.objects.create(name='bep1', description='testapp #1')
+    dml.my.Project.objects.create(name='app1', description='testapp #2')
     assert dml.get_projnames() == [('app1', 'app1', 'testapp #2'), ('bep1', 'bep1', 'testapp #1')]
 
 
@@ -130,16 +130,17 @@ def test_sortoptions_save(monkeypatch, capsys):
     ""
     myuser = dml.my.User.objects.create(username='testuser')
     project_name = 'testfile'
-    myproject = dml.my.Project.objects.create(name=project_name)
+    dml.my.Project.objects.create(name=project_name)
     testobj = dml.SortOptions(project_name, myuser)
     testobj.olddata = {1: ('x', 'asc'), 2: ('y', 'asc'), 3: ('z', 'desc')}
     assert testobj.save_options({1: ('x', 'asc'), 2: ('y', 'asc'), 3: ('z', 'desc')}) == 'no changes'
     testobj.save_options({1: ('x', 'desc'), 2: ('z', 'desc')})
     data = dml.my.SortOrder.objects.all()
-    assert len(data) == 2
+    # assert len(data) ==len([1, 2])
     assert (data[0].volgnr, data[0].veldnm, data[0].richting) == (1, 'x', 'desc')
     assert (data[1].volgnr, data[1].veldnm, data[1].richting) == (2, 'z', 'desc')
-
+    with pytest.raises(IndexError):
+        data[2]
 
 @pytest.mark.django_db
 def test_selectoptions(monkeypatch, capsys):
@@ -221,7 +222,7 @@ def test_selections_save(monkeypatch, capsys):
                                  'idlt': '5', "soort": ['P'], "status": ['1'],
                                  "titel": [('over', 'Oeps'), ('or',), ('titel', 'mis')]}) == ''
     data = myproject.selections.filter(user=myuser.id)
-    assert len(data) == 8
+    assert len(data) == len(['nummer', 'ummer', 'soort', 'status', 'over', 'titel', 'arch', 'arch'])
     assert (data[0].veldnm, data[0].operator, data[0].value, data[0].extra) == ('nummer', 'GT',
                                                                                 '1', '  ')
     assert (data[1].veldnm, data[1].operator, data[1].value, data[1].extra) == ('nummer', 'LT',
@@ -300,16 +301,16 @@ def test_settings_write(monkeypatch):
     actie.save()
     testobj.write()
     pages = dml.my.Page.objects.all()
-    assert len(pages) == 2
+    assert len(pages) == len(['start', 'page1'])
     assert [pages[0].order, pages[0].title, pages[0].link] == [0, 'start', '/here']
     assert [pages[1].order, pages[1].title, pages[1].link] == [1, 'page1', '/nowhere']
     cats = myproject.soort.all()
-    assert len(cats) == 3
+    assert len(cats) == len(['defect', 'request', 'brainstorm'])
     assert [cats[0].value, cats[0].title, cats[0].order] == ['P', 'Defect', 0]
     assert [cats[1].value, cats[1].title, cats[1].order] == ['R', 'Request', 2]
     assert [cats[2].value, cats[2].title, cats[2].order] == ['B', 'Brainstorm', 1]
     stats = myproject.status.all()
-    assert len(stats) == 3
+    assert len(stats) == len(['created', 'done', 'reopened'])
     assert [stats[0].value, stats[0].title, stats[0].order] == [0, 'created', 0]
     assert [stats[1].value, stats[1].title, stats[1].order] == [2, 'done', 1]
     assert [stats[2].value, stats[2].title, stats[2].order] == [3, 'reopened', 2]
@@ -380,6 +381,7 @@ def test_actie_nieuw(monkeypatch, capsys):
     ""
     def mock_init(self, *args):
         print('called Actie() with args', args)
+    actiecount = 0
     monkeypatch.setattr(dml.Actie, '__init__', mock_init)
     yr = datetime.datetime.today().year
     mo = datetime.datetime.today().month
@@ -392,7 +394,8 @@ def test_actie_nieuw(monkeypatch, capsys):
     testobj = dml.Actie('naam', 'x', myuser)
     testobj.project = myproject
     testobj.nieuw(myuser)
-    assert dml.my.Actie.objects.count() == 1
+    actiecount += 1
+    assert dml.my.Actie.objects.count() == actiecount
     myactie = dml.my.Actie.objects.all()[0]
     assert testobj._actie == myactie
     assert testobj._actie.nummer == f'{yr}-0001'
@@ -413,7 +416,8 @@ def test_actie_nieuw(monkeypatch, capsys):
 
     dml.my.Soort.objects.filter(value='').update(value=' ')
     testobj.nieuw(myuser)
-    assert dml.my.Actie.objects.count() == 2
+    actiecount += 1
+    assert dml.my.Actie.objects.count() == actiecount
     myactie = dml.my.Actie.objects.all()[1]
     assert testobj._actie == myactie
     assert testobj._actie.nummer == f'{yr}-0002'
@@ -475,7 +479,7 @@ def test_actie_read(monkeypatch, capsys):
     assert (testobj.status, testobj.soort, testobj.arch) == ('1', 'P', False)
     assert (testobj.melding, testobj.oorzaak, testobj.oplossing) == ('iets', 'dit', 'dat')
     assert testobj.vervolg == ''
-    assert len(testobj.events) == 2
+    assert len(testobj.events) == len([ev1, ev2])
     assert testobj.events[0][0].startswith(today_string)
     assert testobj.events[1][0].startswith(today_string)
     assert (testobj.events[0][1], testobj.events[1][1]) == ('event 1', 'event 2')

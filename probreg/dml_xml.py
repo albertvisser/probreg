@@ -1,7 +1,7 @@
 "data managenent voor ProbReg XML versie"
-## import sys
 import os
 # import pathlib
+import contextlib
 import base64  # gzip
 import datetime as dt
 from shutil import copyfile
@@ -79,13 +79,12 @@ def checkfile(fn, new=False):
             u = SubElement(t, "kop", value=x)
             u.text = y[0]
         ElementTree(root).write(fnaam, encoding='utf-8', xml_declaration=True)
+    elif not fn.exists():
+        r = fnaam + " bestaat niet"
     else:
-        if not fn.exists():
-            r = fnaam + " bestaat niet"
-        else:
-            tree = ElementTree(file=fnaam)
-            if tree.getroot().tag != "acties":
-                r = fnaam + " is geen bruikbaar xml bestand"
+        tree = ElementTree(file=fnaam)
+        if tree.getroot().tag != "acties":
+            r = fnaam + " is geen bruikbaar xml bestand"
     return r
 
 
@@ -146,8 +145,7 @@ def get_acties(fnaam, select=None, arch="", user=None):
                 break
         if keyfout:
             raise DataError("Foutief selectie-argument opgegeven")
-        if "id" in select:
-            if "idlt" not in select or "idgt" not in select:
+        if "id" in select and ("idlt" not in select or "idgt" not in select):
                 raise DataError("Foutieve combinatie van selectie-argumenten opgegeven")
     if arch not in ("", "arch", "alles"):
         raise DataError("Foutieve waarde voor archief opgegeven "
@@ -162,17 +160,15 @@ def get_acties(fnaam, select=None, arch="", user=None):
         if a is None:
             if arch == "arch":
                 continue
-        else:
-            if (a == "arch" and arch == "") or (a != "arch" and arch == "arch"):
-                continue
+        elif (a == "arch" and arch == "") or (a != "arch" and arch == "arch"):
+            continue
         nr = x.get("id")
         if "id" in select and select["id"] == "or":
             if select["idlt"] <= nr <= select["idgt"]:
                 continue
-        else:
-            if ("idgt" in select and nr <= select["idgt"]) \
-                    or ("idlt" in select and nr >= select["idlt"]):
-                continue
+        elif (("idgt" in select and nr <= select["idgt"]) or
+                  ("idlt" in select and nr >= select["idlt"])):
+            continue
         ## alternatief en meer overeenkomend met de sql versie
         ## if 'id' in select:
             ## select_gt = select_lt = True
@@ -280,11 +276,7 @@ class Settings:
         el.set('imagecount', str(self.imagecount))
         el.set('startitem', str(self.startitem))
         for x in list(el):
-            if x.tag == "stats":
-                el.remove(x)
-            elif x.tag == "cats":
-                el.remove(x)
-            elif x.tag == "koppen":
+            if x.tag in ("stats", "cats", "koppen"):
                 el.remove(x)
         h = SubElement(el, "stats")
         for x in list(self.stat.keys()):
@@ -363,9 +355,8 @@ class Actie:
             self.status = x.get("status")
             self.soort = x.get("soort")
             h = x.get("arch")
-            if h is not None:
-                if h == "arch":
-                    self.arch = True
+            if h and h == "arch":
+                self.arch = True
             h = x.get("updated")
             if h is not None:
                 self.updated = h
@@ -531,10 +522,8 @@ class Actie:
         except DataError:
             soort = self.soort
         status = self.status
-        try:
+        with contextlib.suppress(DataError):
             status = status + ' ' + self.get_statustext()
-        except DataError:
-            pass
         result = [f"{soort} {self.id} gemeld op {self.datum} status {status}"]
         result.append(f"Titel: {self.titel}")
         result.append(f"Melding: {self.melding}")

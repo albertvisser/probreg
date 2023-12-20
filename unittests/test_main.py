@@ -1,6 +1,6 @@
 import types
 import pytest
-import probreg.main as main
+from probreg import main
 
 
 def test_dbstat2bookstat():
@@ -108,16 +108,16 @@ class MockPageGui:
     def init_fields(self, *args):
         print('called PageGui.init_fields()')
     def set_textarea_contents(self, text):
-        print(f'call PageGui.set_textarea_contents(text)')
+        print(f'call PageGui.set_textarea_contents({text})')
     def set_text_readonly(self, value):
-        print(f'call PageGui.set_text_readonly(value)')
+        print(f'call PageGui.set_text_readonly({value})')
     def enable_toolbar(self, user):
-        print(f'call PageGui.enable_toolbar(user)')
+        print(f'call PageGui.enable_toolbar({user})')
     def get_textarea_contents(self):
-        print(f'call PageGui.get_textarea_contents()')
+        print('call PageGui.get_textarea_contents()')
         return 'text'
     def move_cursor_to_end(self):
-        print(f'call PageGui.move_cursor_to_end()')
+        print('call PageGui.move_cursor_to_end()')
     def set_focus(self):
         print('called PageGui.set_focus()')
     def build_newbuf(self):
@@ -230,8 +230,8 @@ def test_page_init(monkeypatch, capsys):
     assert testobj.pageno == 'pageno'
     assert testobj.is_text_page
     assert hasattr(testobj, 'gui')
-    assert capsys.readouterr().out == ("called PageGui.__init__() with args ('parent', {})"
-                                       " {{}}\n".format(testobj))
+    assert capsys.readouterr().out == (f"called PageGui.__init__() with args ('parent', {testobj})"
+                                       f" {{}}\n")
     testobj = main.Page('parent', 'pageno', standard=False)
     assert testobj.parent == 'parent'
     assert testobj.pageno == 'pageno'
@@ -279,7 +279,7 @@ def test_page_vulp(monkeypatch, capsys):
     def mock_enable_buttons(self, state):
         print(f'call Page.enable_buttons({state})')
     def mock_get_pagetext(self):
-        print(f'call Page.get_pagetext()')
+        print('call Page.get_pagetext()')
         return 'pagetext'
     monkeypatch.setattr(main.Page, '__init__', mock_init_page)
     monkeypatch.setattr(main.Page, 'enable_buttons', mock_enable_buttons)
@@ -290,17 +290,18 @@ def test_page_vulp(monkeypatch, capsys):
                                       pagedata=pagedata, count=lambda *x: 6)
     assert capsys.readouterr().out == 'called MainWindow.__init__()\ncalled MainGui.__init__()\n'
     testobj = main.Page(mock_book, 'pageno')
+    assert capsys.readouterr().out == ('called Page.__init__()\n'
+                                       'called PageGui.__init__() with args () {}\n')
     testobj.seltitel = 'hallo'
     testobj.parent.parent.is_user = True
     testobj.parent.parent.title = 'aha'
     testobj.parent.current_tab = 0
     testobj.vulp()
-    assert capsys.readouterr().out == ('called Page.__init__()\n'
-                                       'called PageGui.__init__() with args () {}\n'
-                                       'call MainWindow.enable_settingsmenu()\n'
-                                       'call MainWindow.set_windowtitle(aha | hallo)\n'
+    assert capsys.readouterr().out == ('call MainWindow.set_windowtitle(aha | hallo)\n'
                                        'call MainWindow.set_statusmessage()\n')
     testobj = main.Page(mock_book, 'pageno')
+    assert capsys.readouterr().out == ('called Page.__init__()\n'
+                                       'called PageGui.__init__() with args () {}\n')
     testobj.seltitel = 'hallo'
     testobj.parent.parent.is_user = True
     testobj.parent.parent.title = 'aha'
@@ -308,13 +309,12 @@ def test_page_vulp(monkeypatch, capsys):
     testobj.parent.newitem = True
     testobj.parent.parent.use_separate_subject = False
     testobj.vulp()
-    assert capsys.readouterr().out == ('called Page.__init__()\n'
-                                       'called PageGui.__init__() with args () {}\n'
-                                       'call MainWindow.enable_settingsmenu()\n'
-                                       'call Page.enable_buttons(True)\n'
+    assert capsys.readouterr().out == ('call Page.enable_buttons(True)\n'
                                        'call MainWindow.set_windowtitle(aha | xx titel)\n'
                                        'call MainWindow.set_statusmessage()\n')
     testobj = main.Page(mock_book, 'pageno')
+    assert capsys.readouterr().out == ('called Page.__init__()\n'
+                                       'called PageGui.__init__() with args () {}\n')
     testobj.seltitel = 'hallo'
     testobj.parent.parent.is_user = True
     testobj.parent.parent.title = 'aha'
@@ -322,10 +322,7 @@ def test_page_vulp(monkeypatch, capsys):
     testobj.parent.newitem = False
     testobj.parent.parent.use_separate_subject = False
     testobj.vulp()
-    assert capsys.readouterr().out == ('called Page.__init__()\n'
-                                       'called PageGui.__init__() with args () {}\n'
-                                       'call MainWindow.enable_settingsmenu()\n'
-                                       'call Page.enable_buttons(False)\n'
+    assert capsys.readouterr().out == ('call Page.enable_buttons(False)\n'
                                        'call MainWindow.set_windowtitle(aha | xx titel)\n'
                                        'call MainWindow.set_statusmessage()\n')
     pagedata = types.SimpleNamespace(id='xx', titel="titel", over='over', arch=False)
@@ -334,6 +331,8 @@ def test_page_vulp(monkeypatch, capsys):
                                       pagedata=pagedata, count=lambda *x: 6)
     assert capsys.readouterr().out == 'called MainWindow.__init__()\ncalled MainGui.__init__()\n'
     testobj = main.Page(mock_book, 'pageno')
+    assert capsys.readouterr().out == ('called Page.__init__()\n'
+                                       'called PageGui.__init__() with args () {}\n')
     testobj.seltitel = 'hallo'
     testobj.parent.parent.title = 'aha'
     testobj.parent.parent.is_user = False
@@ -341,16 +340,13 @@ def test_page_vulp(monkeypatch, capsys):
     testobj.parent.newitem = False
     testobj.parent.parent.use_separate_subject = False
     testobj.vulp()
-    assert capsys.readouterr().out == ( 'called Page.__init__()\n'
-                                       'called PageGui.__init__() with args () {}\n'
-                                       'call MainWindow.enable_settingsmenu()\n'
-                                       'call Page.enable_buttons(False)\n'
+    assert capsys.readouterr().out == ('call Page.enable_buttons(False)\n'
                                        'call MainWindow.set_windowtitle(aha | xx titel)\n'
                                        'call MainWindow.set_statusmessage()\n'
                                        "call Page.get_pagetext()\n"
-                                       'call PageGui.set_textarea_contents(text)\n'
-                                       'call PageGui.set_text_readonly(value)\n'
-                                       'call PageGui.enable_toolbar(user)\n'
+                                       'call PageGui.set_textarea_contents(pagetext)\n'
+                                       'call PageGui.set_text_readonly(True)\n'
+                                       'call PageGui.enable_toolbar(False)\n'
                                        'call PageGui.get_textarea_contents()\n'
                                        'call PageGui.move_cursor_to_end()\n')
     # pagedata = types.SimpleNamespace(id='xx', titel="titel", over='over', arch=True)
@@ -359,6 +355,8 @@ def test_page_vulp(monkeypatch, capsys):
     #                                   pagedata=pagedata, count=lambda *x: 6)
     # assert capsys.readouterr().out == 'called MainWindow.__init__()\n'
     testobj = main.Page(mock_book, 'pageno')
+    assert capsys.readouterr().out == ('called Page.__init__()\n'
+                                       'called PageGui.__init__() with args () {}\n')
     testobj.seltitel = 'hallo'
     monkeypatch.setattr(testobj.parent, 'count', lambda *x: 3)
     testobj.parent.parent.title = ''
@@ -367,10 +365,7 @@ def test_page_vulp(monkeypatch, capsys):
     testobj.parent.newitem = False
     testobj.parent.parent.use_separate_subject = True
     testobj.vulp()
-    assert capsys.readouterr().out == ('called Page.__init__()\n'
-                                       'called PageGui.__init__() with args () {}\n'
-                                       'call MainWindow.enable_settingsmenu()\n'
-                                       'call Page.enable_buttons(False)\n'
+    assert capsys.readouterr().out == ('call Page.enable_buttons(False)\n'
                                        'call MainWindow.set_windowtitle(xx over - titel)\n'
                                        'call MainWindow.set_statusmessage()\n')
 
@@ -516,31 +511,28 @@ def test_page_leavep(monkeypatch, capsys):
     testobj.oldbuf = ['x']
     testobj.parent.changed_item = False
     assert testobj.leavep()
-    assert capsys.readouterr().out == 'called PageGui.build_newbuf()\n'
+    assert capsys.readouterr().out == ''
 
     testobj.parent.changed_item = True
     monkeypatch.setattr(main.gui, 'ask_cancel_question', mock_ask_question)
     monkeypatch.setattr(testobj, 'savep', lambda *x: True)
     assert testobj.leavep()
-    assert capsys.readouterr().out == ('called PageGui.build_newbuf()\n'
-                                       'called gui.ask_cancel_question with arg '
-                                       '`De gegevens op de pagina zijn gewijzigd, \n'
+    assert capsys.readouterr().out == ('called gui.ask_cancel_question with arg '
+                                       '`De gegevens op de pagina zijn gewijzigd,\n'
                                        'wilt u de wijzigingen opslaan voordat u verder gaat?`\n'
                                        'called MainGui.enable_all_other_tabs() with arg `True`\n')
 
     monkeypatch.setattr(main.gui, 'ask_cancel_question', mock_ask_question_no)
     assert testobj.leavep()
-    assert capsys.readouterr().out == ('called PageGui.build_newbuf()\n'
-                                       'called gui.ask_cancel_question with arg '
-                                       '`De gegevens op de pagina zijn gewijzigd, \n'
+    assert capsys.readouterr().out == ('called gui.ask_cancel_question with arg '
+                                       '`De gegevens op de pagina zijn gewijzigd,\n'
                                        'wilt u de wijzigingen opslaan voordat u verder gaat?`\n'
                                        'called MainGui.enable_all_other_tabs() with arg `True`\n')
 
     monkeypatch.setattr(main.gui, 'ask_cancel_question', mock_ask_question_cancel)
     assert not testobj.leavep()
-    assert capsys.readouterr().out == ('called PageGui.build_newbuf()\n'
-                                       'called gui.ask_cancel_question with arg '
-                                       '`De gegevens op de pagina zijn gewijzigd, \n'
+    assert capsys.readouterr().out == ('called gui.ask_cancel_question with arg '
+                                       '`De gegevens op de pagina zijn gewijzigd,\n'
                                        'wilt u de wijzigingen opslaan voordat u verder gaat?`\n')
 
 def test_page_savep(monkeypatch, capsys):
@@ -555,7 +547,7 @@ def test_page_savep(monkeypatch, capsys):
     def mock_enable_buttons(self, value):
         print(f'called Page.enable_buttons({value})')
     def mock_update_actie(self):
-        print(f'called Page.update_actie()')
+        print('called Page.update_actie()')
     monkeypatch.setattr(main.Page, '__init__', mock_init_page)
     monkeypatch.setattr(main.Page, 'enable_buttons', mock_enable_buttons)
     monkeypatch.setattr(main.Page, 'update_actie', mock_update_actie)
@@ -792,7 +784,8 @@ def test_page_update_actie(monkeypatch, capsys):
     assert capsys.readouterr().out == ('called Page.__init__()\n'
                                        'called PageGui.__init__() with args () {}\n')
 
-    testobj.parent.parent.imagecount = 9
+    image_count = 9
+    testobj.parent.parent.imagecount = image_count
     testobj.parent.parent.imagelist = ['image', 'list']
     testobj.parent.pagedata.status = '0'
     testobj.parent.stats = {0: ('Started', '0'), 1: ('Accepted', '1')}
@@ -804,7 +797,7 @@ def test_page_update_actie(monkeypatch, capsys):
     testobj.parent.pages = [MockPage0(), MockPage1()]
 
     testobj.update_actie()
-    assert testobj.parent.pagedata.imagecount == 9
+    assert testobj.parent.pagedata.imagecount == image_count
     assert testobj.parent.pagedata.imagelist == ['image', 'list']
     assert testobj.parent.data == {0: ('date', 'proc - desc', 's', 'c', 'id')}
     assert testobj.parent.current_item == 'new listitem'
@@ -821,7 +814,7 @@ def test_page_update_actie(monkeypatch, capsys):
                                        "called Page0Gui.add_listitem() with args ('date',)\n"
                                        'called Page0Gui.set_selection() with args ()\n')
 
-    testobj.parent.parent.imagecount = 9
+    testobj.parent.parent.imagecount = image_count
     testobj.parent.parent.imagelist = ['image', 'list']
     testobj.parent.pagedata.status = '1'
     testobj.parent.parent.use_text_panels = True
@@ -832,7 +825,7 @@ def test_page_update_actie(monkeypatch, capsys):
     testobj.parent.parent.use_separate_subject = False
 
     testobj.update_actie()
-    assert testobj.parent.pagedata.imagecount == 9
+    assert testobj.parent.pagedata.imagecount == image_count
     assert testobj.parent.pagedata.imagelist == ['image', 'list']
     assert capsys.readouterr().out == (
                         "called Actie.write() with args ('my_user',)\n"
@@ -844,7 +837,7 @@ def test_page_update_actie(monkeypatch, capsys):
                         "called Page0Gui.set_item_text() with args ('selection', 4, 'title')\n")
 
 
-    testobj.parent.parent.imagecount = 9
+    testobj.parent.parent.imagecount = image_count
     testobj.parent.parent.imagelist = ['image', 'list']
     testobj.parent.pagedata.status = '0'
     testobj.parent.parent.use_text_panels = True
@@ -855,7 +848,7 @@ def test_page_update_actie(monkeypatch, capsys):
     testobj.parent.parent.use_separate_subject = True
 
     testobj.update_actie()
-    assert testobj.parent.pagedata.imagecount == 9
+    assert testobj.parent.pagedata.imagecount == image_count
     assert testobj.parent.pagedata.imagelist == ['image', 'list']
     assert capsys.readouterr().out == (
                         'called Actie.add_event() for `Status gewijzigd in "Accepted"`\n'
@@ -1410,7 +1403,7 @@ def test_page0_archiveer(monkeypatch, capsys):
     testobj.sel_args = {}
     testobj.parent.pagedata.arch = False
     testobj.archiveer()
-    assert testobj.parent.pagedata.arch == True
+    assert testobj.parent.pagedata.arch
     assert capsys.readouterr().out == ('called PageGui.get_selected_action()\n'
                                        'called Page0.readp() using arch `1`\n'
                                        "called Actie.add_event() with args ('Actie gearchiveerd',)\n"
@@ -1418,7 +1411,7 @@ def test_page0_archiveer(monkeypatch, capsys):
                                        'called Page0.vulp()\n'
                                        'called MainGui.set_tabfocus(0)\n')
     testobj.archiveer()
-    assert testobj.parent.pagedata.arch == False
+    assert not testobj.parent.pagedata.arch
     assert capsys.readouterr().out == ('called PageGui.get_selected_action()\n'
                                        'called Page0.readp() using arch `1`\n'
                                        "called Actie.add_event() with args ('Actie herleefd',)\n"
@@ -1428,7 +1421,7 @@ def test_page0_archiveer(monkeypatch, capsys):
     testobj.sel_args = {'arch': 'alles'}
     testobj.parent.pagedata.arch = False
     testobj.archiveer()
-    assert testobj.parent.pagedata.arch == True
+    assert testobj.parent.pagedata.arch
     assert capsys.readouterr().out == ('called PageGui.get_selected_action()\n'
                                        'called Page0.readp() using arch `1`\n'
                                        "called Actie.add_event() with args ('Actie gearchiveerd',)\n"
@@ -1438,7 +1431,7 @@ def test_page0_archiveer(monkeypatch, capsys):
                                        'called PageGui.ensure_visible(`x`)\n'
                                        'called PageGui.set_archive_button_text(`&Herleef`)\n')
     testobj.archiveer()
-    assert testobj.parent.pagedata.arch == False
+    assert not testobj.parent.pagedata.arch
     assert capsys.readouterr().out == ('called PageGui.get_selected_action()\n'
                                        'called Page0.readp() using arch `1`\n'
                                        "called Actie.add_event() with args ('Actie herleefd',)\n"
@@ -1797,7 +1790,7 @@ def test_page6_init(monkeypatch, capsys):
     assert testobj.oldtext == ""
     assert (testobj.event_list, testobj.event_data, testobj.old_list, testobj.old_data) == (
             [], [], [], [])
-    assert testobj.status_auto_changed == False
+    assert not testobj.status_auto_changed
     assert hasattr(testobj, 'gui')
     assert capsys.readouterr().out == ("called PageGui.__init__() with args"
                                        f" ('parent', {testobj}) {{}}\n")
@@ -2146,7 +2139,7 @@ def test_taboptions_initstuff():
     assert testobj.tekst == ["De tab titels worden getoond in de volgorde",
                              "zoals ze van links naar rechts staan.",
                              "Er kunnen geen tabs worden verwijderd of toegevoegd."]
-    assert testobj.editable == False
+    assert not testobj.editable
 
 def test_taboptions_leesuit(capsys):
     testobj = main.TabOptions()
@@ -2168,7 +2161,7 @@ def test_statoptions_initstuff():
                              "Denk erom dat als je codes wijzigt of statussen verwijdert, deze",
                              "ook niet meer getoond en gebruikt kunnen worden in de registratie.",
                              "Omschrijvingen kun je rustig aanpassen"]
-    assert testobj.editable == True
+    assert testobj.editable
 
 def test_statoptions_leesuit(capsys):
     testobj = main.StatOptions()
@@ -2191,7 +2184,7 @@ def test_catoptions_initstuff():
                              "Denk erom dat als je codes wijzigt of soorten verwijdert, deze",
                              "ook niet meer getoond en gebruikt kunnen worden in de registratie.",
                              "Omschrijvingen kun je rustig aanpassen"]
-    assert testobj.editable == True
+    assert testobj.editable
 
 def test_catoptions_leesuit(capsys):
     testobj = main.CatOptions()
@@ -2260,6 +2253,7 @@ def test_mainwindow_init(monkeypatch, capsys):
     assert capsys.readouterr().out == ('called MainGui.__init__()\n'
                                        'called.MainWindow.create_book()\n'
                                        'called MainGui.create_menu()\n'
+                                       'called MainGui.enable_settingsmenu()\n'
                                        'called MainGui.create_actions()\n'
                                        'called.MainWindow.create_book_pages()\n'
                                        'called.MainWindow.open_xml()\n')
@@ -2278,6 +2272,7 @@ def test_mainwindow_init(monkeypatch, capsys):
     assert capsys.readouterr().out == ('called MainGui.__init__()\n'
                                        'called.MainWindow.create_book()\n'
                                        'called MainGui.create_menu()\n'
+                                       'called MainGui.enable_settingsmenu()\n'
                                        'called MainGui.create_actions()\n'
                                        'called.MainWindow.create_book_pages()\n'
                                        'called.MainWindow.startfile()\n')
@@ -2296,6 +2291,7 @@ def test_mainwindow_init(monkeypatch, capsys):
     assert capsys.readouterr().out == ('called MainGui.__init__()\n'
                                        'called.MainWindow.create_book()\n'
                                        'called MainGui.create_menu()\n'
+                                       'called MainGui.enable_settingsmenu()\n'
                                        'called MainGui.create_actions()\n'
                                        'called.MainWindow.create_book_pages()\n'
                                        'called.MainWindow.open_sql() with arg True\n')
@@ -2314,6 +2310,7 @@ def test_mainwindow_init(monkeypatch, capsys):
     assert capsys.readouterr().out == ('called MainGui.__init__()\n'
                                        'called.MainWindow.create_book()\n'
                                        'called MainGui.create_menu()\n'
+                                       'called MainGui.enable_settingsmenu()\n'
                                        'called MainGui.create_actions()\n'
                                        'called.MainWindow.create_book_pages()\n'
                                        'called.MainWindow.open_mongo()\n')
@@ -2634,7 +2631,7 @@ def test_mainwindow_new_file(monkeypatch, capsys):
     def mock_enable_all_book_tabs(self, state):
         print(f'called MainWindow.enable_all_book_tabs({state})')
     def mock_startfile(self):
-        print(f'called MainWindow.startfile()')
+        print('called MainWindow.startfile()')
     monkeypatch.setattr(main.MainWindow, '__init__', mock_init_mainwindow)
     monkeypatch.setattr(main.gui, 'show_message', mock_show_message)
     monkeypatch.setattr(main.gui, 'get_save_filename', mock_get_save_filename)
@@ -3051,6 +3048,7 @@ def test_mainwindow_sign_in(monkeypatch, capsys):
                                        'called gui.show_dialog() (for login dialog)\n'
                                        'called dmls.validate_user()\n'
                                        'called gui.show_message(`Login accepted`)\n'
+                                       'called MainGui.enable_settingsmenu()\n'
                                        'called MainGui.refresh_page()\n')
 
 def test_mainwindow_tab_settings(monkeypatch, capsys):

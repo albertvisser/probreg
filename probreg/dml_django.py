@@ -151,9 +151,7 @@ class SelectOptions:
         data = {"arch": 0, "gewijzigd": [], "nummer": [],
                 "soort": [], "status": [], "titel": []}
         for sel in self.project.selections.filter(user=self.user):
-            if sel.veldnm == "soort":
-                data[sel.veldnm].append(sel.value)
-            elif sel.veldnm == "status":
+            if sel.veldnm in ("soort", "status"):
                 data[sel.veldnm].append(sel.value)
             elif sel.veldnm == "arch":
                 data[sel.veldnm] += 1

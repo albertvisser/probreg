@@ -1,6 +1,6 @@
 import pytest
 import datetime
-import probreg.shared as shared
+from probreg import shared
 
 FIXDATE = datetime.datetime(2020, 1, 1)
 

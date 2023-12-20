@@ -57,7 +57,7 @@ def listdate2dbdate(datestring):
         return datestring  # assume already converted
 
 
-class Page():
+class Page:
     "base class for notebook page"
     def __init__(self, parent, pageno, standard=True):
         self.parent = parent
@@ -189,10 +189,10 @@ class Page():
 
     def leavep(self):
         "afsluitende acties uit te voeren alvorens de pagina te verlaten"
-        newbuf = []
-        if self.parent.current_tab > 0:
-            newbuf = self.oldbuf
-            newbuf = self.gui.build_newbuf()
+        # newbuf = []                     # wordt nu via on_text methode bijgouden in changed_item?
+        # if self.parent.current_tab > 0:
+        #     newbuf = self.oldbuf
+        #     newbuf = self.gui.build_newbuf()
         ok_to_leave = True
         if self.parent.current_tab == 0:
             if self.parent.parent.exiting:
@@ -219,8 +219,8 @@ class Page():
             if not ok_to_leave:
                 gui.show_message(self.parent, msg, "Navigatie niet toegestaan")
         elif self.parent.changed_item:
-            message = "\n".join(("De gegevens op de pagina zijn gewijzigd, ",
-                                 "wilt u de wijzigingen opslaan voordat u verder gaat?"))
+            message = ("De gegevens op de pagina zijn gewijzigd,\n"
+                       "wilt u de wijzigingen opslaan voordat u verder gaat?")
             ok, cancel = gui.ask_cancel_question(self.gui, message)
             if ok:
                 ok_to_leave = self.savep()
@@ -301,11 +301,11 @@ class Page():
         self.parent.pagedata.imagelist = self.parent.parent.imagelist
         # aangenomen dat "gemeld" altijd "0" zal blijven en de eerstvolgende status "1"
         # if self.parent.current_tab >= 3 and self.parent.pagedata.status == '0':
-        if self.parent.pagedata.status == '0':
-            if self.parent.parent.use_text_panels and self.parent.current_tab >= 3:
-                self.parent.pagedata.status = '1'
-                sel = [y for x, y in self.parent.stats.items() if y[1] == '1'][0]
-                self.parent.pagedata.add_event(f'Status gewijzigd in "{sel[0]}"')
+        if (self.parent.pagedata.status == '0' and
+                self.parent.parent.use_text_panels and self.parent.current_tab >= 3):
+            self.parent.pagedata.status = '1'
+            sel = [y for x, y in self.parent.stats.items() if y[1] == '1'][0]
+            self.parent.pagedata.add_event(f'Status gewijzigd in "{sel[0]}"')
 
         if self.parent.parent.work_with_user:
             self.parent.pagedata.write(self.parent.parent.user)
@@ -373,9 +373,8 @@ class Page():
 
     def goto_page(self, page_num, check=True):
         "naar de aangegeven pagina gaan"
-        if not check or self.leavep():
-            if 0 <= page_num < len(self.parent.pages):
-                self.parent.parent.gui.set_page(page_num)
+        if (not check or self.leavep()) and 0 <= page_num < len(self.parent.pages):
+            self.parent.parent.gui.set_page(page_num)
 
     def get_textarea_contents(self):
         "get the page text"
@@ -642,15 +641,14 @@ class Page1(Page):
             if self.parent.parent.use_separate_subject:
                 self.gui.set_text('proc', self.parent.pagedata.over)
                 self.gui.set_text('desc', self.parent.pagedata.titel)
-            else:
-                if self.parent.pagedata.titel is not None:
-                    if " - " in self.parent.pagedata.titel:
-                        hlp = self.parent.pagedata.titel.split(" - ", 1)
-                    else:
-                        hlp = self.parent.pagedata.titel.split(": ", 1)
-                    self.gui.set_text('proc', hlp[0])
-                    if len(hlp) > 1:
-                        self.gui.set_text('desc', hlp[1])
+            elif self.parent.pagedata.titel is not None:
+                if " - " in self.parent.pagedata.titel:
+                    hlp = self.parent.pagedata.titel.split(" - ", 1)
+                else:
+                    hlp = self.parent.pagedata.titel.split(": ", 1)
+                self.gui.set_text('proc', hlp[0])
+                if len(hlp) > 1:
+                    self.gui.set_text('desc', hlp[1])
             self.gui.set_choice(self.parent.stats, self.gui.stat_choice, self.parent.pagedata.status)
             self.gui.set_choice(self.parent.cats, self.gui.cat_choice, self.parent.pagedata.soort)
             if not self.parent.parent.use_text_panels:
@@ -696,7 +694,7 @@ class Page1(Page):
             gui.show_message(self.gui, "Beide tekstrubrieken moeten worden ingevuld")
             return False
         wijzig = False
-        procdesc = " - ".join((proc, desc))
+        procdesc = f"{proc} - {desc}"
         if procdesc != self.parent.pagedata.titel:
             if self.parent.parent.use_separate_subject:
                 self.parent.pagedata.over = proc
@@ -810,8 +808,9 @@ class Page6(Page):
             self.event_data[idx] = hlp
             self.oldtext = hlp
             short_text = hlp.split("\n", 1)[0]
-            if len(short_text) < 80:
-                short_text = short_text[:80] + "..."
+            maxlen = 80
+            if len(short_text) < maxlen:
+                short_text = short_text[:maxlen] + "..."
             self.gui.set_listitem_text(idx + 1, f"{self.event_list[idx]} - {short_text}")
             self.gui.set_listitem_data(idx + 1)
         wijzig = False
@@ -878,8 +877,9 @@ class Page6(Page):
                 # datum = str(item.text()).split(' - ')[0]
                 datum = self.gui.get_listitem_text(self.current_item).split(' - ')[0]
                 short_text = ' - '.join((datum, tekst_plat.split("\n")[0]))
-                if len(short_text) >= 80:
-                    short_text = short_text[:80] + "..."
+                maxlen = 80
+                if len(short_text) >= maxlen:
+                    short_text = short_text[:maxlen] + "..."
                 # item.setText(short_text)
                 self.gui.set_listitem_text(self.current_item, short_text)
 
@@ -887,16 +887,16 @@ class Page6(Page):
         "set up entering new event in GUI"
         if not self.parent.parent.is_user:
             return
-        if self.parent.pagedata.status == '0':
-            if ((self.parent.parent.use_text_panels and self.parent.current_tab >= 3)
-                    or (not self.parent.parent.use_text_panels and self.parent.current_tab == 2)):
-                self.parent.pagedata.status = '1'
-                self.status_auto_changed = True
-                sel = [y for x, y in self.parent.stats.items() if y[1] == '1'][0]
-                datum, oldtext = shared.get_dts(), f'Status gewijzigd in "{sel[0]}"'
-                self.gui.add_new_item_to_list(datum, oldtext)
-                self.event_list.insert(0, datum)
-                self.event_data.insert(0, oldtext)
+        if (self.parent.pagedata.status == '0' and
+                ((self.parent.parent.use_text_panels and self.parent.current_tab >= 3) or
+                 (not self.parent.parent.use_text_panels and self.parent.current_tab == 2))):
+            self.parent.pagedata.status = '1'
+            self.status_auto_changed = True
+            sel = [y for x, y in self.parent.stats.items() if y[1] == '1'][0]
+            datum, oldtext = shared.get_dts(), f'Status gewijzigd in "{sel[0]}"'
+            self.gui.add_new_item_to_list(datum, oldtext)
+            self.event_list.insert(0, datum)
+            self.event_data.insert(0, oldtext)
         datum, oldtext = shared.get_dts(), ''
         self.event_list.insert(0, datum)
         self.event_data.insert(0, oldtext)
@@ -933,7 +933,7 @@ class StatOptions:
         "aanvullende initialisatie"
         self.titel = "Status codes en waarden"
         statitems = []
-        for row_id in parent.master.book.stats.keys():
+        for row_id in parent.master.book.stats:
             item_text, item_value = parent.master.book.stats[row_id]
             statitems.append((row_id, item_value, item_text))
         self.data = [': '.join((str(y), z)) for x, y, z in sorted(statitems)]
@@ -964,7 +964,7 @@ class CatOptions:
         "aanvullende initialisatie"
         self.titel = "Soort codes en waarden"
         catitems = []
-        for row_id in parent.master.book.cats.keys():
+        for row_id in parent.master.book.cats:
             item_text, item_value = parent.master.book.cats[row_id]
             catitems.append((row_id, item_value, item_text))
         self.data = [': '.join((str(y), z)) for x, y, z in sorted(catitems)]
@@ -989,7 +989,7 @@ class CatOptions:
         return ''
 
 
-class MainWindow():
+class MainWindow:
     """Hoofdscherm met menu, statusbalk, notebook en een "quit" button"""
     def __init__(self, parent, fnaam=""):
         self.parent = parent
@@ -1282,7 +1282,7 @@ class MainWindow():
             events = []
             for idx, data in enumerate(self.book.pages[6].event_list):
                 # if self.datatype == shared.DataType.SQL:
-                if len(data) > 18:
+                if len(data) >= len('eejj-mm-dd hh:mm:ss'):
                     data = data[:19]
                 events.append((data, self.book.pages[6].event_data[idx]))
             self.printdict['events'] = events
@@ -1570,10 +1570,7 @@ class MainWindow():
                 msg += f' - {len(self.book.data)} items'
         self.gui.set_statusmessage(msg)
         if self.work_with_user:
-            if self.user:
-                msg = f'Aangemeld als {self.user.username}'
-            else:
-                msg = 'Niet aangemeld'
+            msg = f'Aangemeld als {self.user.username}' if self.user else 'Niet aangemeld'
             self.gui.show_username(msg)
 
     def get_focus_widget_for_tab(self, tabno):

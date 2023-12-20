@@ -1,4 +1,3 @@
-import pathlib
 import pytest
 import probreg.dml_xml as dml
 
@@ -44,15 +43,15 @@ def get_acties_fixture(tmp_path):
     titel = dml.SubElement(actie, 'titel')
     # titel.text = 'Iets heel anders'
     titel.text = ''
-    tree = dml.ElementTree(testroot).write(str(testfilepath))
+    dml.ElementTree(testroot).write(str(testfilepath))
     return testfilepath
 
 
 @pytest.fixture
-def settings_fixture():
+def settings_fixture(tmp_path):
     """creates sample Settings object for read unittest via class, so we have options
     """
-    yield SettingsFixture()
+    yield SettingsFixture(tmp_path)
 
 
 class SettingsFixture:
@@ -73,7 +72,7 @@ class SettingsFixture:
     def justsett(self):
         "create XML in memory: root and settings element"
         self.root = dml.Element('acties')
-        sett = dml.SubElement(self.root, 'settings')
+        dml.SubElement(self.root, 'settings')
         return self.finish()
 
     def toplevels(self):
@@ -82,9 +81,9 @@ class SettingsFixture:
         sett = dml.SubElement(self.root, 'settings')
         sett.set('imagecount', '5')
         sett.set('startitem', '15')
-        stats = dml.SubElement(sett, 'stats')
-        cats = dml.SubElement(sett, 'cats')
-        headings = dml.SubElement(sett, 'koppen')
+        dml.SubElement(sett, 'stats')
+        dml.SubElement(sett, 'cats')
+        dml.SubElement(sett, 'koppen')
         return self.finish()
 
     def all_levels(self):
@@ -113,7 +112,7 @@ class SettingsFixture:
     def finish(self):
         """write the XML to a file and create & return the Settings structure
         """
-        tree = dml.ElementTree(self.root).write(str(self.path))
+        dml.ElementTree(self.root).write(str(self.path))
         # return dml.Settings(self.path)
         return self.path
 
@@ -226,10 +225,10 @@ def settings_output():
 
 
 @pytest.fixture
-def actie_fixture():
+def actie_fixture(tmp_path):
     """creates sample Actie object for read unittest via class, so we have options
     """
-    yield ActieFixture()
+    yield ActieFixture(tmp_path)
 
 
 class ActieFixture:
@@ -249,7 +248,7 @@ class ActieFixture:
 
     def wrongaction(self):
         self.root = dml.Element('acties')
-        actie = dml.SubElement(self.root, 'actie', id='15')
+        dml.SubElement(self.root, 'actie', id='15')
         return self.finish()
 
     def incomplete(self):
@@ -283,7 +282,7 @@ class ActieFixture:
     def finish(self):
         """write the XML to a file and create & return the Actie structure
         """
-        tree = dml.ElementTree(self.root).write(str(self.path))
+        dml.ElementTree(self.root).write(str(self.path))
         # return dml.Actie(self.path)
         return self.path
 

@@ -110,9 +110,11 @@ def test_get_acties(monkeypatch, capsys):
 
     # alles dat er is
     dmlm.get_acties('', arch='alles')
-    assert capsys.readouterr().out == 'called collection.find() for selection {}\n'
+    assert capsys.readouterr().out == ("called collection.find() for selection"
+                                       " {'archived': {'$in': [True, False]}}\n")
     dmlm.get_acties('', select={}, arch='alles')
-    assert capsys.readouterr().out == 'called collection.find() for selection {}\n'
+    assert capsys.readouterr().out == ("called collection.find() for selection"
+                                       " {'archived': {'$in': [True, False]}}\n")
     # alles dat niet gearchiveerd is
     dmlm.get_acties('', arch='')
     assert capsys.readouterr().out == "called collection.find() for selection {'archived': False}\n"
@@ -138,11 +140,13 @@ def test_settings(monkeypatch, capsys):
     assert testobj.exists
 
 def test_settings_read(monkeypatch, capsys):
+    id_number = 100
+    start_number= 15
     def mock_find_none(self, *args, **kwargs):
         return None
     def mock_find_one(self, *args, **kwargs):
-        return {'_id': 100, 'headings': {0: ('Begin',)}, 'statuses': {0: ('Started', 1)},
-                'categories': {'U': ('Unknown', 1)}, 'imagecount': 1, 'startitem': 15}
+        return {'_id': id_number, 'headings': {0: ('Begin',)}, 'statuses': {0: ('Started', 1)},
+                'categories': {'U': ('Unknown', 1)}, 'imagecount': 1, 'startitem': start_number}
     monkeypatch.setattr(MockColl, 'find_one', mock_find_none)
     monkeypatch.setattr(dmlm, 'coll', MockColl())
     testobj = dmlm.Settings()  # read wordt uitgevoerd tijdens __init__
@@ -157,12 +161,12 @@ def test_settings_read(monkeypatch, capsys):
     monkeypatch.setattr(dmlm, 'coll', MockColl())
     testobj = dmlm.Settings()  # read wordt uitgevoerd tijdens __init__
     assert testobj.exists
-    assert testobj.settings_id == 100
+    assert testobj.settings_id == id_number
     assert testobj.kop == {0: ('Begin',)}
     assert testobj.stat == {0: ('Started', 1)}
     assert testobj.cat == {'U': ('Unknown', 1)}
     assert testobj.imagecount == 1
-    assert testobj.startitem == 15
+    assert testobj.startitem == start_number
 
 def test_settings_write(monkeypatch, capsys):
     def mock_insert_one(self, *args):

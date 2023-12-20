@@ -23,15 +23,17 @@ def show_message(win, message, title=''):
     qtw.QMessageBox.information(win, title, message)
 
 
-def get_open_filename(win, start=pathlib.Path.cwd()):
+def get_open_filename(win, start=None):
     "get the name of a file to open"
+    start = start or pathlib.Path.cwd()
     fname = qtw.QFileDialog.getOpenFileName(win, shared.app_title + " - kies een gegevensbestand",
                                             str(start), xmlfilter)[0]
     return fname
 
 
-def get_save_filename(win, start=pathlib.Path.cwd()):
+def get_save_filename(win, start=None):
     "get the name of a file to save"
+    start = start or pathlib.Path.cwd()
     fname = qtw.QFileDialog.getSaveFileName(win, shared.app_title + " - nieuw gegevensbestand",
                                             str(start), xmlfilter)[0]
     return fname
@@ -56,11 +58,8 @@ def ask_cancel_question(win, message):
 
 def show_dialog(win, cls, args=None):
     "show a dialog and return if the dialog was confirmed / accepted"
-    ok = False
-    if args is not None:
-        ok = cls(win, args).exec_()
-    else:
-        ok = cls(win).exec_()
+    # ok = False
+    ok = cls(win, args).exec_() if args else cls(win).exec_()
     return ok == qtw.QDialog.Accepted
 
 
@@ -252,16 +251,17 @@ class EditorPanel(qtw.QTextEdit):
         "ruimte tussen alinea's instellen"
         if not self.hasFocus():
             return
+        unit = 0.5
         loc = self.textCursor()
         fmt = loc.block().blockFormat()
         top, bottom = fmt.topMargin(), fmt.bottomMargin()
         if more:
-            factor = 0.5
+            factor = unit
         if less:
-            factor = - 0.5
-        if more or (less and top > 0.5):
+            factor = - 1 * unit
+        if more or (less and top > unit):
             fmt.setTopMargin(top + factor * self.currentFont().pointSize())
-        if more or (less and bottom > 0.5):
+        if more or (less and bottom > unit):
             fmt.setBottomMargin(bottom + factor * self.currentFont().pointSize())
         loc.mergeBlockFormat(fmt)
 
@@ -435,10 +435,8 @@ class PageGui(qtw.QFrame):
 
     def reset_font(self):
         "initialize to standard values"
-        if self.master.parent.current_tab == 6:
-            win = self.progress_text
-        else:
-            win = self.text1
+        progress_tab = 6
+        win = self.progress_text if self.master.parent.current_tab == progress_tab else self.text1
         win.setFontWeight(gui.QFont.Normal)
         win.setFontItalic(False)
         win.setFontUnderline(False)
@@ -1057,13 +1055,14 @@ class Page6Gui(PageGui):
         """add an entry to the events list widget (when initializing)
         first convert to HTML (if needed) and back
         """
+        maxlen = 80
         self.progress_text.set_contents(self.master.event_data[idx])
         tekst_plat = self.progress_text.toPlainText()
         try:
             text = tekst_plat.split("\n")[0].strip()
         except AttributeError:
             text = tekst_plat or ""
-        text = text if len(text) < 80 else text[:80] + "..."
+        text = text if len(text) < maxlen else text[:maxlen] + "..."
         newitem = qtw.QListWidgetItem(f'{datum} - {text}')
         newitem.setData(core.Qt.UserRole, idx)
         self.progress_list.addItem(newitem)
@@ -1244,9 +1243,8 @@ class SortOptionsDialog(qtw.QDialog):
             qtw.QMessageBox.information(self, 'Probreg', 'U heeft niets gewijzigd')
             return
         self.parent.master.sort_via_options = via_options
-        if via_options:
-            if self.parent.saved_sortopts:      # alleen SQL versie
-                self.parent.saved_sortopts.save_options(new_sortopts)
+        if via_options and self.parent.saved_sortopts:      # alleen SQL versie
+            self.parent.saved_sortopts.save_options(new_sortopts)
         super().accept()
 
 
@@ -1436,13 +1434,13 @@ class SelectOptionsDialog(qtw.QDialog):
             self.text_lt.setText(sel_args["idlt"])
 
         if "soort" in sel_args:
-            for x in self.parent.parent.cats.keys():
+            for x in self.parent.parent.cats:
                 if self.parent.parent.cats[x][-1] in sel_args["soort"]:
                     self.check_cats.buttons()[int(x)].setChecked(True)
             self.check_options.buttons()[1].setChecked(True)
 
         if "status" in sel_args:
-            for x in self.parent.parent.stats.keys():
+            for x in self.parent.parent.stats:
                 if self.parent.parent.stats[x][-1] in sel_args["status"]:
                     self.check_stats.buttons()[int(x)].setChecked(True)
             self.check_options.buttons()[2].setChecked(True)
@@ -1539,7 +1537,7 @@ class SelectOptionsDialog(qtw.QDialog):
                 elif self.radio_id2.buttons()[1].isChecked():
                     sel_args["titel"].append(("or",))
                 else:
-                    sel_args["titel"].append((""))
+                    sel_args["titel"].append(("",))
                 sel_args["titel"].append(('title', str(self.text_zoek2.text())))
             else:
                 sel_args["titel"] = str(self.text_zoek.text())
@@ -1781,7 +1779,7 @@ class MainGui(qtw.QMainWindow):
             "parse line and create menu item"
             if len(menuitem) == 1:
                 menu.addSeparator()
-            elif len(menuitem) == 4:
+            elif len(menuitem) == len(['caption', 'callback', 'keys', 'tip']):
                 caption, callback, keys, tip = menuitem
                 action = menu.addAction(caption)
                 action.triggered.connect(callback)
@@ -1789,7 +1787,7 @@ class MainGui(qtw.QMainWindow):
                     action.setShortcut(keys)
                 if tip:
                     action.setToolTip(tip)
-            elif len(menuitem) == 2:
+            elif len(menuitem) == len(['title', 'items']):
                 title, items = menuitem
                 sub = menu.addMenu(title)
                 if title == '&Data':
@@ -1856,14 +1854,15 @@ class MainGui(qtw.QMainWindow):
 
         newtabnum wordt door de event meegegeven, maar kan ook geforceerd worden
         """
+        firsttab, lasttab = 0, 6
         old = self.master.book.current_tab
         new = self.master.book.current_tab = self.get_page()
         if LIN and old == -1:  # bij initialisatie en bij afsluiten - op Windows is deze altijd -1?
             return
         self.enable_all_other_tabs(True)
-        if 0 < new < 6:
+        if firsttab < new < lasttab:
             self.master.book.pages[new].vulp()
-        elif new in (0, 6):
+        elif new in (firsttab, lasttab):
             if old == new:
                 item = self.master.book.pages[new].gui.get_list_row()  # remember current item
                 print('in on_page_changing, selection is', item)
@@ -1991,7 +1990,7 @@ class MainGui(qtw.QMainWindow):
 
     def set_tab_titles(self, tabs):
         "(re)build the titles on the tabs"
-        for x in tabs.keys():
+        for x in tabs:
             self.bookwidget.setTabText(x, tabs[x])
 
     def select_first_tab(self):
