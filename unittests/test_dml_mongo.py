@@ -1,3 +1,5 @@
+"""unittests for ./probreg/dml_mongo.py
+"""
 import types
 import datetime
 import pytest
@@ -6,41 +8,71 @@ import probreg.dml_mongo as dmlm
 FIXDATE = datetime.datetime(2020, 1, 1)
 
 class MockDate:
+    """stub for datatime.Date object
+    """
+    @staticmethod
     def today():
+        """stub
+        """
         return types.SimpleNamespace(year=2022)
 
 class MockSettings:
+    """stub for dml_mongo.Settings object
+    """
     def __init__(self, fnaam=''):
         self.imagecount = 1
         self.startitem = 0
     def write(self):
+        """stub
+        """
         print('called Settings.write()')
 
 class MockDatetime:
+    """stub for datetime.datetime object
+    """
     def utcnow(*args):
+        """stub
+        """
         return 'now'
     def today(*args):
+        """stub
+        """
         return FIXDATE
+    @staticmethod
     def now():
+        """stub
+        """
         return FIXDATE
 
 class MockColl:
+    """stub for pymongo.collection.Collection object
+    """
     def find(self, *args, **kwargs):
-        pass  # in testmethode patchen met gewenst resultaat
+        """stub - in testmethode patchen met gewenst resultaat
+        """
 
     def find_one(self, *args, **kwargs):
-        pass  # in testmethode patchen met gewenst resultaat
+        """stub - in testmethode patchen met gewenst resultaat
+        """
 
     def insert_one(self, *args, **kwargs):
-        pass  # in testmethode patchen met gewenst resultaat
+        """stub - in testmethode patchen met gewenst resultaat
+        """
 
     def update_one(self, *args, **kwargs):
-        pass  # in testmethode patchen met gewenst resultaat
+        """stub - in testmethode patchen met gewenst resultaat
+        """
 
-def test_get_nieuwetitel(monkeypatch, capsys):
+def test_get_nieuwetitel(monkeypatch):
+    """unittest for dml_mongo.get_nieuwetitel
+    """
     def mock_find(self, *args, **kwargs):
+        """stub
+        """
         return [{'nummer': 1}, {'nummer': 17}, {'nummer': 5}]
     def mock_find_none(self, *args, **kwargs):
+        """stub
+        """
         return []
     monkeypatch.setattr(dmlm.dt, 'date', MockDate)
     monkeypatch.setattr(MockColl, 'find', mock_find)
@@ -53,7 +85,11 @@ def test_get_nieuwetitel(monkeypatch, capsys):
     assert dmlm.get_nieuwetitel('', 2020) == '2020-0001'
 
 def test_get_acties(monkeypatch, capsys):
+    """unittest for dml_mongo.get_acties
+    """
     def mock_find(self, *args, **kwargs):
+        """stub
+        """
         print('called collection.find() for selection', args[0])
         return []
     monkeypatch.setattr(MockColl, 'find', mock_find)
@@ -126,7 +162,9 @@ def test_get_acties(monkeypatch, capsys):
     dmlm.get_acties('', select={}, arch='arch')
     assert capsys.readouterr().out == "called collection.find() for selection {'archived': True}\n"
 
-def test_settings(monkeypatch, capsys):
+def test_settings(monkeypatch):
+    """unittest for dml_mongo.Settings(.__init__)
+    """
     monkeypatch.setattr(dmlm.Settings, 'read', lambda x: False)
     testobj = dmlm.Settings()
     assert not testobj.exists
@@ -139,12 +177,18 @@ def test_settings(monkeypatch, capsys):
     testobj = dmlm.Settings()
     assert testobj.exists
 
-def test_settings_read(monkeypatch, capsys):
+def test_settings_read(monkeypatch):
+    """unittest for dml_mongo.Settings.read
+    """
     id_number = 100
-    start_number= 15
+    start_number = 15
     def mock_find_none(self, *args, **kwargs):
+        """stub
+        """
         return None
     def mock_find_one(self, *args, **kwargs):
+        """stub
+        """
         return {'_id': id_number, 'headings': {0: ('Begin',)}, 'statuses': {0: ('Started', 1)},
                 'categories': {'U': ('Unknown', 1)}, 'imagecount': 1, 'startitem': start_number}
     monkeypatch.setattr(MockColl, 'find_one', mock_find_none)
@@ -169,10 +213,16 @@ def test_settings_read(monkeypatch, capsys):
     assert testobj.startitem == start_number
 
 def test_settings_write(monkeypatch, capsys):
+    """unittest for dml_mongo.Settings.write
+    """
     def mock_insert_one(self, *args):
+        """stub
+        """
         print('called coll.insert_one() with args', args)
         return types.SimpleNamespace(inserted_id=5)
     def mock_update_one(self, *args):
+        """stub
+        """
         print('called coll.update_one() with args', args)
     monkeypatch.setattr(MockColl, 'insert_one', mock_insert_one)
     monkeypatch.setattr(MockColl, 'update_one', mock_update_one)
@@ -217,9 +267,15 @@ def test_settings_write(monkeypatch, capsys):
         "called coll.update_one() with args ({'_id': 10}, {'$set': {'startitem': 9}})\n")
 
 def test_actie(monkeypatch, capsys):
+    """unittest for dml_mongo.actie
+    """
     def mock_nieuw(*args):
+        """stub
+        """
         print('called Actie.nieuw()')
     def mock_read(*args):
+        """stub
+        """
         print('called Actie.read()')
     monkeypatch.setattr(dmlm, 'Settings', MockSettings)
     monkeypatch.setattr(dmlm.Actie, 'read', mock_read)
@@ -241,7 +297,9 @@ def test_actie(monkeypatch, capsys):
     assert testobj.melding == ''
     assert capsys.readouterr().out == 'called Actie.read()\n'
 
-def test_actie_nieuw(monkeypatch, capsys):
+def test_actie_nieuw(monkeypatch):
+    """unittest for dml_mongo.Actie.nieuw
+    """
     monkeypatch.setattr(dmlm.dt, 'datetime', MockDatetime)
     monkeypatch.setattr(dmlm, 'Settings', MockSettings)
     monkeypatch.setattr(dmlm, 'get_nieuwetitel', lambda y, x: str(x) + '-0001')
@@ -250,13 +308,19 @@ def test_actie_nieuw(monkeypatch, capsys):
     assert testobj.datum == '2020-01-01 00:00:00'
     assert not testobj.arch
 
-def test_actie_read(monkeypatch, capsys):
+def test_actie_read(monkeypatch):
+    """unittest for dml_mongo.Actie.read
+    """
     def mock_find_one(self, *args, **kwargs):
+        """stub
+        """
         return {'_id': 100, 'jaar': '2020', 'nummer': '0001', 'gemeld': 'vandaag', 'status': 0,
                 'soort': 'A', 'bijgewerkt': 'ook vandaag', 'onderwerp': 'it', 'titel': 'whatever',
                 'melding': 'dit', 'archived': True,
                 'events': [('zonet', 'iets'), ('straks', 'nog iets')]}
     def mock_find_none(self, *args, **kwargs):
+        """stub
+        """
         return None
     monkeypatch.setattr(dmlm, 'Settings', MockSettings)
     monkeypatch.setattr(MockColl, 'find_one', mock_find_one)
@@ -279,14 +343,24 @@ def test_actie_read(monkeypatch, capsys):
     assert str(excinfo.value) == 'Actie object does not exist'
 
 def test_actie_write(monkeypatch, capsys):
+    """unittest for dml_mongo.Actie.write
+    """
     def mock_nieuw(*args):
+        """stub
+        """
         print('called Actie.nieuw()')
     def mock_read(*args):
+        """stub
+        """
         print('called Actie.read()')
     def mock_insert_one(self, *args):
+        """stub
+        """
         print('called coll.insert_one() with args', args)
         return types.SimpleNamespace(inserted_id='5')
     def mock_update_one(self, *args):
+        """stub
+        """
         print('called coll.update_one() with args', args)
     monkeypatch.setattr(dmlm.dt, 'datetime', MockDatetime)
     monkeypatch.setattr(dmlm, 'Settings', MockSettings)
@@ -339,7 +413,11 @@ def test_actie_write(monkeypatch, capsys):
         " 'events': [('zonet', 'iets'), ('straks', 'nog iets')]}})\n")
 
 def test_actie_get_statustext(monkeypatch, capsys):
+    """unittest for dml_mongo.Actie.get_statustext
+    """
     def mock_read(*args):
+        """stub
+        """
         print('called Actie.read()')
     monkeypatch.setattr(dmlm, 'Settings', MockSettings)
     monkeypatch.setattr(dmlm.Actie, 'read', mock_read)
@@ -354,7 +432,11 @@ def test_actie_get_statustext(monkeypatch, capsys):
     assert str(excinfo.value) == 'Geen tekst gevonden bij statuscode 1'
 
 def test_actie_get_soorttext(monkeypatch, capsys):
+    """unittest for dml_mongo.Actie.get_soorttext
+    """
     def mock_read(*args):
+        """stub
+        """
         print('called Actie.read()')
     monkeypatch.setattr(dmlm, 'Settings', MockSettings)
     monkeypatch.setattr(dmlm.Actie, 'read', mock_read)
@@ -369,7 +451,11 @@ def test_actie_get_soorttext(monkeypatch, capsys):
     assert str(excinfo.value) == 'Geen tekst gevonden bij soortcode Q'
 
 def test_actie_add_event(monkeypatch, capsys):
+    """unittest for dml_mongo.Actie.add_event
+    """
     def mock_read(*args):
+        """stub
+        """
         print('called Actie.read()')
     monkeypatch.setattr(dmlm.dt, 'datetime', MockDatetime)
     monkeypatch.setattr(dmlm, 'Settings', MockSettings)
@@ -377,13 +463,19 @@ def test_actie_add_event(monkeypatch, capsys):
     testobj = dmlm.Actie('', 'x')
     assert testobj.events == []
     testobj.add_event('some text')
-    assert testobj.events == [('01-01-2020 00:12:00' , 'some text')]
+    assert testobj.events == [('01-01-2020 00:12:00', 'some text')]
     assert capsys.readouterr().out == 'called Actie.read()\n'
 
 def test_actie_cleanup(monkeypatch, capsys):
+    """unittest for dml_mongo.Actie.cleanup
+    """
     def mock_read(*args):
+        """stub
+        """
         print('called Actie.read()')
     def mock_remove(*args):
+        """stub
+        """
         print('called os.remove() with args', args)
     monkeypatch.setattr(dmlm.os, 'remove', mock_remove)
     monkeypatch.setattr(dmlm, 'Settings', MockSettings)

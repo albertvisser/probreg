@@ -1,3 +1,5 @@
+"""fixture functions for unittests/dml_xml.py
+"""
 import pytest
 import probreg.dml_xml as dml
 
@@ -265,18 +267,18 @@ class ActieFixture:
 
     def complete(self):
         self.root = dml.Element('acties')
-        actie = dml.SubElement(self.root, 'actie', id='1', datum = 'x', status='1', soort='P',
+        actie = dml.SubElement(self.root, 'actie', id='1', datum='x', status='1', soort='P',
                                arch='arch', updated='y')
-        dml.SubElement(actie, 'titel').text='Dit'
-        dml.SubElement(actie, 'melding').text='Dat'
-        dml.SubElement(actie, 'oorzaak').text='Iets'
-        dml.SubElement(actie, 'oplossing').text='Iets anders'
-        dml.SubElement(actie, 'vervolg').text='Nog iets'
+        dml.SubElement(actie, 'titel').text = 'Dit'
+        dml.SubElement(actie, 'melding').text = 'Dat'
+        dml.SubElement(actie, 'oorzaak').text = 'Iets'
+        dml.SubElement(actie, 'oplossing').text = 'Iets anders'
+        dml.SubElement(actie, 'vervolg').text = 'Nog iets'
         ev = dml.SubElement(actie, 'events')
-        dml.SubElement(ev, 'event', id='now').text='hello'
-        dml.SubElement(ev, 'event', id='then').text='sailor'
+        dml.SubElement(ev, 'event', id='now').text = 'hello'
+        dml.SubElement(ev, 'event', id='then').text = 'sailor'
         im = dml.SubElement(actie, 'images')
-        dml.SubElement(im, 'image', filename='/tmp/x.img').text='"stuffing"'
+        dml.SubElement(im, 'image', filename='/tmp/x.img').text = '"stuffing"'
         return self.finish()
 
     def finish(self):

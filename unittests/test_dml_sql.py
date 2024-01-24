@@ -1,3 +1,5 @@
+"""unittests for ./probreg/@@@.py
+"""
 """Unit tests for SQL dml
 """
 import sys
@@ -7,6 +9,8 @@ import pytest
 # import probreg.dml_sql as dml
 
 def list(self):
+    """stub
+    """
     "uitlijsten gegevens van actie object"
     print(self.soort, self.status)
     pp.pprint(self.settings.__dict__)
@@ -28,6 +32,8 @@ def list(self):
 
 
 def _test_get_acties(fnaam, op1, op2):
+    """unittest for @@@.get_acties
+    """
     "test routine"
     logger.info('test get_acties voor {} {} {}'.format(fnaam, op1, op2))
     h = get_acties(fnaam, op1, op2)
@@ -39,6 +45,8 @@ def _test_get_acties(fnaam, op1, op2):
 
 
 def _test_settings(fnaam=None, obj=None):
+    """unittest for @@@.settings
+    """
     "test routine"
     if fnaam is not None:
         logger.info('test settings voor {}'.format(fnaam))
@@ -58,6 +66,8 @@ def _test_settings(fnaam=None, obj=None):
 
 
 def _test_wijzigsettings(item, soort, key, tekst, waarde, data=None, update=False):
+    """unittest for @@@.wijzigsettings
+    """
     logger.info('test wijzigsettings voor {} {} {} {} {} {} {}'.format(
         item, soort, key, tekst, waarde, data, update))
     h = item
@@ -74,6 +84,8 @@ def _test_wijzigsettings(item, soort, key, tekst, waarde, data=None, update=Fals
 
 
 def _test_actie(fnaam="", id='', obj=None):
+    """unittest for @@@.actie
+    """
     "test routine"
     logger.info('test actie voor file {} id {} obj {}'.format(fnaam, id, obj))
     if obj:
@@ -92,6 +104,8 @@ def _test_actie(fnaam="", id='', obj=None):
 
 
 def _test_wijzig_actie(obj, soort, data, update=False):
+    """unittest for @@@.wijzig_actie
+    """
     p = obj
     if soort == 'over':
         p.over = data

@@ -1,4 +1,4 @@
-"""Unit tests for XML dml
+"""unittests for ./probreg/dml_xml.py
 """
 import os
 import types
@@ -12,59 +12,95 @@ from unittests.dml_xml_fixtures import (get_acties_fixture, settings_fixture, se
 FIXDATE = datetime.datetime(2020, 1, 1)
 
 class MockDate:
+    """stub
+    """
+    @staticmethod
     def today():
+        """stub
+        """
         return types.SimpleNamespace(year=2022)
 
 
 class MockSettings:
+    """stub for dml_xml.Settings object
+    """
     def __init__(self, fnaam=''):
         self.imagecount = 1
         self.startitem = 0
     def write(self):
+        """stub
+        """
         print('called Settings.write()')
 
 
 class MockDatetime:
+    """stub
+    """
     def utcnow(*args):
+        """stub
+        """
         return 'now'
     def today(*args):
+        """stub
+        """
         return FIXDATE
+    @staticmethod
     def now():
+        """stub
+        """
         return FIXDATE
 
 
 class MockTree(dml.ElementTree):
+    """stub for etree.Elementtree object
+    """
     def __init__(self, *args, **kwargs):
         print('called ElementTree.__init__()')
 
 
 class MockElement:
+    """stub for etree.Element object
+    """
     def __init__(self, *args, **kwargs):
         print('called Element() with args', args)
         self.tag = args[0] if len(args) > 0 else ''
         self.attrs = args[1] if len(args) > 1 else {}
         self.attrs.update(kwargs)
     def __iter__(self, *args):
+        """stub
+        """
         return (x for x in [])
     def __setattr__(self, *args):
+        """stub
+        """
         print('called Element.__setattr__() with args', args)
         super().__setattr__(*args)
     def findall(self, *args):
-        pass
+        """stub
+        """
     def find(self, *args):
+        """stub
+        """
         print('called Element.find() with args', args)
     def get(self, *args):
-        pass
+        """stub
+        """
     def set(self, *args):
+        """stub
+        """
         if args[0] == 'updated':
             print('called Element.set() with first arg', args[0])
         else:
             print('called Element.set() with args', args)
     def remove(self, *args):
+        """stub
+        """
         print('called Element.remove() for subelement', args[0].tag)
 
 
-def test_check_filename(monkeypatch, capsys):
+def test_check_filename(monkeypatch):
+    """unittest for dml_xml.check_filename
+    """
     monkeypatch.setattr(pathlib.Path, 'exists', lambda x: True)
     assert dml.check_filename('') == (None, '', False, 'Please provide a filename')
     assert dml.check_filename(pathlib.Path('test')) == (
@@ -75,7 +111,9 @@ def test_check_filename(monkeypatch, capsys):
             pathlib.Path('here/test.xml'), 'test.xml', True, '')
 
 
-def test_checkfile(monkeypatch, capsys):
+def test_checkfile():
+    """unittest for dml_xml.checkfile
+    """
     filename = pathlib.Path('/tmp/name')
     if filename.exists():
         filename.unlink()
@@ -103,17 +141,27 @@ def test_checkfile(monkeypatch, capsys):
 
 
 def test_get_nieuwetitel(monkeypatch, capsys):
+    """unittest for dml_xml.get_nieuwetitel
+    """
     def mock_init(*args, **kwargs):
+        """stub
+        """
         print("called ElementTree.__init__() with kwargs", kwargs)
     def mock_getroot(*args):
+        """stub
+        """
         root = dml.Element('acties')
         return root
     def mock_getroot_2(*args):
+        """stub
+        """
         root = dml.Element('acties')
         dml.SubElement(root, 'actie', id='2020-0001')
         dml.SubElement(root, 'actie', id='2021-0001')
         return root
     def mock_getroot_3(*args):
+        """stub
+        """
         root = dml.Element('acties')
         dml.SubElement(root, 'actie', id='2020-0001')
         dml.SubElement(root, 'actie', id='2021-0001')
@@ -144,8 +192,12 @@ def test_get_nieuwetitel(monkeypatch, capsys):
     assert capsys.readouterr().out == "called ElementTree.__init__() with kwargs {'file': '.'}\n"
 
 
-def test_get_acties(monkeypatch, capsys, get_acties_fixture):
+def test_get_acties(monkeypatch, get_acties_fixture):
+    """unittest for dml_xml.get_acties
+    """
     class MockSettings:
+        """stub
+        """
         def __init__(self, *args):
             self.stat = {'0': 'Gemeld', '1': 'In behandeling'}
             self.cat = {'P': 'Probleem', 'W': 'Wens'}
@@ -196,7 +248,11 @@ def test_get_acties(monkeypatch, capsys, get_acties_fixture):
 
 
 def test_settings_init(monkeypatch, capsys):
+    """unittest for dml_xml.Settings.init
+    """
     def mock_read(self):
+        """stub
+        """
         print('called Settings.read()')
     monkeypatch.setattr(dml.Settings, 'read', mock_read)
     testobj = dml.Settings()
@@ -227,7 +283,9 @@ def test_settings_init(monkeypatch, capsys):
     assert capsys.readouterr().out == 'called Settings.read()\n'
 
 
-def test_settings_read(monkeypatch, capsys, tmp_path, settings_fixture):
+def test_settings_read(tmp_path, settings_fixture):
+    """unittest for dml_xml.Settings.read
+    """
     testpath = tmp_path / 'testprobregdml.xml'
     testobj = dml.Settings(settings_fixture.nosett())
     assert testobj.fn == testpath
@@ -267,22 +325,36 @@ def test_settings_read(monkeypatch, capsys, tmp_path, settings_fixture):
 
 
 def test_settings_write(monkeypatch, capsys, settings_output):
+    """unittest for dml_xml.Settings.write
+    """
     def mock_getroot(self):
+        """stub
+        """
         print('called ElementTree.getroot()')
         return MockElement()
     def mock_write(self, *args, **kwargs):
+        """stub
+        """
         print('called ElementTree.write() with args', args, kwargs)
     def mock_subelement(*args, **kwargs):
+        """stub
+        """
         args_ = list(args)
         args_[0] = 'parent'
         print('called SubElement() with args ', args_, kwargs)
         return MockElement(args[1])
     def mock_copyfile(*args):
+        """stub
+        """
         print('called shutil.copyfile with args', args)
     def mock_init(self, *args):
+        """stub
+        """
         self.fn = pathlib.Path('anything_goes')
         print('called Settings()')
     def mock_iter(self, *args):
+        """stub
+        """
         return (x for x in [MockElement('stats'), MockElement('cats'), MockElement('koppen')])
     monkeypatch.setattr(dml, 'Element', MockElement)
     monkeypatch.setattr(dml.ElementTree, 'getroot', mock_getroot)
@@ -321,15 +393,23 @@ def test_settings_write(monkeypatch, capsys, settings_output):
 
 
 def test_actie_init(monkeypatch, capsys):
+    """unittest for dml_xml.Actie.init
+    """
     def mock_nieuw(self):
+        """stub
+        """
         print('called Actie.nieuw()')
     def mock_nieuwfile(self):
+        """stub
+        """
         print('called Actie.nieuwfile()')
     def mock_read(self):
+        """stub
+        """
         print('called Actie.read()')
     monkeypatch.setattr(dml, 'check_filename', lambda x: ('x', 'y', False, "Something's not right"))
     with pytest.raises(dml.DataError) as exc:
-        testobj = dml.Actie('name`', 'x')
+        dml.Actie('name`', 'x')
     assert str(exc.value) == "Something's not right"
     monkeypatch.setattr(dml, 'check_filename', lambda x: ('x', 'y', True, "xxxx"))
     with pytest.raises(dml.DataError) as exc:
@@ -356,9 +436,13 @@ def test_actie_init(monkeypatch, capsys):
     assert capsys.readouterr().out == 'called Actie.nieuw()\n'
 
 
-def test_actie_nieuwfile(monkeypatch, capsys):
+def test_actie_nieuwfile(monkeypatch):
+    """unittest for dml_xml.Actie.nieuwfile
+    """
     testfilename = '/tmp/testactie.xml'
     def mock_init(self, *args):
+        """stub
+        """
         self.fn = pathlib.Path(testfilename)
     monkeypatch.setattr(dml.Actie, '__init__', mock_init)
     testobj = dml.Actie()
@@ -369,9 +453,13 @@ def test_actie_nieuwfile(monkeypatch, capsys):
     assert data == '<?xml version="1.0" encoding="utf-8"?>\n<acties>\n</acties>\n'
 
 
-def test_actie_nieuw(monkeypatch, capsys):
+def test_actie_nieuw(monkeypatch):
+    """unittest for dml_xml.Actie.nieuw
+    """
     testfilename = '/tmp/testactie.xml'
     def mock_init(self, *args):
+        """stub
+        """
         self.fn = pathlib.Path(testfilename)
     monkeypatch.setattr(dml, 'get_nieuwetitel', lambda *x: f'nieuw item voor {x[0]}')
     monkeypatch.setattr(dml.Actie, '__init__', mock_init)
@@ -382,7 +470,9 @@ def test_actie_nieuw(monkeypatch, capsys):
     assert testobj.datum == '2020-01-01 00:00:00'
 
 
-def test_actie_read(monkeypatch, capsys, actie_fixture):
+def test_actie_read(monkeypatch, actie_fixture):
+    """unittest for dml_xml.Actie.read
+    """
     # testfilename = '/tmp/testactie.xml'
     # testpath = pathlib.Path(testfilename)
     monkeypatch.setattr(dml.dt, 'datetime', MockDatetime)
@@ -395,7 +485,7 @@ def test_actie_read(monkeypatch, capsys, actie_fixture):
     testobj = dml.Actie(actie_fixture.incomplete(), '1')
     testobj.read()
     assert testobj.exists
-    assert testobj.datum ==''
+    assert testobj.datum == ''
     assert testobj.status == '1'
     assert testobj.soort == 'P'
     assert not testobj.arch
@@ -410,7 +500,7 @@ def test_actie_read(monkeypatch, capsys, actie_fixture):
     testobj = dml.Actie(actie_fixture.complete(), '1')
     testobj.read()
     assert testobj.exists
-    assert testobj.datum =='x'
+    assert testobj.datum == 'x'
     assert testobj.status == '1'
     assert testobj.soort == 'P'
     assert testobj.arch
@@ -425,9 +515,13 @@ def test_actie_read(monkeypatch, capsys, actie_fixture):
     assert os.path.exists('/tmp/x.img')
 
 
-def test_actie_get_statustext(monkeypatch, capsys):
+def test_actie_get_statustext(monkeypatch):
+    """unittest for dml_xml.Actie.get_statustext
+    """
     testfilename = '/tmp/testactie.xml'
     def mock_init(self, *args):
+        """stub
+        """
         self.fn = pathlib.Path(testfilename)
     monkeypatch.setattr(dml.Actie, '__init__', mock_init)
     testobj = dml.Actie()
@@ -440,9 +534,13 @@ def test_actie_get_statustext(monkeypatch, capsys):
     assert str(exc.value) == 'Geen tekst gevonden bij statuscode 0'
 
 
-def test_actie_get_soorttext(monkeypatch, capsys):
+def test_actie_get_soorttext(monkeypatch):
+    """unittest for dml_xml.Actie.get_soorttext
+    """
     testfilename = '/tmp/testactie.xml'
     def mock_init(self, *args):
+        """stub
+        """
         self.fn = pathlib.Path(testfilename)
     monkeypatch.setattr(dml.Actie, '__init__', mock_init)
     testobj = dml.Actie()
@@ -455,9 +553,13 @@ def test_actie_get_soorttext(monkeypatch, capsys):
     assert str(exc.value) == 'Geen tekst gevonden bij soortcode 0'
 
 
-def test_actie_add_event(monkeypatch, capsys):
+def test_actie_add_event(monkeypatch):
+    """unittest for dml_xml.Actie.add_event
+    """
     testfilename = '/tmp/testactie.xml'
     def mock_init(self, *args):
+        """stub
+        """
         self.fn = pathlib.Path(testfilename)
     monkeypatch.setattr(dml.Actie, '__init__', mock_init)
     monkeypatch.setattr(dml.dt, 'datetime', MockDatetime)
@@ -468,27 +570,45 @@ def test_actie_add_event(monkeypatch, capsys):
 
 
 def test_actie_write(monkeypatch, capsys, actie_output):
+    """unittest for dml_xml.Actie.write
+    """
     def mock_getroot(self):
+        """stub
+        """
         print('called ElementTree.getroot()')
         return MockElement()
     def mock_write(self, *args, **kwargs):
+        """stub
+        """
         print('called ElementTree.write() with args', args, kwargs)
     def mock_subelement(*args, **kwargs):
+        """stub
+        """
         args_ = list(args)
         args_[0] = 'parent'
         print('called SubElement() with args ', args_, kwargs)
         return MockElement(args[1])
     def mock_copyfile(*args):
+        """stub
+        """
         print('called shutil.copyfile with args', args)
     def mock_findall(self, *args):
+        """stub
+        """
         print('called Element.findall() with args', args)
         return [MockElement('actie', id='1'), MockElement('actie', id='2')]
     def mock_get(self, *args):
+        """stub
+        """
         print('called Element.get() with args', args)
     def mock_get_2(self, *args):
+        """stub
+        """
         print('called Element.get() with args', args)
         return self.attrs.get('id')
     def mock_find(self, *args):
+        """stub
+        """
         print('called Element.find() with args', args)
         return MockElement(args[0])
     monkeypatch.setattr(MockElement, 'findall', mock_findall)
@@ -502,6 +622,8 @@ def test_actie_write(monkeypatch, capsys, actie_output):
 
     testfilename = '/tmp/testactie.xml'
     def mock_init(self, *args):
+        """stub
+        """
         self.fn = pathlib.Path(testfilename)
     monkeypatch.setattr(dml.Actie, '__init__', mock_init)
     testobj = dml.Actie()
@@ -547,7 +669,7 @@ def test_actie_write(monkeypatch, capsys, actie_output):
     testobj.file_exists = True
     testobj.exists = True
     testobj.id = '1'
-    testobj.datum='now'
+    testobj.datum = 'now'
     testobj.soort = ''
     testobj.status = '0'
     testobj.arch = True
@@ -563,10 +685,16 @@ def test_actie_write(monkeypatch, capsys, actie_output):
 
 
 def test_actie_cleanup(monkeypatch, capsys):
+    """unittest for dml_xml.Actie.cleanup
+    """
     def mock_remove(fname):
+        """stub
+        """
         print(f'called os.remove on file {fname}')
     testfilename = '/tmp/testactie.xml'
     def mock_init(self, *args):
+        """stub
+        """
         self.fn = pathlib.Path(testfilename)
     monkeypatch.setattr(dml.Actie, '__init__', mock_init)
     monkeypatch.setattr(dml.os, 'remove', mock_remove)
@@ -577,17 +705,29 @@ def test_actie_cleanup(monkeypatch, capsys):
                                        'called os.remove on file image2.png\n')
 
 
-def test_actie_list(monkeypatch, capsys):
+def test_actie_list(monkeypatch):
+    """unittest for dml_xml.Actie.list
+    """
     testfilename = '/tmp/testactie.xml'
     def mock_init(self, *args):
+        """stub
+        """
         self.fn = pathlib.Path(testfilename)
     def mock_get_soorttext(self, *args):
+        """stub
+        """
         return 'Probleem'
     def mock_get_soorttext_err(self, *args):
+        """stub
+        """
         raise dml.DataError
     def mock_get_statustext(self, *args):
+        """stub
+        """
         return 'In behandeling'
     def mock_get_statustext_err(self, *args):
+        """stub
+        """
         raise dml.DataError
     monkeypatch.setattr(dml.Actie, '__init__', mock_init)
     monkeypatch.setattr(dml.Actie, 'get_soorttext', mock_get_soorttext)
@@ -637,4 +777,3 @@ def test_actie_list(monkeypatch, capsys):
             '\tfirst - it broke',
             '\tthen - we fixed it',
             'Actie is gearchiveerd.']
-

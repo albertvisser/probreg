@@ -1,3 +1,5 @@
+"""unittests for ./probreg/dml_django.py
+"""
 import sys
 import os
 import types
@@ -16,18 +18,27 @@ FIXDATE = datetime.datetime(2020, 1, 1)
 
 
 class MockDatetime:
-    ""
+    """stub for datetime.Datetime object
+    """
     def utcnow(self, *args):
+        """stub
+        """
         return 'now'
     def today(self, *args):
+        """stub
+        """
         return FIXDATE
+    @staticmethod
     def now():
+        """stub
+        """
         return FIXDATE
 
 
 @pytest.mark.django_db
-def test_get_projnames(monkeypatch, capsys):
-    ""
+def test_get_projnames():
+    """unittest for dml_django.get_projnames
+    """
     dml.my.Project.objects.create(name='bep1', description='testapp #1')
     dml.my.Project.objects.create(name='app1', description='testapp #2')
     assert dml.get_projnames() == [('app1', 'app1', 'testapp #2'), ('bep1', 'bep1', 'testapp #1')]
@@ -35,7 +46,8 @@ def test_get_projnames(monkeypatch, capsys):
 
 @pytest.mark.django_db
 def test_get_user():
-    ""
+    """unittest for dml_django.get_user
+    """
     me = dml.my.User.objects.create(username='testuser')
     assert dml.get_user('me') is None
     assert dml.get_user('testuser') == me
@@ -43,7 +55,8 @@ def test_get_user():
 
 @pytest.mark.django_db
 def test_validate_user(monkeypatch):
-    ""
+    """unittest for dml_django.validate_user
+    """
     monkeypatch.setattr(dml, 'get_user', lambda x: None)
     assert dml.validate_user('naam', 'passw', 'project') == ('', False, False)
     me = dml.my.User.objects.create(username='testuser')
@@ -58,11 +71,16 @@ def test_validate_user(monkeypatch):
 
 @pytest.mark.django_db
 def test_get_acties(monkeypatch, capsys):
-    ""
+    """unittest for dml_django.get_acties
+    """
     def mock_get_no_acties(*args):
+        """stub
+        """
         print('called core.get_acties() with args', args)
         return []
     def mock_get_acties(*args):
+        """stub
+        """
         print('called core.get_acties() with args', args)
         fixdate = dml.dt.datetime(2020, 1, 1)
         return [types.SimpleNamespace(nummer='1', start='once', about='me', title='a giant',
@@ -86,8 +104,9 @@ def test_get_acties(monkeypatch, capsys):
 
 
 @pytest.mark.django_db
-def test_sortoptions(monkeypatch, capsys):
-    ""
+def test_sortoptions():
+    """unittest for dml_django.SortOptions(.__init__)
+    """
     myuser = dml.my.User.objects.create(username='testuser')
     project_name = 'testfile'
     myproject = dml.my.Project.objects.create(name=project_name)
@@ -102,8 +121,9 @@ def test_sortoptions(monkeypatch, capsys):
 
 
 @pytest.mark.django_db
-def test_sortoptions_load(monkeypatch, capsys):
-    ""
+def test_sortoptions_load():
+    """unittest for dml_django.SortOptions.load
+    """
     myuser = dml.my.User.objects.create(username='testuser')
     myuser2 = dml.my.User.objects.create(username='testuser2')
     project_name = 'testfile'
@@ -126,8 +146,9 @@ def test_sortoptions_load(monkeypatch, capsys):
 
 
 @pytest.mark.django_db
-def test_sortoptions_save(monkeypatch, capsys):
-    ""
+def test_sortoptions_save():
+    """unittest for dml_django.SortOptions.save
+    """
     myuser = dml.my.User.objects.create(username='testuser')
     project_name = 'testfile'
     dml.my.Project.objects.create(name=project_name)
@@ -143,8 +164,9 @@ def test_sortoptions_save(monkeypatch, capsys):
         data[2]
 
 @pytest.mark.django_db
-def test_selectoptions(monkeypatch, capsys):
-    ""
+def test_selectoptions():
+    """unittest for dml_django.SelectOptions(.__init__)
+    """
     myuser = dml.my.User.objects.create(username='testuser')
     project_name = 'testfile'
     myproject = dml.my.Project.objects.create(name=project_name)
@@ -159,8 +181,9 @@ def test_selectoptions(monkeypatch, capsys):
 
 
 @pytest.mark.django_db
-def test_selectoptions_load(monkeypatch, capsys):
-    ""
+def test_selectoptions_load():
+    """unittest for dml_django.SelectOptions.load
+    """
     myuser = dml.my.User.objects.create(username='testuser')
     myuser2 = dml.my.User.objects.create(username='testuser2')
     project_name = 'testfile'
@@ -197,8 +220,9 @@ def test_selectoptions_load(monkeypatch, capsys):
 
 
 @pytest.mark.django_db
-def test_selections_save(monkeypatch, capsys):
-    ""
+def test_selections_save():
+    """unittest for dml_django.SelectOptions.save
+    """
     myuser = dml.my.User.objects.create(username='testuser')
     myuser2 = dml.my.User.objects.create(username='testuser2')
     project_name = 'testfile'
@@ -242,8 +266,9 @@ def test_selections_save(monkeypatch, capsys):
 
 
 @pytest.mark.django_db
-def test_settings(monkeypatch, capsys):
-    ""
+def test_settings():
+    """unittest for dml_django.Settings(.__init__)
+    """
     projectnaam = 'test'
     myproject = dml.my.Project.objects.create(name=projectnaam)
     dml.my.Page.objects.create(order=1, title='page1', link='/there')
@@ -263,7 +288,8 @@ def test_settings(monkeypatch, capsys):
 
 @pytest.mark.django_db
 def test_settings_write(monkeypatch):
-    ""
+    """unittest for dml_django.Settings.write
+    """
     projectnaam = 'test'
     myproject = dml.my.Project.objects.create(name=projectnaam)
     dml.my.Page.objects.create(order=0, title='page0', link='/here')
@@ -345,12 +371,19 @@ def test_settings_write(monkeypatch):
 
 @pytest.mark.django_db
 def test_actie(monkeypatch, capsys):
-    ""
+    """unittest for dml_django.Actie(.__init__)
+    """
     def mock_settings(*args):
+        """stub
+        """
         print('called Settings() with args', args)
     def mock_nieuw(self, *args):
+        """stub
+        """
         print('called Actie.nieuw() with args', args)
     def mock_read(self):
+        """stub
+        """
         print('called Actie.read()')
     projectnaam = 'test'
     myproject = dml.my.Project.objects.create(name=projectnaam)
@@ -378,8 +411,11 @@ def test_actie(monkeypatch, capsys):
 
 @pytest.mark.django_db
 def test_actie_nieuw(monkeypatch, capsys):
-    ""
+    """unittest for dml_django.Actie.nieuw
+    """
     def mock_init(self, *args):
+        """stub
+        """
         print('called Actie() with args', args)
     actiecount = 0
     monkeypatch.setattr(dml.Actie, '__init__', mock_init)
@@ -439,8 +475,11 @@ def test_actie_nieuw(monkeypatch, capsys):
 
 @pytest.mark.django_db
 def test_actie_read(monkeypatch, capsys):
-    ""
+    """unittest for dml_django.Actie.read
+    """
     def mock_init(self, *args):
+        """stub
+        """
         print('called Actie() with args', args)
     projectnaam = 'naam'
     myproject = dml.my.Project.objects.create(name=projectnaam)
@@ -491,10 +530,12 @@ def test_actie_read(monkeypatch, capsys):
     assert testobj.events_oud == testobj.events
 
 
-def test_actie_statustext(monkeypatch, capsys):
-    ""
+def test_actie_statustext(monkeypatch):
+    """unittest for dml_django.Actie.statustext
+    """
     def mock_init(self, *args):
-        pass
+        """stub
+        """
     monkeypatch.setattr(dml.Actie, '__init__', mock_init)
     testobj = dml.Actie('naam', 'x', 'testuser')
     testobj.settings = types.SimpleNamespace(stat={'0': ('gemeld', 0, '0'),
@@ -509,10 +550,12 @@ def test_actie_statustext(monkeypatch, capsys):
     assert str(exc.value) == "Geen omschrijving gevonden bij statuscode of -id '2'"
 
 
-def test_actie_soorttext(monkeypatch, capsys):
-    ""
+def test_actie_soorttext(monkeypatch):
+    """unittest for dml_django.Actie.soorttext
+    """
     def mock_init(self, *args):
-        pass
+        """stub
+        """
     monkeypatch.setattr(dml.Actie, '__init__', mock_init)
     testobj = dml.Actie('naam', 'x', 'testuser')
     testobj.settings = types.SimpleNamespace(cat={'P': ('probleem', 0, 'P'),
@@ -527,10 +570,12 @@ def test_actie_soorttext(monkeypatch, capsys):
     assert str(exc.value) == "Geen omschrijving gevonden bij soortcode of -id 'Q'"
 
 
-def test_actie_add_event(monkeypatch, capsys):
-    ""
+def test_actie_add_event(monkeypatch):
+    """unittest for dml_django.Actie.add_event
+    """
     def mock_init(self, *args):
-        pass
+        """stub
+        """
     monkeypatch.setattr(dml.Actie, '__init__', mock_init)
     testobj = dml.Actie('naam', 'x', 'testuser')
     testobj.events = []
@@ -547,10 +592,15 @@ def test_actie_add_event(monkeypatch, capsys):
 
 @pytest.mark.django_db
 def test_actie_write(monkeypatch, capsys):
-    ""
+    """unittest for dml_django.Actie.write
+    """
     def mock_init(self, *args):
+        """stub
+        """
         print('called Actie() with args', args)
     def mock_store_event(*args):
+        """stub
+        """
         # print('called core.store_event_with_date() with args', args[1:])
         print('called core.store_event() with args', args)
     projectnaam = 'naam'
@@ -594,10 +644,12 @@ def test_actie_write(monkeypatch, capsys):
             # " <User: testuser>)\n")
 
 
-def test_actie_cleanup(monkeypatch, capsys):
-    ""
+def test_actie_cleanup(monkeypatch):
+    """unittest for dml_django.Actie.cleanup
+    """
     def mock_init(self, *args):
-        pass
+        """stub
+        """
     monkeypatch.setattr(dml.Actie, '__init__', mock_init)
     testobj = dml.Actie('naam', 'x', 'testuser')
     testobj.cleanup()  # leeg, deze aanroep is alleen t.b.v. coverage
