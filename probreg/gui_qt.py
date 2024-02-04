@@ -1,4 +1,4 @@
-"""Actie (was: problemen) Registratie, PyQT5 versie
+"""Actie (was: problemen) Registratie, PyQt5 versie
 """
 import os
 import sys
@@ -1848,7 +1848,7 @@ class MainGui(qtw.QMainWindow):
         te controleren of dat wel mogelijk is en zo niet, te melden waarom en de
         paginawissel tegen te houden (ok, terug te gaan naar de vorige pagina).
 
-        PyQT kent geen aparte beforechanging methode, daarom is deze methode
+        PyQt kent geen aparte beforechanging methode zoals wx, daarom is deze methode
         tevens bedoeld om ervoor te zorgen dat na het wisselen van pagina
         het veld / de velden van de nieuwe pagina een waarde krijgen met behulp van de vulp methode
 
