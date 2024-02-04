@@ -1398,7 +1398,7 @@ class MainWindow:
 
     def about_help(self, event=None):
         "Menukeuze: help - about"
-        gui.show_message(self.gui, "PyQt versie van mijn actiebox")
+        gui.show_message(self.gui, "GUI versie van mijn actiebox")
 
     def hotkey_help(self, event=None):
         "menukeuze: help - keys"
