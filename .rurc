@@ -2,19 +2,20 @@
 unittests
 
 [testscripts]
-core: test_main.py
-qt: test_gui_qt.py
-wx: test_gui_wx.py
-xml: test_dml_xml.py
-django: test_dml_django.py
-mongo: test_dml_mongo.py
-shared: test_shared.py
+core = test_main.py
+xml = test_dml_xml.py
+django = test_dml_django.py
+mongo = test_dml_mongo.py
+shared = test_shared.py
+qtgui = test_qtgui.py
+wxgui = test_wxgui.py
 
 [testees]
-core: probreg/main.py
-qt: probreg/gui_qt.py
-wx: probreg/gui_wx.py
-xml: probreg/dml_xml.py
-django: probreg/dml_django.py
-mongo: probreg/dml_mongo.py
-shared: probreg/shared.py
+core = probreg/main.py
+xml = probreg/dml_xml.py
+django = probreg/dml_django.py
+mongo = probreg/dml_mongo.py
+shared = probreg/shared.py
+qtgui = probreg/gui_qt.py
+wxgui = probreg/gui_wx.py
+
