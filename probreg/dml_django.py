@@ -53,6 +53,7 @@ def validate_user(naam, passw, project):
         return '', False, False
     if not hashers.check_password(passw, user.password):
         return '', False, False
+    project = my.Project.objects.get(name=project)
     return user, core.is_user(project, user), core.is_admin(project, user)
 
 
