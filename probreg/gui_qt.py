@@ -51,8 +51,8 @@ def get_choice_item(win, caption, choices, current=0):
 def ask_cancel_question(win, message):
     "ask the user a question with an option to cancel the process"
     retval = qtw.QMessageBox.question(win, shared.app_title, message,
-                                      qtw.QMessageBox.Yes | qtw.QMessageBox.No |
-                                      qtw.QMessageBox.Cancel)
+                                      qtw.QMessageBox.Yes | qtw.QMessageBox.No
+                                      | qtw.QMessageBox.Cancel)
     return retval == qtw.QMessageBox.Yes, retval == qtw.QMessageBox.Cancel
 
 
@@ -66,10 +66,10 @@ def show_dialog(win, cls, args=None):
 class EditorPanel(qtw.QTextEdit):
     "Rich text editor displaying the selected comment"
     def __init__(self, parent):
-        self.tbparent = parent
-        self.parent = parent.parent.parent
+        self.parent = parent
+        self.appbase = parent.parent.parent
         super().__init__()
-        if self.parent.use_rt:
+        if self.appbase.use_rt:
             self.setAcceptRichText(True)
             self.setAutoFormatting(qtw.QTextEdit.AutoAll)
             self.currentCharFormatChanged.connect(self.charformat_changed)
@@ -82,28 +82,27 @@ class EditorPanel(qtw.QTextEdit):
         "reimplementation of event handler"
         if source.hasImage:
             return True
-        return qtw.QTextEdit.canInsertFromMimeData(source)
+        return super().canInsertFromMimeData(source)
 
     def insertFromMimeData(self, source):
         "reimplementation of event handler"
         if source.hasImage():
             image = source.imageData()
-            if sys.version < '3':
-                image = gui.QImage(image)
+            # if sys.version < '3':
+            #     image = gui.QImage(image)
             cursor = self.textCursor()
             document = self.document()
-            num = self.parent.imagecount
+            num = self.appbase.imagecount
             num += 1
-            self.parent.imagecount = num
-            urlname = '{self.parent.filename}_{num:05}.png'
+            self.appbase.imagecount = num
+            urlname = f'{self.appbase.filename}_{num:05}.png'
             image.save(urlname)
             urlname = os.path.basename(urlname)  # make name "relative"
-            document.addResource(gui.QTextDocument.ImageResource,
-                                 core.QUrl(urlname), image)
+            document.addResource(gui.QTextDocument.ImageResource, core.QUrl(urlname), image)
             cursor.insertImage(urlname)
-            self.parent.imagelist.append(urlname)
+            self.appbase.imagelist.append(urlname)
         else:
-            qtw.QTextEdit.insertFromMimeData(self, source)
+            super().insertFromMimeData(self, source)
 
     def set_contents(self, data):
         "load contents into editor"
@@ -117,7 +116,7 @@ class EditorPanel(qtw.QTextEdit):
 
     def get_contents(self):
         "return contents from editor"
-        if self.parent.use_rt:
+        if self.appbase.use_rt:
             return self.toHtml()
         return self.toPlainText()
 
@@ -126,7 +125,7 @@ class EditorPanel(qtw.QTextEdit):
         if not self.hasFocus():
             return
         fmt = gui.QTextCharFormat()
-        if self.tbparent.actiondict['&Bold'].isChecked():
+        if self.parent.actiondict['&Bold'].isChecked():
             fmt.setFontWeight(gui.QFont.Bold)
         else:
             fmt.setFontWeight(gui.QFont.Normal)
@@ -137,7 +136,7 @@ class EditorPanel(qtw.QTextEdit):
         if not self.hasFocus():
             return
         fmt = gui.QTextCharFormat()
-        fmt.setFontItalic(self.tbparent.actiondict['&Italic'].isChecked())
+        fmt.setFontItalic(self.parent.actiondict['&Italic'].isChecked())
         self.mergeCurrentCharFormat(fmt)
 
     def text_underline(self):
@@ -145,7 +144,7 @@ class EditorPanel(qtw.QTextEdit):
         if not self.hasFocus():
             return
         fmt = gui.QTextCharFormat()
-        fmt.setFontUnderline(self.tbparent.actiondict['&Underline'].isChecked())
+        fmt.setFontUnderline(self.parent.actiondict['&Underline'].isChecked())
         self.mergeCurrentCharFormat(fmt)
 
     def text_strikethrough(self):
@@ -153,7 +152,7 @@ class EditorPanel(qtw.QTextEdit):
         if not self.hasFocus():
             return
         fmt = gui.QTextCharFormat()
-        fmt.setFontStrikeOut(self.tbparent.actiondict['Strike&through'].isChecked())
+        fmt.setFontStrikeOut(self.parent.actiondict['Strike&through'].isChecked())
         self.mergeCurrentCharFormat(fmt)
 
     def case_lower(self):
@@ -175,8 +174,7 @@ class EditorPanel(qtw.QTextEdit):
         if not self.hasFocus():
             return
         loc = self.textCursor()
-        where = loc.block()
-        fmt = where.blockFormat()
+        fmt = loc.block().blockFormat()
         wid = fmt.indent()
         if wid >= 1:
             fmt.setIndent(wid + amount)
@@ -202,17 +200,17 @@ class EditorPanel(qtw.QTextEdit):
 
     def enlarge_text(self):
         "change text style"
-        size = self.tbparent.combo_size.currentText()
-        indx = self.tbparent.fontsizes.index(size)
-        if indx < len(self.tbparent.fontsizes) - 1:
-            self.text_size(self.tbparent.fontsizes[indx + 1])
+        size = self.parent.combo_size.currentText()
+        indx = self.parent.fontsizes.index(size)
+        if indx < len(self.parent.fontsizes) - 1:
+            self.text_size(self.parent.fontsizes[indx + 1])
 
     def shrink_text(self):
         "change text style"
-        size = self.tbparent.combo_size.currentText()
-        indx = self.tbparent.fontsizes.index(size)
+        size = self.parent.combo_size.currentText()
+        indx = self.parent.fontsizes.index(size)
         if indx > 0:
-            self.text_size(self.tbparent.fontsizes[indx - 1])
+            self.text_size(self.parent.fontsizes[indx - 1])
 
     def linespacing_1(self):
         "change text style"
@@ -289,14 +287,14 @@ class EditorPanel(qtw.QTextEdit):
         de selectie in de comboboxen wordt aangepast, de van toepassing zijnde
         menuopties worden aangevinkt, en en de betreffende toolbaricons worden
         geaccentueerd"""
-        self.tbparent.combo_font.setCurrentIndex(
-            self.tbparent.combo_font.findText(gui.QFontInfo(font).family()))
-        self.tbparent.combo_size.setCurrentIndex(
-            self.tbparent.combo_size.findText(str(font.pointSize())))
-        self.tbparent.actiondict["&Bold"].setChecked(font.bold())
-        self.tbparent.actiondict["&Italic"].setChecked(font.italic())
-        self.tbparent.actiondict["&Underline"].setChecked(font.underline())
-        self.tbparent.actiondict["Strike&through"].setChecked(font.strikeOut())
+        self.parent.combo_font.setCurrentIndex(
+            self.parent.combo_font.findText(gui.QFontInfo(font).family()))
+        self.parent.combo_size.setCurrentIndex(
+            self.parent.combo_size.findText(str(font.pointSize())))
+        self.parent.actiondict["&Bold"].setChecked(font.bold())
+        self.parent.actiondict["&Italic"].setChecked(font.italic())
+        self.parent.actiondict["&Underline"].setChecked(font.underline())
+        self.parent.actiondict["Strike&through"].setChecked(font.strikeOut())
 
     def mergeCurrentCharFormat(self, format):
         "de geselecteerde tekst op de juiste manier weergeven"
@@ -304,7 +302,7 @@ class EditorPanel(qtw.QTextEdit):
         if not cursor.hasSelection():
             cursor.select(gui.QTextCursor.WordUnderCursor)
         cursor.mergeCharFormat(format)
-        qtw.QTextEdit.mergeCurrentCharFormat(self, format)
+        super().mergeCurrentCharFormat(self, format)
 
     def update_bold(self):
         "compatibility"
@@ -333,12 +331,13 @@ class PageGui(qtw.QFrame):
     def __init__(self, parent, master):
         self.parent = parent
         self.master = master
+        self.appbase = master.parent.parent
         super().__init__(parent)
         if not self.master.is_text_page:
             return
         self.actiondict = collections.OrderedDict()
         self.text1 = self.create_text_field()
-        if self.master.parent.parent.use_rt:
+        if self.appbase.use_rt:
             self.create_toolbar(textfield=self.text1)
         self.save_button = qtw.QPushButton('Sla wijzigingen op (Ctrl-S)', self)
         self.save_button.clicked.connect(self.master.savep)
@@ -416,7 +415,7 @@ class PageGui(qtw.QFrame):
     def doelayout(self):
         "layout page"
         sizer0 = qtw.QVBoxLayout()
-        if self.master.parent.parent.use_rt:
+        if self.appbase.use_rt:
             sizer1 = qtw.QVBoxLayout()
             sizer1.addWidget(self.toolbar)
             sizer0.addLayout(sizer1)
@@ -465,7 +464,7 @@ class PageGui(qtw.QFrame):
 
     def enable_toolbar(self, value):
         "make the toolbar accessible (or not)"
-        if self.master.parent.parent.use_rt:
+        if self.appbase.use_rt:
             self.toolbar.setEnabled(value)
 
     def set_text_readonly(self, value):
@@ -489,8 +488,8 @@ class PageGui(qtw.QFrame):
 class Page0Gui(PageGui):
     "pagina 0: overzicht acties"
     def __init__(self, parent, master, widths):
-        self.parent = parent
-        self.master = master
+        # self.parent = parent
+        # self.master = master
         super().__init__(parent, master)
 
         self.p0list = qtw.QTreeWidget(self)
@@ -541,12 +540,12 @@ class Page0Gui(PageGui):
 
     def enable_buttons(self):
         "buttons wel of niet bruikbaar maken"
-        self.filter_button.setEnabled(bool(self.parent.parent.user))
+        self.filter_button.setEnabled(bool(self.appbase.user))
         self.go_button.setEnabled(self.p0list.has_selection)
-        self.new_button.setEnabled(self.parent.parent.is_user and bool(self.parent.parent.filename))
+        self.new_button.setEnabled(self.appbase.is_user and bool(self.appbase.filename))
         if self.p0list.has_selection:
-            self.sort_button.setEnabled(bool(self.parent.parent.user))
-            self.archive_button.setEnabled(self.parent.parent.is_user)
+            self.sort_button.setEnabled(bool(self.appbase.user))
+            self.archive_button.setEnabled(self.appbase.is_user)
         else:
             self.sort_button.setEnabled(False)
             self.archive_button.setEnabled(False)
@@ -662,8 +661,8 @@ class Page0Gui(PageGui):
 class Page1Gui(PageGui):
     "pagina 1: startscherm actie"
     def __init__(self, parent, master):
-        self.parent = parent
-        self.master = master
+        # self.parent = parent
+        # self.master = master
         super().__init__(parent, master)
 
         self.id_text = qtw.QLineEdit(self)
@@ -691,7 +690,7 @@ class Page1Gui(PageGui):
         self.archive_button = qtw.QPushButton("Archiveren", self)
         self.archive_button.clicked.connect(self.master.archiveer)
 
-        if not self.parent.parent.use_text_panels:
+        if not self.appbase.use_text_panels:
             self.summary_entry = qtw.QTextEdit(self)
             self.summary_entry.textChanged.connect(self.master.on_text)
 
@@ -758,7 +757,7 @@ class Page1Gui(PageGui):
         sizery.addWidget(self.archive_button)
         sizery.addStretch()
         sizer1.addLayout(sizery, row, 1)
-        if not self.parent.parent.use_text_panels:
+        if not self.appbase.use_text_panels:
             row += 1
             sizer1.addWidget(qtw.QLabel("Samenvatting van het issue:", self), row, 0)
             sizery = qtw.QHBoxLayout()
@@ -790,7 +789,7 @@ class Page1Gui(PageGui):
         self.proc_entry.clear()
         self.desc_entry.clear()
         self.archive_text.setText("")
-        if not self.parent.parent.use_text_panels:
+        if not self.appbase.use_text_panels:
             self.summary_entry.clear()
         self.cat_choice.setCurrentIndex(0)
         self.stat_choice.setCurrentIndex(0)
@@ -863,12 +862,12 @@ class Page1Gui(PageGui):
         self.desc_entry.setEnabled(state)
         self.cat_choice.setEnabled(state)
         self.stat_choice.setEnabled(state)
-        if self.master.parent.newitem or not self.master.parent.parent.is_user:
+        if self.master.parent.newitem or not self.appbase.is_user:
             # archiveren niet mogelijk bij nieuw item of als de user niet is ingelogd (?)
             self.archive_button.setEnabled(False)
         else:
             self.archive_button.setEnabled(True)
-        if not self.parent.parent.use_text_panels:
+        if not self.appbase.use_text_panels:
             self.summary_entry.setEnabled(state)
 
     def clear_stats(self):
@@ -903,7 +902,7 @@ class Page1Gui(PageGui):
         fields = [self.proc_entry.text(), self.desc_entry.text(),
                   int(self.stat_choice.currentIndex()),
                   int(self.cat_choice.currentIndex())]
-        if not self.parent.parent.use_text_panels:
+        if not self.appbase.use_text_panels:
             fields.append(self.summary_entry.toPlainText())
         return fields
 
@@ -911,8 +910,8 @@ class Page1Gui(PageGui):
 class Page6Gui(PageGui):
     "pagina 6: voortgang"
     def __init__(self, parent, master):
-        self.parent = parent
-        self.master = master
+        # self.parent = parent
+        # self.master = master
         super().__init__(parent, master)
         # sizes = 200, 100 if LIN else 280, 110
         # sizes = 350, 100 if LIN else 280, 110
@@ -923,7 +922,7 @@ class Page6Gui(PageGui):
         self.progress_list = qtw.QListWidget(self)
         self.progress_list.currentItemChanged.connect(self.on_select_item)
         self.new_action = qtw.QShortcut('Shift+Ctrl+N', self)
-        if not self.parent.parent.work_with_user:
+        if not self.appbase.work_with_user:
             self.progress_list.itemActivated.connect(self.on_activate_item)
             # self.progress_list.itemDoubleClicked.connect(self.on_activate_item)
             # action = qtw.QShortcut('Shift+Ctrl+N', self, functools.partial(
@@ -936,7 +935,7 @@ class Page6Gui(PageGui):
         self.progress_text = super().create_text_field()
         sizer0 = qtw.QHBoxLayout()
         sizer1 = qtw.QVBoxLayout()
-        if self.master.parent.parent.use_rt:
+        if self.appbase.use_rt:
             super().create_toolbar(textfield=self.progress_text)
             sizer1.addWidget(self.toolbar)
         sizer1.addWidget(self.progress_text)
@@ -978,7 +977,7 @@ class Page6Gui(PageGui):
         if self.master.initializing:
             return
         if item is None or self.is_first_line(item):
-            # if self.master.parent.parent.is_user:
+            # if self.appbase.is_user:
             #     datum, oldtext = shared.get_dts(), ''
             #     newitem = qtw.QListWidgetItem('{} - {}'.format(datum, oldtext))
             #     newitem.setData(core.Qt.UserRole, 0)
@@ -1034,8 +1033,8 @@ class Page6Gui(PageGui):
         self.master.initializing = False
         if not self.parent.pagedata.arch:
             if indx > -1:
-                self.protect_textfield(not self.parent.parent.is_user)
-                self.enable_toolbar(self.parent.parent.is_user)
+                self.protect_textfield(not self.appbase.is_user)
+                self.enable_toolbar(self.appbase.is_user)
             self.move_cursor_to_end()
         self.set_focus_to_textfield()
 
@@ -1069,7 +1068,7 @@ class Page6Gui(PageGui):
 
     def set_list_callback(self):
         "connect or disconnect depending on user's permissions"
-        if self.parent.parent.is_user:
+        if self.appbase.is_user:
             self.progress_list.itemActivated.connect(self.on_activate_item)
             self.new_action.activated.connect(functools.partial(self.on_activate_item,
                                                                 self.progress_list.item(0)))
@@ -1192,8 +1191,7 @@ class SortOptionsDialog(qtw.QDialog):
 
         sizer.addLayout(grid)
 
-        buttonbox = qtw.QDialogButtonBox(qtw.QDialogButtonBox.Ok |
-                                         qtw.QDialogButtonBox.Cancel)
+        buttonbox = qtw.QDialogButtonBox(qtw.QDialogButtonBox.Ok | qtw.QDialogButtonBox.Cancel)
         buttonbox.accepted.connect(self.accept)
         buttonbox.rejected.connect(self.reject)
         sizer.addWidget(buttonbox)

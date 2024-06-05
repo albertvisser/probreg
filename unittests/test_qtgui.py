@@ -1,12 +1,123 @@
 """unittests for ./probreg/gui_qt.py
 """
+import pytest
 from mockgui import mockqtwidgets as mockqtw
 from probreg import gui_qt as testee
 
+editor_start = """\
+called Editor.__init__
+"""
+editor_middle = """\
+called Editor.setAcceptRichText with arg `True`
+called Editor.setAutoFormatting with arg `{testee.qtw.QTextEdit.AutoAll}`
+called Signal.connect with args ({testobj.charformat_changed},)
+"""
+editor_end = """\
+called Signal.connect with args ({testobj.cursorposition_changed},)
+called Editor.currentFont
+called Font.__init__
+called Font.pointSize
+called shared.tabsize with arg 'fontsize'
+called Editor.setTabStopWidth with arg tabsize
+called Font.family
+called Font.pointSize
+"""
+page_start = """\
+called Frame.__init__
+called Page.create_text_field
+"""
+page_middle = """\
+called Page.create_toolbar with args {{'textfield': 'text_field'}}
+"""
+page_end = """\
+called PushButton.__init__ with args ('Sla wijzigingen op (Ctrl-S)', {testobj}) {{}}
+called Signal.connect with args ({testobj.master.savep},)
+called Shortcut.__init__ with args ('Ctrl+S', {testobj}, {testobj.master.savep})
+called PushButton.__init__ with args ('Sla op en ga verder (Ctrl-G)', {testobj}) {{}}
+called Signal.connect with args ({testobj.master.savepgo},)
+called Shortcut.__init__ with args ('Ctrl+G', {testobj}, {testobj.master.savepgo})
+called PushButton.__init__ with args ('Zet originele tekst terug (Alt-Ctrl-Z)', {testobj}) {{}}
+called Signal.connect with args ({testobj.master.restorep},)
+called Shortcut.__init__ with args ('Alt+Ctrl+Z', {testobj}, {testobj.master.restorep})
+called Shortcut.__init__ with args ('Alt+N', {testobj}, {testobj.master.nieuwp})
+"""
+pagelayout_start = """\
+called VBox.__init__
+"""
+pagelayout_middle = """\
+called VBox.__init__
+called VBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockToolBar'>
+called VBox.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockVBoxLayout'>
+"""
+pagelayout_end = """\
+called VBox.__init__
+called VBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockEditorWidget'>
+called VBox.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockVBoxLayout'>
+called HBox.__init__
+called HBox.addStretch
+called HBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockPushButton'>
+called HBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockPushButton'>
+called HBox.addWidget with arg of type <class 'mockgui.mockqtwidgets.MockPushButton'>
+called HBox.addStretch
+called VBox.addLayout with arg of type <class 'mockgui.mockqtwidgets.MockHBoxLayout'>
+called Frame.setLayout with arg of type <class 'mockgui.mockqtwidgets.MockVBoxLayout'>
+"""
+
+
+@pytest.fixture
+def expected_output():
+    return {'editor': editor_start + editor_end, 'editor2': editor_start + editor_middle + editor_end,
+            'page_init': page_start + page_end, 'page_init_2': page_start + page_middle + page_end,
+            'pagelayout': pagelayout_start + pagelayout_end,
+            'pagelayout2': pagelayout_start + pagelayout_middle + pagelayout_end,
+            }
+
+class MockAppBase:
+    """stub for main.MainWindow
+    """
+    def __init__(self):
+        self.use_rt = False
+
+
+class MockBook:
+    """stub for main.MainWindow.book
+    """
+    def __init__(self):
+        self.parent = MockAppBase()
+
+
+class MockPage:
+    """stub for main.Page
+    """
+    def __init__(self):
+        print('called Page.__init__')
+        self.parent = MockBook()
+
 
 class MockGui:
+    """stub for gui_qt.MainGui
+    """
     def __init__(self, *args):
         print('called Gui.__init__ with args', args)
+
+
+class MockEditorPanel:
+    """stub for gui.EditorPanel
+    """
+    def __init__(self, text):
+        self._text = text
+
+    def set_contents(self, data):
+        print(f"called EditorWidget.set_contents with arg '{data}'")
+        self._text = data
+
+    def get_contents(self):
+        print('called EditorWidget.get_contents')
+        return self._text
+
+    def setReadOnly(self, value):
+        print(f'called EditorWidget.setReadOnly with arg {value}')
+
 
 def test_show_message(monkeypatch, capsys):
     """unittest for gui_qt.show_message
@@ -137,176 +248,486 @@ class TestEditorPanel:
             """stub
             """
             print('called EditorPanel.__init__ with args', args)
-        testobj = testee.EditorPanel()
-        assert capsys.readouterr().out == 'called EditorPanel.__init__ with args ()\n'
+        monkeypatch.setattr(testee.EditorPanel, '__init__', mock_init)
+        parent = MockPage()
+        testobj = testee.EditorPanel(parent)
+        testobj.parent = parent
+        testobj.appbase = parent.parent.parent
+        assert capsys.readouterr().out == ('called Page.__init__\n'
+                                           f'called EditorPanel.__init__ with args ({parent},)\n')
         return testobj
 
-    def _test_init(self, monkeypatch, capsys):
+    def test_init(self, monkeypatch, capsys, expected_output):
         """unittest for EditorPanel.__init__
         """
+        def mock_tabsize(arg):
+            print(f"called shared.tabsize with arg '{arg}'")
+            return 'tabsize'
+        monkeypatch.setattr(testee.qtw.QTextEdit, '__init__', mockqtw.MockEditorWidget.__init__)
+        monkeypatch.setattr(testee.qtw.QTextEdit, 'setAcceptRichText',
+                            mockqtw.MockEditorWidget.setAcceptRichText)
+        monkeypatch.setattr(testee.qtw.QTextEdit, 'setAutoFormatting',
+                            mockqtw.MockEditorWidget.setAutoFormatting)
+        monkeypatch.setattr(testee.qtw.QTextEdit, 'currentCharFormatChanged',
+                            mockqtw.MockEditorWidget.currentCharFormatChanged)
+        monkeypatch.setattr(testee.qtw.QTextEdit, 'cursorPositionChanged',
+                            mockqtw.MockEditorWidget.cursorPositionChanged)
+        monkeypatch.setattr(testee.qtw.QTextEdit, 'currentFont',
+                            mockqtw.MockEditorWidget.currentFont)
+        monkeypatch.setattr(testee.qtw.QTextEdit, 'setTabStopWidth',
+                            mockqtw.MockEditorWidget.setTabStopWidth)
+        monkeypatch.setattr(testee.shared, 'tabsize', mock_tabsize)
+        parent = MockPage()
+        assert capsys.readouterr().out == 'called Page.__init__\n'
         testobj = testee.EditorPanel(parent)
-        assert capsys.readouterr().out == ("")
+        assert testobj.parent == parent
+        assert testobj.appbase == parent.parent.parent
+        assert testobj.defaultfamily == 'fontfamily'
+        assert testobj.defaultsize == 'fontsize'
+        assert capsys.readouterr().out == expected_output['editor'].format(testobj=testobj)
+        parent.parent.parent.use_rt = True
+        testobj = testee.EditorPanel(parent)
+        assert testobj.parent == parent
+        assert testobj.appbase == parent.parent.parent
+        assert testobj.defaultfamily == 'fontfamily'
+        assert testobj.defaultsize == 'fontsize'
+        assert capsys.readouterr().out == expected_output['editor2'].format(testobj=testobj,
+                                                                            testee=testee)
 
-    def _test_canInsertFromMimeData(self, monkeypatch, capsys):
+    def test_canInsertFromMimeData(self, monkeypatch, capsys):
         """unittest for EditorPanel.canInsertFromMimeData
         """
+        class MimeData:
+            def __init__(self):
+                self.hasImage = False
+            def __str__(self):
+                return 'mimedata'
+            def imageData(self):
+                return 'imagedata'
+        monkeypatch.setattr(testee.qtw.QTextEdit, 'canInsertFromMimeData',
+                            mockqtw.MockEditorWidget.canInsertFromMimeData)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.canInsertFromMimeData(source) == "expected_result"
+        source = MimeData()
+        assert not testobj.canInsertFromMimeData(source)
+        assert capsys.readouterr().out == "called Editor.canInsertFromMimeData with arg 'mimedata'\n"
+        source.hasImage = True
+        assert testobj.canInsertFromMimeData(source)
         assert capsys.readouterr().out == ("")
 
-    def _test_insertFromMimeData(self, monkeypatch, capsys):
+    def test_insertFromMimeData(self, monkeypatch, capsys):
         """unittest for EditorPanel.insertFromMimeData
         """
+        class MimeData:
+            """stub
+            """
+            # def __str__(self):
+            #     return 'mimedata'
+            def hasImage(self):
+                return False
+            def imageData(self):
+                return mockqtw.MockImage()
+        class MockDocument:
+            """stub for Qtgui.QTextDocument
+            """
+            def addResource(self, *args):
+                print('called textdocument.addResource with args', args)
+        def mock_cursor(self):
+            print('called TextEdit.textCursor')
+            return mockqtw.MockCursor()
+        def mock_document(self):
+            print('called TextEdit.document')
+            doc = mockqtw.MockTextDocument()
+            # assert capsys.readouterr().out == 'called TextDocument.__init__ with args ()'
+            return doc
+        monkeypatch.setattr(testee.qtw.QTextEdit, 'insertFromMimeData',
+                            mockqtw.MockEditorWidget.insertFromMimeData)
+        monkeypatch.setattr(testee.qtw.QTextEdit, 'textCursor', mock_cursor)
+        monkeypatch.setattr(testee.qtw.QTextEdit, 'document', mock_document)
+        monkeypatch.setattr(testee.gui, 'QImage', mockqtw.MockImage)
+        monkeypatch.setattr(testee.core, 'QUrl', mockqtw.MockUrl)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.insertFromMimeData(source) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.appbase.imagelist = []
+        testobj.appbase.imagecount = 0
+        testobj.appbase.filename = "test"
+        source = MimeData()
+        testobj.insertFromMimeData(source)
+        assert not testobj.appbase.imagelist
+        assert capsys.readouterr().out == (
+                f"called Editor.insertFromMimeData with args ({testobj}, {source})\n")
+        source.hasImage = lambda: True
+        testobj.insertFromMimeData(source)
+        assert testobj.appbase.imagelist == ['test_00001.png']
+        assert capsys.readouterr().out == (
+                "called Image.__init__ with args ()\n"
+                "called TextEdit.textCursor\n"
+                "called Cursor.__init__\n"
+                "called TextEdit.document\n"
+                "called TextDocument.__init__ with args ()\n"
+                "called image.save with arg test_00001.png\n"
+                "called Url.__init__ with args ('test_00001.png',)\n"
+                "called TextDocument.addResource with args"
+                " (2, <class 'mockgui.mockqtwidgets.MockUrl'>,"
+                " <class 'mockgui.mockqtwidgets.MockImage'>)\n"
+                "called Cursor.insertImage with arg test_00001.png\n")
 
-    def _test_set_contents(self, monkeypatch, capsys):
+    def test_set_contents(self, monkeypatch, capsys):
         """unittest for EditorPanel.set_contents
         """
+        def mock_sethtml(text):
+            print(f'called Editor.setHtml with arg `{text}`')
+        def mock_charformat_changed(arg):
+            print('called Editor.charformat_changed')  #  with arg {arg}')
+        def mock_settext(text):
+            print(f'called Editor.setText with arg `{text}`')
+        monkeypatch.setattr(testee.gui, 'QTextCharFormat', mockqtw.MockTextCharFormat)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.set_contents(data) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.setHtml = mock_sethtml
+        testobj.charformat_changed = mock_charformat_changed
+        testobj.setText = mock_settext
+        testobj.set_contents("<data>")
+        assert capsys.readouterr().out == ("called Editor.setHtml with arg `<data>`\n"
+                                           "called TextCharFormat.__init__ with args ()\n"
+                                           "called Editor.charformat_changed\n")
+        testobj.set_contents("data")
+        assert capsys.readouterr().out == "called Editor.setText with arg `data`\n"
 
-    def _test_get_contents(self, monkeypatch, capsys):
+    def test_get_contents(self, monkeypatch, capsys):
         """unittest for EditorPanel.get_contents
         """
+        def mock_tohtml():
+            print('called Editor.toHtml')
+            return '<p>editor text</p>'
+        def mock_toplaintext():
+            print('called Editor.toPlainText')
+            return 'editor text'
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.get_contents() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.toHtml = mock_tohtml
+        testobj.toPlainText = mock_toplaintext
+        testobj.appbase.use_rt = False
+        assert testobj.get_contents() == "editor text"
+        assert capsys.readouterr().out == "called Editor.toPlainText\n"
+        testobj.appbase.use_rt = True
+        assert testobj.get_contents() == "<p>editor text</p>"
+        assert capsys.readouterr().out == "called Editor.toHtml\n"
 
-    def _test_text_bold(self, monkeypatch, capsys):
+    def test_text_bold(self, monkeypatch, capsys):
         """unittest for EditorPanel.text_bold
         """
+        def mock_merge(arg):
+            print('called EditorPanel.mergeCurrentCharFormat')
+        monkeypatch.setattr(testee.gui, 'QTextCharFormat', mockqtw.MockTextCharFormat)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.text_bold() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.hasFocus = lambda: False
+        testobj.mergeCurrentCharFormat = mock_merge
+        testobj.text_bold()
+        assert capsys.readouterr().out == ""
+        testobj.hasFocus = lambda: True
+        testobj.parent.actiondict = {'&Bold': mockqtw.MockAction()}
+        assert capsys.readouterr().out == "called Action.__init__ with args ()\n"
+        testobj.text_bold()
+        assert capsys.readouterr().out == (
+                "called TextCharFormat.__init__ with args ()\n"
+                "called Action.isChecked\n"
+                f"called TextCharFormat.setFontWeight with arg {testee.gui.QFont.Normal}\n"
+                "called EditorPanel.mergeCurrentCharFormat\n")
+        testobj.parent.actiondict['&Bold'].setChecked(True)
+        testobj.text_bold()
+        assert capsys.readouterr().out == (
+                "called TextCharFormat.__init__ with args ()\n"
+                "called Action.isChecked\n"
+                f"called TextCharFormat.setFontWeight with arg {testee.gui.QFont.Bold}\n"
+                "called EditorPanel.mergeCurrentCharFormat\n")
 
-    def _test_text_italic(self, monkeypatch, capsys):
+    def test_text_italic(self, monkeypatch, capsys):
         """unittest for EditorPanel.text_italic
         """
+        def mock_merge(arg):
+            print('called EditorPanel.mergeCurrentCharFormat')
+        monkeypatch.setattr(testee.gui, 'QTextCharFormat', mockqtw.MockTextCharFormat)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.text_italic() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.hasFocus = lambda: False
+        testobj.mergeCurrentCharFormat = mock_merge
+        testobj.text_italic()
+        assert capsys.readouterr().out == ""
+        testobj.hasFocus = lambda: True
+        testobj.parent.actiondict = {'&Italic': mockqtw.MockAction()}
+        assert capsys.readouterr().out == "called Action.__init__ with args ()\n"
+        testobj.text_italic()
+        assert capsys.readouterr().out == (
+                "called TextCharFormat.__init__ with args ()\n"
+                "called Action.isChecked\n"
+                "called TextCharFormat.setFontItalic with arg False\n"
+                "called EditorPanel.mergeCurrentCharFormat\n")
+        testobj.parent.actiondict['&Italic'].setChecked(True)
+        testobj.text_italic()
+        assert capsys.readouterr().out == (
+                "called TextCharFormat.__init__ with args ()\n"
+                "called Action.isChecked\n"
+                "called TextCharFormat.setFontItalic with arg True\n"
+                "called EditorPanel.mergeCurrentCharFormat\n")
 
-    def _test_text_underline(self, monkeypatch, capsys):
+    def test_text_underline(self, monkeypatch, capsys):
         """unittest for EditorPanel.text_underline
         """
+        def mock_merge(arg):
+            print('called EditorPanel.mergeCurrentCharFormat')
+        monkeypatch.setattr(testee.gui, 'QTextCharFormat', mockqtw.MockTextCharFormat)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.text_underline() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.hasFocus = lambda: False
+        testobj.mergeCurrentCharFormat = mock_merge
+        testobj.text_underline()
+        assert capsys.readouterr().out == ""
+        testobj.hasFocus = lambda: True
+        testobj.parent.actiondict = {'&Underline': mockqtw.MockAction()}
+        assert capsys.readouterr().out == "called Action.__init__ with args ()\n"
+        testobj.text_underline()
+        assert capsys.readouterr().out == (
+                "called TextCharFormat.__init__ with args ()\n"
+                "called Action.isChecked\n"
+                "called TextCharFormat.setFontUnderline with arg False\n"
+                "called EditorPanel.mergeCurrentCharFormat\n")
+        testobj.parent.actiondict['&Underline'].setChecked(True)
+        testobj.text_underline()
+        assert capsys.readouterr().out == (
+                "called TextCharFormat.__init__ with args ()\n"
+                "called Action.isChecked\n"
+                "called TextCharFormat.setFontUnderline with arg True\n"
+                "called EditorPanel.mergeCurrentCharFormat\n")
 
-    def _test_text_strikethrough(self, monkeypatch, capsys):
+    def test_text_strikethrough(self, monkeypatch, capsys):
         """unittest for EditorPanel.text_strikethrough
         """
+        def mock_merge(arg):
+            print('called EditorPanel.mergeCurrentCharFormat')
+        monkeypatch.setattr(testee.gui, 'QTextCharFormat', mockqtw.MockTextCharFormat)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.text_strikethrough() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.hasFocus = lambda: False
+        testobj.mergeCurrentCharFormat = mock_merge
+        testobj.text_strikethrough()
+        assert capsys.readouterr().out == ""
+        testobj.hasFocus = lambda: True
+        testobj.parent.actiondict = {'Strike&through': mockqtw.MockAction()}
+        assert capsys.readouterr().out == "called Action.__init__ with args ()\n"
+        testobj.text_strikethrough()
+        assert capsys.readouterr().out == (
+                "called TextCharFormat.__init__ with args ()\n"
+                "called Action.isChecked\n"
+                "called TextCharFormat.setFontStrikeOut with arg False\n"
+                "called EditorPanel.mergeCurrentCharFormat\n")
+        testobj.parent.actiondict['Strike&through'].setChecked(True)
+        testobj.text_strikethrough()
+        assert capsys.readouterr().out == (
+                "called TextCharFormat.__init__ with args ()\n"
+                "called Action.isChecked\n"
+                "called TextCharFormat.setFontStrikeOut with arg True\n"
+                "called EditorPanel.mergeCurrentCharFormat\n")
 
     def _test_case_lower(self, monkeypatch, capsys):
-        """unittest for EditorPanel.case_lower
+        """unittest for EditorPanel.case_lower - not implemented
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
         assert testobj.case_lower() == "expected_result"
         assert capsys.readouterr().out == ("")
 
     def _test_case_upper(self, monkeypatch, capsys):
-        """unittest for EditorPanel.case_upper
+        """unittest for EditorPanel.case_upper - not implemented
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
         assert testobj.case_upper() == "expected_result"
         assert capsys.readouterr().out == ("")
 
-    def _test_indent_more(self, monkeypatch, capsys):
+    def test_indent_more(self, monkeypatch, capsys):
         """unittest for EditorPanel.indent_more
         """
+        def mock_change(arg):
+            print(f"called MainGui.change_indent with arg '{arg}'")
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.indent_more() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.change_indent = mock_change
+        testobj.indent_more()
+        assert capsys.readouterr().out == "called MainGui.change_indent with arg '1'\n"
 
-    def _test_indent_less(self, monkeypatch, capsys):
+    def test_indent_less(self, monkeypatch, capsys):
         """unittest for EditorPanel.indent_less
         """
+        def mock_change(arg):
+            print(f"called MainGui.change_indent with arg '{arg}'")
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.indent_less() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.change_indent = mock_change
+        testobj.indent_less()
+        assert capsys.readouterr().out == "called MainGui.change_indent with arg '-1'\n"
 
     def _test_change_indent(self, monkeypatch, capsys):
         """unittest for EditorPanel.change_indent
         """
+        def mock_textcursor():
+            print('called EditorPanel.textCursor')
+            return mockqtw.MockTextCursor()
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.change_indent(amount) == "expected_result"
+        testobj.textCursor = mock_textcursor
+        testobj.hasFocus = lambda: False
+        testobj.change_indent(10)
+        assert capsys.readouterr().out == ""
+        testobj.hasFocus = lambda: True
+        testobj.change_indent(10)
         assert capsys.readouterr().out == ("")
 
-    def _test_text_font(self, monkeypatch, capsys):
+    def test_text_font(self, monkeypatch, capsys):
         """unittest for EditorPanel.text_font
         """
+        def mock_merge(arg):
+            print('called EditorPanel.mergeCurrentCharFormat')
+        def mock_tabsize(arg):
+            print(f'called shared.tabsize with arg {arg}')
+            return 10
+        def mock_set(arg):
+            print(f'called EditorPanel.setTabStopWidth with arg {arg}')
+        monkeypatch.setattr(testee.shared, 'tabsize', mock_tabsize)
+        monkeypatch.setattr(testee.qtw, 'QFontDialog', mockqtw.MockFontDialog)
+        monkeypatch.setattr(testee.gui, 'QTextCharFormat', mockqtw.MockTextCharFormat)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.text_font() == "expected_result"
+        testobj.hasFocus = lambda: False
+        testobj.currentFont = lambda: mockqtw.MockFont()
+        testobj.mergeCurrentCharFormat = mock_merge
+        testobj.setTabStopWidth = mock_set
+        testobj.text_font()
         assert capsys.readouterr().out == ("")
+        testobj.hasFocus = lambda: True
+        # breakpoint()
+        testobj.text_font()
+        assert capsys.readouterr().out == ("called Font.__init__\n"
+                                           f"called FontDialog.getFont with args {testobj}\n")
+        monkeypatch.setattr(mockqtw.MockFontDialog, 'getFont', mockqtw.MockFontDialog.getFont2)
+        monkeypatch.setattr(testee.qtw, 'QFontDialog', mockqtw.MockFontDialog)
+        testobj.text_font()
+        assert capsys.readouterr().out == ("called Font.__init__\n"
+                                           f"called FontDialog.getFont with args {testobj}\n"
+                                           "called Font.__init__\n"
+                                           "called TextCharFormat.__init__ with args ()\n"
+                                           "called TextCharFormat.setFont\n"
+                                           "called Font.pointSize\n"
+                                           "called shared.tabsize with arg fontsize\n"
+                                           "called EditorPanel.setTabStopWidth with arg 10\n"
+                                           "called EditorPanel.mergeCurrentCharFormat\n")
 
-    def _test_text_family(self, monkeypatch, capsys):
+    def test_text_family(self, monkeypatch, capsys):
         """unittest for EditorPanel.text_family
         """
+        def mock_merge(arg):
+            print('called EditorPanel.mergeCurrentCharFormat')
+        def mock_set():
+            print('called EditorPanel.setFocus')
+        monkeypatch.setattr(testee.gui, 'QTextCharFormat', mockqtw.MockTextCharFormat)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.text_family(family) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.mergeCurrentCharFormat = mock_merge
+        testobj.setFocus = mock_set
+        testobj.text_family('family')
+        assert capsys.readouterr().out == ("called TextCharFormat.__init__ with args ()\n"
+                                           "called TextCharFormat.setFontFamily with arg family\n"
+                                           "called EditorPanel.mergeCurrentCharFormat\n"
+                                           "called EditorPanel.setFocus\n")
 
-    def _test_enlarge_text(self, monkeypatch, capsys):
+    def test_enlarge_text(self, monkeypatch, capsys):
         """unittest for EditorPanel.enlarge_text
         """
+        def mock_text_size(arg):
+            print(f"called EditorPanel.text_size with arg '{arg}'")
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.enlarge_text() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.text_size = mock_text_size
+        testobj.parent.combo_size = mockqtw.MockComboBox()
+        assert capsys.readouterr().out == 'called ComboBox.__init__\n'
+        testobj.parent.fontsizes = ['current text', 'larger text']
+        testobj.enlarge_text()
+        assert capsys.readouterr().out == ("called ComboBox.currentText\n"
+                                           "called EditorPanel.text_size with arg 'larger text'\n")
+        testobj.parent.fontsizes = ['smaller text', 'current text']
+        testobj.enlarge_text()
+        assert capsys.readouterr().out == "called ComboBox.currentText\n"
 
-    def _test_shrink_text(self, monkeypatch, capsys):
+    def test_shrink_text(self, monkeypatch, capsys):
         """unittest for EditorPanel.shrink_text
         """
+        def mock_text_size(arg):
+            print(f"called EditorPanel.text_size with arg '{arg}'")
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.shrink_text() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.text_size = mock_text_size
+        testobj.parent.combo_size = mockqtw.MockComboBox()
+        assert capsys.readouterr().out == 'called ComboBox.__init__\n'
+        testobj.parent.fontsizes = ['smaller text', 'current text']
+        testobj.shrink_text()
+        assert capsys.readouterr().out == ("called ComboBox.currentText\n"
+                                           "called EditorPanel.text_size with arg 'smaller text'\n")
+        testobj.parent.fontsizes = ['current text', 'larger text']
+        testobj.shrink_text()
+        assert capsys.readouterr().out == "called ComboBox.currentText\n"
 
-    def _test_linespacing_1(self, monkeypatch, capsys):
+    def test_linespacing_1(self, monkeypatch, capsys):
         """unittest for EditorPanel.linespacing_1
         """
+        def mock_set_linespacing(arg):
+            print(f"called EditorPanel.set_linespacing with arg '{arg}'")
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.linespacing_1() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.set_linespacing = mock_set_linespacing
+        testobj.linespacing_1()
+        assert capsys.readouterr().out == ("called EditorPanel.set_linespacing with arg '0'\n")
 
-    def _test_linespacing_15(self, monkeypatch, capsys):
+    def test_linespacing_15(self, monkeypatch, capsys):
         """unittest for EditorPanel.linespacing_15
         """
+        def mock_set_linespacing(arg):
+            print(f"called EditorPanel.set_linespacing with arg '{arg}'")
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.linespacing_15() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.set_linespacing = mock_set_linespacing
+        testobj.linespacing_15()
+        assert capsys.readouterr().out == ("called EditorPanel.set_linespacing with arg '150'\n")
 
-    def _test_linespacing_2(self, monkeypatch, capsys):
+    def test_linespacing_2(self, monkeypatch, capsys):
         """unittest for EditorPanel.linespacing_2
         """
+        def mock_set_linespacing(arg):
+            print(f"called EditorPanel.set_linespacing with arg '{arg}'")
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.linespacing_2() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.set_linespacing = mock_set_linespacing
+        testobj.linespacing_2()
+        assert capsys.readouterr().out == ("called EditorPanel.set_linespacing with arg '200'\n")
 
     def _test_set_linespacing(self, monkeypatch, capsys):
+        def mock_textcursor():
+            print('called EditorPanel.textCursor')
+            return mockqtw.MockTextCursor()
         """unittest for EditorPanel.set_linespacing
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.set_linespacing(amount) == "expected_result"
+        testobj.textCursor = mock_textcursor
+        testobj.hasFocus = lambda: False
+        testobj.set_linespacing(100)
+        assert capsys.readouterr().out == ""
+        testobj.hasFocus = lambda: True
+        testobj.set_linespacing(0)
+        assert capsys.readouterr().out == ("")
+        testobj.set_linespacing(100)
         assert capsys.readouterr().out == ("")
 
-    def _test_increase_paragraph_spacing(self, monkeypatch, capsys):
+    def test_increase_paragraph_spacing(self, monkeypatch, capsys):
         """unittest for EditorPanel.increase_paragraph_spacing
         """
+        def mock_set(**kwargs):
+            print('called testobj.set_paragraph_spacing with args', kwargs)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.increase_paragraph_spacing() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.set_paragraph_spacing = mock_set
+        testobj.increase_paragraph_spacing()
+        assert capsys.readouterr().out == (
+                "called testobj.set_paragraph_spacing with args {'more': True}\n")
 
-    def _test_decrease_paragraph_spacing(self, monkeypatch, capsys):
+    def test_decrease_paragraph_spacing(self, monkeypatch, capsys):
         """unittest for EditorPanel.decrease_paragraph_spacing
         """
+        def mock_set(**kwargs):
+            print('called EditorPanel.set_paragraph_spacing with args', kwargs)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.decrease_paragraph_spacing() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.set_paragraph_spacing = mock_set
+        testobj.decrease_paragraph_spacing()
+        assert capsys.readouterr().out == (
+                "called EditorPanel.set_paragraph_spacing with args {'less': True}\n")
 
     def _test_set_paragraph_spacing(self, monkeypatch, capsys):
         """unittest for EditorPanel.set_paragraph_spacing
@@ -315,82 +736,186 @@ class TestEditorPanel:
         assert testobj.set_paragraph_spacing(more=False, less=False) == "expected_result"
         assert capsys.readouterr().out == ("")
 
-    def _test_text_size(self, monkeypatch, capsys):
+    def test_text_size(self, monkeypatch, capsys):
         """unittest for EditorPanel.text_size
         """
+        def mock_tabsize(arg):
+            print('called shared.mock_tabsize with arg', arg)
+            return 18
+        def mock_settab(arg):
+            print('called EditorPanel.setTabStopWidth with arg', arg)
+        def mock_merge(arg):
+            print('called EditorPanel.mergeCurrentcharformat')
+        def mock_setfocus():
+            print('called EditorPanel.set_focus')
+        monkeypatch.setattr(testee.gui, 'QTextCharFormat', mockqtw.MockTextCharFormat)
+        monkeypatch.setattr(testee.shared, 'tabsize', mock_tabsize)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.text_size(size) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.setTabStopWidth = mock_settab
+        testobj.mergeCurrentCharFormat = mock_merge
+        testobj.setFocus = mock_setfocus
+        testobj.text_size(0)
+        assert capsys.readouterr().out == ""
+        testobj.text_size(10)
+        assert capsys.readouterr().out == (
+                "called TextCharFormat.__init__ with args ()\n"
+                "called TextCharFormat.setFontPointSize with arg 10.0\n"
+                "called shared.mock_tabsize with arg 10.0\n"
+                "called EditorPanel.setTabStopWidth with arg 18\n"
+                "called EditorPanel.mergeCurrentcharformat\n"
+                "called EditorPanel.set_focus\n")
 
-    def _test_charformat_changed(self, monkeypatch, capsys):
+    def test_charformat_changed(self, monkeypatch, capsys):
         """unittest for EditorPanel.charformat_changed
         """
+        def mock_font_changed(arg):
+            print(f'called EditorPanel.font_changed with arg {arg}')
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.charformat_changed(format) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.font_changed = mock_font_changed
+        fmt = mockqtw.MockTextCharFormat()
+        testobj.charformat_changed(fmt)
+        assert capsys.readouterr().out == ("called TextCharFormat.__init__ with args ()\n"
+                                           "called TextCharFormat.font\n"
+                                           "called EditorPanel.font_changed with arg a font\n")
 
     def _test_cursorposition_changed(self, monkeypatch, capsys):
-        """unittest for EditorPanel.cursorposition_changed
+        """unittest for EditorPanel.cursorposition_changed - not implemented
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
         assert testobj.cursorposition_changed() == "expected_result"
         assert capsys.readouterr().out == ("")
 
-    def _test_font_changed(self, monkeypatch, capsys):
+    def test_font_changed(self, monkeypatch, capsys):
         """unittest for EditorPanel.font_changed
         """
+        monkeypatch.setattr(testee.gui, 'QFontInfo', mockqtw.MockFontInfo)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.font_changed(font) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.parent.combo_font = mockqtw.MockComboBox()
+        testobj.parent.combo_size = mockqtw.MockComboBox()
+        testobj.parent.actiondict = {"&Bold": mockqtw.MockCheckBox(),
+                                     "&Italic": mockqtw.MockCheckBox(),
+                                     "&Underline": mockqtw.MockCheckBox(),
+                                     "Strike&through": mockqtw.MockCheckBox()}
+        font = mockqtw.MockFont()
+        font.bold = lambda: False
+        font.italic = lambda: False
+        font.underline = lambda: False
+        font.strikeOut = lambda: False
+        assert capsys.readouterr().out == ("called ComboBox.__init__\ncalled ComboBox.__init__\n"
+                                           "called CheckBox.__init__\ncalled CheckBox.__init__\n"
+                                           "called CheckBox.__init__\ncalled CheckBox.__init__\n"
+                                           "called Font.__init__\n")
 
-    def _test_mergeCurrentCharFormat(self, monkeypatch, capsys):
+        testobj.font_changed(font)
+        assert capsys.readouterr().out == (f"called FontInfo.__init__ with arg {font}\n"
+                                           "called Font.family\n"
+                                           "called ComboBox.findText with args ('family name',)\n"
+                                           "called ComboBox.setCurrentIndex with arg `1`\n"
+                                           "called Font.pointSize\n"
+                                           "called ComboBox.findText with args ('fontsize',)\n"
+                                           "called ComboBox.setCurrentIndex with arg `1`\n"
+                                           "called CheckBox.setChecked with arg False\n"
+                                           "called CheckBox.setChecked with arg False\n"
+                                           "called CheckBox.setChecked with arg False\n"
+                                           "called CheckBox.setChecked with arg False\n")
+        font.bold = lambda: True
+        font.italic = lambda: True
+        font.underline = lambda: True
+        font.strikeOut = lambda: True
+        testobj.font_changed(font)
+        assert capsys.readouterr().out == (f"called FontInfo.__init__ with arg {font}\n"
+                                           "called Font.family\n"
+                                           "called ComboBox.findText with args ('family name',)\n"
+                                           "called ComboBox.setCurrentIndex with arg `1`\n"
+                                           "called Font.pointSize\n"
+                                           "called ComboBox.findText with args ('fontsize',)\n"
+                                           "called ComboBox.setCurrentIndex with arg `1`\n"
+                                           "called CheckBox.setChecked with arg True\n"
+                                           "called CheckBox.setChecked with arg True\n"
+                                           "called CheckBox.setChecked with arg True\n"
+                                           "called CheckBox.setChecked with arg True\n")
+
+    def test_mergeCurrentCharFormat(self, monkeypatch, capsys):
         """unittest for EditorPanel.mergeCurrentCharFormat
         """
+        def mock_cursor():
+            print('called TextEdit.textCursor')
+            return mockqtw.MockTextCursor()
+        def mock_has_sel(self):
+            print('called TextCursor.hasSelection')
+            return True
+        def mock_merge(self, *args):
+            print('called TextCursor.mergeCurrentCharFormat with args', args)
+        monkeypatch.setattr(testee.qtw.QTextEdit, 'mergeCurrentCharFormat', mock_merge)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.mergeCurrentCharFormat(format) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.textCursor = mock_cursor
+        testobj.mergeCurrentCharFormat('format')
+        assert capsys.readouterr().out == (
+                "called TextEdit.textCursor\n"
+                "called TextCursor.__init__\n"
+                "called TextCursor.hasSelection\n"
+                f"called TextCursor.select with arg {testee.gui.QTextCursor.WordUnderCursor}\n"
+                "called TextCursor.mergeCharFormat with arg format\n"
+                f"called TextCursor.mergeCurrentCharFormat with args ({testobj}, 'format')\n")
+        monkeypatch.setattr(mockqtw.MockTextCursor, 'hasSelection', mock_has_sel)
+        testobj.mergeCurrentCharFormat('format')
+        assert capsys.readouterr().out == (
+                "called TextEdit.textCursor\n"
+                "called TextCursor.__init__\n"
+                "called TextCursor.hasSelection\n"
+                "called TextCursor.mergeCharFormat with arg format\n"
+                f"called TextCursor.mergeCurrentCharFormat with args ({testobj}, 'format')\n")
 
     def _test_update_bold(self, monkeypatch, capsys):
-        """unittest for EditorPanel.update_bold
+        """unittest for EditorPanel.update_bold - not implemented
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
         assert testobj.update_bold() == "expected_result"
         assert capsys.readouterr().out == ("")
 
     def _test_update_italic(self, monkeypatch, capsys):
-        """unittest for EditorPanel.update_italic
+        """unittest for EditorPanel.update_italic - not implemented
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
         assert testobj.update_italic() == "expected_result"
         assert capsys.readouterr().out == ("")
 
     def _test_update_underline(self, monkeypatch, capsys):
-        """unittest for EditorPanel.update_underline
+        """unittest for EditorPanel.update_underline - not implemented
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
         assert testobj.update_underline() == "expected_result"
         assert capsys.readouterr().out == ("")
 
-    def _test__check_dirty(self, monkeypatch, capsys):
+    def test_check_dirty(self, monkeypatch, capsys):
         """unittest for EditorPanel._check_dirty
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj._check_dirty() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.document = lambda: mockqtw.MockTextDocument()
+        assert testobj._check_dirty() == "modified"
+        assert capsys.readouterr().out == ("called TextDocument.__init__ with args ()\n"
+                                           "called textDocument.isModified\n")
 
-    def _test__mark_dirty(self, monkeypatch, capsys):
+    def test_mark_dirty(self, monkeypatch, capsys):
         """unittest for EditorPanel._mark_dirty
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj._mark_dirty(value) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.document = lambda: mockqtw.MockTextDocument()
+        testobj._mark_dirty('value')
+        assert capsys.readouterr().out == ("called TextDocument.__init__ with args ()\n"
+                                           "called textDocument.setModified with arg value\n")
 
-    def _test__openup(self, monkeypatch, capsys):
+    def test_openup(self, monkeypatch, capsys):
         """unittest for EditorPanel._openup
         """
+        def mock_set(value):
+            print(f'called EditorPanel.setReadOnly with arg {value}')
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj._openup(value) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.setReadOnly = mock_set
+        testobj._openup('value')
+        assert capsys.readouterr().out == ("called EditorPanel.setReadOnly with arg False\n")
+        testobj._openup('')
+        assert capsys.readouterr().out == ("called EditorPanel.setReadOnly with arg True\n")
 
 
 class TestPageGui:
@@ -407,22 +932,69 @@ class TestPageGui:
             """stub
             """
             print('called PageGui.__init__ with args', args)
+        monkeypatch.setattr(testee.PageGui, '__init__', mock_init)
         testobj = testee.PageGui()
-        assert capsys.readouterr().out == 'called PageGui.__init__ with args ()\n'
+        testobj.parent = MockGui()
+        testobj.master = MockPage()
+        testobj.appbase = testobj.master.parent.parent
+        assert capsys.readouterr().out == ('called PageGui.__init__ with args ()\n'
+                                           'called Gui.__init__ with args ()\n'
+                                           'called Page.__init__\n')
         return testobj
 
-    def _test_init(self, monkeypatch, capsys):
+    def test_init(self, monkeypatch, capsys, expected_output):
         """unittest for PageGui.__init__
         """
+        def mock_create(self):
+            print('called Page.create_text_field')
+            return 'text_field'
+        def mock_create_tb(self, **kwargs):
+            print('called Page.create_toolbar with args', kwargs)
+        monkeypatch.setattr(testee.qtw.QFrame, '__init__', mockqtw.MockFrame.__init__)
+        monkeypatch.setattr(testee.PageGui, 'create_text_field', mock_create)
+        monkeypatch.setattr(testee.PageGui, 'create_toolbar', mock_create_tb)
+        monkeypatch.setattr(testee.qtw, 'QShortcut', mockqtw.MockShortcut)
+        monkeypatch.setattr(testee.qtw, 'QPushButton', mockqtw.MockPushButton)
+        parent = MockGui()
+        master = MockPage()
+        assert capsys.readouterr().out == ("called Gui.__init__ with args ()\n"
+                                           'called Page.__init__\n')
+        master.is_text_page = False
+        master.savep = lambda: 'save'
+        master.savepgo = lambda: 'save&go'
+        master.restorep = lambda: 'restore'
+        master.nieuwp = lambda: 'nieuw'
         testobj = testee.PageGui(parent, master)
-        assert capsys.readouterr().out == ("")
+        assert capsys.readouterr().out == "called Frame.__init__\n"
+        master.is_text_page = True
+        master.parent.parent.use_rt = False
+        testobj = testee.PageGui(parent, master)
+        assert capsys.readouterr().out == expected_output['page_init'].format(testobj=testobj)
 
-    def _test_create_text_field(self, monkeypatch, capsys):
+        master.parent.parent.use_rt = True
+        testobj = testee.PageGui(parent, master)
+        assert capsys.readouterr().out == expected_output['page_init_2'].format(testobj=testobj)
+
+    def test_create_text_field(self, monkeypatch, capsys):
         """unittest for PageGui.create_text_field
         """
+        monkeypatch.setattr(testee, 'EditorPanel', mockqtw.MockEditorWidget)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.create_text_field() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.master.on_text = lambda x: x
+        monkeypatch.setattr(testee, 'LIN', False)
+        result = testobj.create_text_field()
+        assert isinstance(result, testee.EditorPanel)
+        assert capsys.readouterr().out == (
+                f"called Editor.__init__ with args ({testobj},)\n"
+                "called Editor.resize with args (490, 430)\n"
+                f"called Signal.connect with args ({testobj.master.on_text},)\n")
+        monkeypatch.setattr(testee, 'LIN', True)
+        result = testobj.create_text_field()
+        assert isinstance(result, testee.EditorPanel)
+        assert capsys.readouterr().out == (
+                f"called Editor.__init__ with args ({testobj},)\n"
+                "called Editor.resize with args (490, 330)\n"
+                f"called Signal.connect with args ({testobj.master.on_text},)\n")
 
     def _test_create_toolbar(self, monkeypatch, capsys):
         """unittest for PageGui.create_toolbar
@@ -431,82 +1003,172 @@ class TestPageGui:
         assert testobj.create_toolbar(textfield=None) == "expected_result"
         assert capsys.readouterr().out == ("")
 
-    def _test_doelayout(self, monkeypatch, capsys):
+    def test_doelayout(self, monkeypatch, capsys, expected_output):
         """unittest for PageGui.doelayout
         """
+        def mock_setLayout(arg):
+            print(f'called Frame.setLayout with arg of type {type(arg)}')
+        monkeypatch.setattr(testee.qtw, 'QVBoxLayout', mockqtw.MockVBoxLayout)
+        monkeypatch.setattr(testee.qtw, 'QHBoxLayout', mockqtw.MockHBoxLayout)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.doelayout() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.toolbar = mockqtw.MockToolBar()
+        testobj.text1 = mockqtw.MockEditorWidget()
+        testobj.save_button = mockqtw.MockPushButton()
+        testobj.saveandgo_button = mockqtw.MockPushButton()
+        testobj.cancel_button = mockqtw.MockPushButton()
+        assert capsys.readouterr().out == ("called ToolBar.__init__ \n"
+                                           "called Editor.__init__\n"
+                                           "called PushButton.__init__ with args () {}\n"
+                                           "called PushButton.__init__ with args () {}\n"
+                                           "called PushButton.__init__ with args () {}\n")
+        testobj.appbase.use_rt = False
+        testobj.setLayout = mock_setLayout
+        assert testobj.doelayout()
+        assert capsys.readouterr().out == expected_output['pagelayout'].format(testobj=testobj)
+        testobj.appbase.use_rt = True
+        assert testobj.doelayout()
+        assert capsys.readouterr().out == expected_output['pagelayout2'].format(testobj=testobj)
 
-    def _test_reset_font(self, monkeypatch, capsys):
+    def test_reset_font(self, monkeypatch, capsys):
         """unittest for PageGui.reset_font
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.reset_font() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.progress_text = mockqtw.MockEditorWidget('progress')
+        testobj.text1 = mockqtw.MockEditorWidget('text')
+        assert capsys.readouterr().out == ("called Editor.__init__ with args ('progress',)\n"
+                                           "called Editor.__init__ with args ('text',)\n")
+        testobj.master.parent.current_tab = 2
+        testobj.reset_font()
+        # hoe toon ik aan welke waarde win heeft?
+        assert capsys.readouterr().out == (
+                f"called Editor.setFontWeight with arg {testee.gui.QFont.Normal}\n"
+                "called Editor.setFontItalic with arg False\n"
+                "called Editor.setFontUnderline with arg False\n"
+                "called Editor.setFontFamily with arg 'font family'\n"
+                "called Editor.setFontPointSize with arg '12pt'\n")
+        testobj.master.parent.current_tab = 6
+        testobj.reset_font()
+        assert capsys.readouterr().out == (
+                f"called Editor.setFontWeight with arg {testee.gui.QFont.Normal}\n"
+                "called Editor.setFontItalic with arg False\n"
+                "called Editor.setFontUnderline with arg False\n"
+                "called Editor.setFontFamily with arg 'font family'\n"
+                "called Editor.setFontPointSize with arg '12pt'\n")
 
-    def _test_enable_buttons(self, monkeypatch, capsys):
+    def test_enable_buttons(self, monkeypatch, capsys):
         """unittest for PageGui.enable_buttons
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.enable_buttons(state=True) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.save_button = mockqtw.MockPushButton()
+        testobj.saveandgo_button = mockqtw.MockPushButton()
+        testobj.cancel_button = mockqtw.MockPushButton()
+        assert capsys.readouterr().out == ("called PushButton.__init__ with args () {}\n"
+                                           "called PushButton.__init__ with args () {}\n"
+                                           "called PushButton.__init__ with args () {}\n")
+        assert not testobj.save_button.isEnabled()
+        assert not testobj.saveandgo_button.isEnabled()
+        assert not testobj.cancel_button.isEnabled()
+        testobj.parent.count = lambda: 3
+        testobj.parent.current_tab = 1
+        testobj.enable_buttons()
+        assert capsys.readouterr().out == ("called PushButton.setEnabled with arg `True`\n"
+                                           "called PushButton.setEnabled with arg `True`\n"
+                                           "called PushButton.setEnabled with arg `True`\n")
+        assert testobj.save_button.isEnabled()
+        assert testobj.saveandgo_button.isEnabled()
+        assert testobj.cancel_button.isEnabled()
+        testobj.parent.current_tab = 2
+        testobj.enable_buttons(False)
+        assert capsys.readouterr().out == ("called PushButton.setEnabled with arg `False`\n"
+                                           "called PushButton.setEnabled with arg `False`\n")
+        assert not testobj.save_button.isEnabled()
+        assert testobj.saveandgo_button.isEnabled()
+        assert not testobj.cancel_button.isEnabled()
 
-    def _test_move_cursor_to_end(self, monkeypatch, capsys):
+    def test_move_cursor_to_end(self, monkeypatch, capsys):
         """unittest for PageGui.move_cursor_to_end
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.move_cursor_to_end() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.text1 = mockqtw.MockEditorWidget()
+        testobj.move_cursor_to_end()
+        assert capsys.readouterr().out == (
+                "called Editor.__init__\n"
+                f"called Editor.moveCursor with args ({testee.gui.QTextCursor.End},"
+                f" {testee.gui.QTextCursor.MoveAnchor})\n")
 
-    def _test_set_textarea_contents(self, monkeypatch, capsys):
+    def test_set_textarea_contents(self, monkeypatch, capsys):
         """unittest for PageGui.set_textarea_contents
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.set_textarea_contents(data) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.text1 = MockEditorPanel('')
+        testobj.set_textarea_contents('data')
+        assert capsys.readouterr().out == "called EditorWidget.set_contents with arg 'data'\n"
 
-    def _test_get_textarea_contents(self, monkeypatch, capsys):
+    def test_get_textarea_contents(self, monkeypatch, capsys):
         """unittest for PageGui.get_textarea_contents
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.get_textarea_contents() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.text1 = MockEditorPanel('text')
+        assert testobj.get_textarea_contents() == "text"
+        assert capsys.readouterr().out == ("called EditorWidget.get_contents\n")
 
-    def _test_enable_toolbar(self, monkeypatch, capsys):
+    def test_enable_toolbar(self, monkeypatch, capsys):
         """unittest for PageGui.enable_toolbar
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.enable_toolbar(value) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.toolbar = mockqtw.MockToolBar()
+        assert capsys.readouterr().out == "called ToolBar.__init__ \n"
+        testobj.appbase.use_rt = False
+        testobj.enable_toolbar(True)
+        assert capsys.readouterr().out == ""
+        testobj.appbase.use_rt = True
+        testobj.enable_toolbar(True)
+        assert capsys.readouterr().out == "called ToolBar.setEnabled with arg True\n"
 
-    def _test_set_text_readonly(self, monkeypatch, capsys):
+    def test_set_text_readonly(self, monkeypatch, capsys):
         """unittest for PageGui.set_text_readonly
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.set_text_readonly(value) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.text1 = MockEditorPanel('')
+        testobj.set_text_readonly(True)
+        assert capsys.readouterr().out == ("called EditorWidget.setReadOnly with arg True\n")
 
-    def _test_can_saveandgo(self, monkeypatch, capsys):
+    def test_can_saveandgo(self, monkeypatch, capsys):
         """unittest for PageGui.can_saveandgo
         """
+        def mock_isEnabled(self):
+            print('called PushButton.isEnabled')
+            return self._enabled
+        monkeypatch.setattr(mockqtw.MockPushButton, 'isEnabled', mock_isEnabled)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.can_saveandgo() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.saveandgo_button = mockqtw.MockPushButton()
+        assert capsys.readouterr().out == "called PushButton.__init__ with args () {}\n"
+        assert not testobj.can_saveandgo()
+        assert capsys.readouterr().out == "called PushButton.isEnabled\n"
 
-    def _test_can_save(self, monkeypatch, capsys):
+    def test_can_save(self, monkeypatch, capsys):
         """unittest for PageGui.can_save
         """
+        def mock_isEnabled(self):
+            print('called PushButton.isEnabled')
+            return self._enabled
+        monkeypatch.setattr(mockqtw.MockPushButton, 'isEnabled', mock_isEnabled)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.can_save() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.save_button = mockqtw.MockPushButton()
+        assert capsys.readouterr().out == "called PushButton.__init__ with args () {}\n"
+        assert not testobj.can_save()
+        assert capsys.readouterr().out == "called PushButton.isEnabled\n"
 
-    def _test_build_newbuf(self, monkeypatch, capsys):
+    def test_build_newbuf(self, monkeypatch, capsys):
         """unittest for PageGui.build_newbuf
         """
+        def mock_get():
+            print('called PageGui.get_textarea_contents')
+            return 'text'
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.build_newbuf() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.get_textarea_contents = mock_get
+        assert testobj.build_newbuf() == "text"
+        assert capsys.readouterr().out == "called PageGui.get_textarea_contents\n"
 
 
 class TestPage0Gui:

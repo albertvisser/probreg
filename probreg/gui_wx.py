@@ -367,12 +367,13 @@ class PageGui(wx.Panel):
     def __init__(self, parent, master):
         self.parent = parent
         self.master = master
+        self.appbase = master.parent.parent
         super().__init__(parent)
         if not self.master.is_text_page:
             return
         self.actiondict = collections.OrderedDict()
         self.text1 = self.create_text_field()
-        if self.master.parent.parent.use_rt:
+        if self.appbase.use_rt:
             self.create_toolbar(textfield=self.text1)
         # if wants_chars:
         #     wx.Panel.__init__(self, parent, id_, style=wx.WANTS_CHARS)
@@ -400,7 +401,7 @@ class PageGui(wx.Panel):
         if not parent:
             parent = self
         # high = 330 if LIN else 430
-        cls = EditorPanelRt if self.master.parent.parent.use_rt else EditorPanel
+        cls = EditorPanelRt if self.appbase.use_rt else EditorPanel
         textfield = cls(parent) if size == wx.DefaultSize else cls(parent, size=size)
         self.Bind(wx.EVT_TEXT, self.master.on_text, textfield)
         # textfield.Bind(wx.EVT_KEY_DOWN, self.on_key)
@@ -499,7 +500,7 @@ class PageGui(wx.Panel):
         "layout page"
         vsizer = wx.BoxSizer(wx.VERTICAL)
         # self.toolbar = wx.StaticText(self, label="Hello this is a placeholder for a toolbar")
-        if self.master.parent.parent.use_rt:
+        if self.appbase.use_rt:
             vsizer.Add(self.toolbar, 0, wx.EXPAND)
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
         hsizer.Add(self.text1, 1, wx.ALL | wx.EXPAND, 4)
@@ -545,7 +546,7 @@ class PageGui(wx.Panel):
 
     def enable_toolbar(self, value):
         "make the toolbar accessible (or not)"
-        if self.master.parent.parent.use_rt:
+        if self.appbase.use_rt:
             self.toolbar.Enable(value)
 
     def set_text_readonly(self, value):
@@ -569,8 +570,8 @@ class PageGui(wx.Panel):
 class Page0Gui(PageGui, listmix.ColumnSorterMixin):
     "pagina 0: overzicht acties"
     def __init__(self, parent, master, widths):
-        self.parent = parent
-        self.master = master
+        # self.parent = parent
+        # self.master = master
         super().__init__(parent, master)
         self.selection = 'excl. gearchiveerde'
         self.sel_args = {}
@@ -591,7 +592,7 @@ class Page0Gui(PageGui, listmix.ColumnSorterMixin):
         # Now that the list exists we can init the other base class,
         # see wx/lib/mixins/listctrl.py
         self.itemDataMap = self.parent.data
-        aantcols = 7 if self.parent.parent.use_separate_subject else 6
+        aantcols = 7 if self.appbase.use_separate_subject else 6
         listmix.ColumnSorterMixin.__init__(self, aantcols)
         for indx, wid in enumerate(widths):
             self.p0list.InsertColumn(indx, self.parent.ctitels[indx])
@@ -640,13 +641,12 @@ class Page0Gui(PageGui, listmix.ColumnSorterMixin):
 
     def enable_buttons(self):
         "buttons wel of niet bruikbaar maken"
-        print(self.parent.parent.user, self.parent.parent.is_user)
         self.filter_button.Enable(bool(self.parent.parent.user))
         self.go_button.Enable(self.p0list.has_selection)
-        self.new_button.Enable(self.parent.parent.is_user and bool(self.parent.parent.filename))
+        self.new_button.Enable(self.appbase.is_user and bool(self.appbase.filename))
         if self.p0list.has_selection:
-            self.sort_button.Enable(bool(self.parent.parent.user))
-            self.archive_button.Enable(self.parent.parent.is_user)
+            self.sort_button.Enable(bool(self.appbase.user))
+            self.archive_button.Enable(self.appbase.is_user)
         else:
             self.sort_button.Enable(False)
             self.archive_button.Enable(False)
@@ -780,8 +780,8 @@ class Page0Gui(PageGui, listmix.ColumnSorterMixin):
 class Page1Gui(PageGui):
     "pagina 1: startscherm actie"
     def __init__(self, parent, master):
-        self.parent = parent
-        self.master = master
+        # self.parent = parent
+        # self.master = master
         super().__init__(parent, master)
         # self.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_BTNFACE))
 
@@ -862,7 +862,7 @@ class Page1Gui(PageGui):
         self.proc_entry.SetValue("")
         self.desc_entry.SetValue("")
         self.archive_text.SetLabel("")
-        if not self.parent.parent.use_text_panels:
+        if not self.appbase.use_text_panels:
             self.summary_entry.SetValue('')
         self.cat_choice.SetSelection(0)
         self.stat_choice.SetSelection(0)
@@ -936,7 +936,7 @@ class Page1Gui(PageGui):
         self.desc_entry.Enable(state)
         self.cat_choice.Enable(state)
         self.stat_choice.Enable(state)
-        if self.master.parent.newitem or not self.master.parent.parent.is_user:
+        if self.master.parent.newitem or not self.appbase.is_user:
             # archiveren niet mogelijk bij nieuw item of als de user niet is ingelogd (?)
             self.archive_button.Enable(False)
         else:
@@ -972,8 +972,8 @@ class Page1Gui(PageGui):
 class Page6Gui(PageGui):
     "pagina 6: voortgang"
     def __init__(self, parent, master):
-        self.parent = parent
-        self.master = master
+        # self.parent = parent
+        # self.master = master
         super().__init__(parent, master)
         # self.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_BTNFACE))
         # high = 200 if LIN else 280
@@ -982,7 +982,7 @@ class Page6Gui(PageGui):
         self.progress_list = MyListCtrl(self.pnl, size=(250, -1),  # high),
                                 style=wx.LC_REPORT | wx.LC_HRULES | wx.LC_VRULES | wx.LC_SINGLE_SEL)
         accel_data = []
-        if not parent.parent.work_with_user:
+        if not appbase.work_with_user:
             self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.on_activate_item, self.progress_list)
             accel_data.append(('new-item', self.on_activate_item, 'Shift-Ctrl-N'))
         # self.progress_list.Bind(wx.EVT_LIST_ITEM_SELECTED, self.on_select_item)
@@ -1000,7 +1000,7 @@ class Page6Gui(PageGui):
         #                                  style=wx.TE_MULTILINE |        # wx.TE_PROCESS_TAB |
         #                                        wx.TE_RICH2 | wx.TE_WORDWRAP)
         # self.progress_text.Bind(wx.EVT_TEXT, self.master.on_text)
-        if self.master.parent.parent.use_rt:
+        if self.appbase.use_rt:
             super().create_toolbar(parent=self.textpanel, textfield=self.progress_text)
 
         self.pnl.SplitHorizontally(self.progress_list, self.textpanel)  # self.progress_text)
@@ -1156,7 +1156,7 @@ class Page6Gui(PageGui):
             text = tekst_plat or ""
         text = text if len(text) < maxlen else text[:maxlen] + "..."
         index = self.progress_list.InsertItem(sys.maxsize, datum)
-        # if self.parent.parent.datatype == shared.DataType.SQL:
+        # if self.appbase.datatype == shared.DataType.SQL:
         if len(datum) > len('eejj-mm-dd hh:mm:ss'):  # 18:
             datum = datum[:19]
         self.progress_list.SetItem(index, 0, f"{datum} - {text}")
@@ -1165,7 +1165,7 @@ class Page6Gui(PageGui):
 
     def set_list_callback(self):
         "bind or unbind depending on user's permissions"
-        if self.parent.parent.is_user:
+        if self.appbase.is_user:
             self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.on_activate_item, self.progress_list)
             self.progress_list.Bind(wx.EVT_LEFT_UP, self.on_activate_item)
         else:
