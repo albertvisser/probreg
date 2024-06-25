@@ -144,11 +144,11 @@ def test_get_open_filename(monkeypatch, capsys):
     testee.shared.app_title = 'xxx'
     assert testee.get_open_filename(win) == ''
     assert capsys.readouterr().out == (
-            f"called FileDialog.getOpenFilename with args {win} ('xxx - kies een gegevensbestand',"
+            f"called FileDialog.getOpenFileName with args {win} ('xxx - kies een gegevensbestand',"
             f" '{testee.pathlib.Path.home()}', 'XML files (*.xml);;all files (*.*)') {{}}\n")
     assert testee.get_open_filename(win, start='qqq') == ""
     assert capsys.readouterr().out == (
-            f"called FileDialog.getOpenFilename with args {win} ('xxx - kies een gegevensbestand',"
+            f"called FileDialog.getOpenFileName with args {win} ('xxx - kies een gegevensbestand',"
             f" 'qqq', 'XML files (*.xml);;all files (*.*)') {{}}\n")
 
 
@@ -433,6 +433,7 @@ class TestEditorPanel:
         testobj.parent.actiondict['&Bold'].setChecked(True)
         testobj.text_bold()
         assert capsys.readouterr().out == (
+                "called Action.setChecked with arg `True`\n"
                 "called TextCharFormat.__init__ with args ()\n"
                 "called Action.isChecked\n"
                 f"called TextCharFormat.setFontWeight with arg {testee.gui.QFont.Bold}\n"
@@ -461,6 +462,7 @@ class TestEditorPanel:
         testobj.parent.actiondict['&Italic'].setChecked(True)
         testobj.text_italic()
         assert capsys.readouterr().out == (
+                "called Action.setChecked with arg `True`\n"
                 "called TextCharFormat.__init__ with args ()\n"
                 "called Action.isChecked\n"
                 "called TextCharFormat.setFontItalic with arg True\n"
@@ -489,6 +491,7 @@ class TestEditorPanel:
         testobj.parent.actiondict['&Underline'].setChecked(True)
         testobj.text_underline()
         assert capsys.readouterr().out == (
+                "called Action.setChecked with arg `True`\n"
                 "called TextCharFormat.__init__ with args ()\n"
                 "called Action.isChecked\n"
                 "called TextCharFormat.setFontUnderline with arg True\n"
@@ -517,6 +520,7 @@ class TestEditorPanel:
         testobj.parent.actiondict['Strike&through'].setChecked(True)
         testobj.text_strikethrough()
         assert capsys.readouterr().out == (
+                "called Action.setChecked with arg `True`\n"
                 "called TextCharFormat.__init__ with args ()\n"
                 "called Action.isChecked\n"
                 "called TextCharFormat.setFontStrikeOut with arg True\n"
