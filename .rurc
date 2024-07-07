@@ -2,7 +2,7 @@
 unittests
 
 [testscripts]
-core = test_main.py
+main = test_main.py
 xml = test_dml_xml.py
 django = test_dml_django.py
 mongo = test_dml_mongo.py
@@ -11,7 +11,7 @@ qtgui = test_qtgui.py
 wxgui = test_wxgui.py
 
 [testees]
-core = probreg/main.py
+main = probreg/main.py
 xml = probreg/dml_xml.py
 django = probreg/dml_django.py
 mongo = probreg/dml_mongo.py
