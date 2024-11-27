@@ -1213,12 +1213,11 @@ def test_page0_init(monkeypatch, capsys):
     assert testobj.sel_args == {}
     assert testobj.sorted == (0, "A")
     assert not testobj.sort_via_options
-    assert testobj.saved_sortopts is not None
+    assert testobj.saved_sortopts is None
     assert capsys.readouterr().out == (
         "called MainWindow.__init__() with args ()\ncalled MainGui.__init__()\n"
         f"called PageGui.__init__() with args ({parent}, {testobj}, [122, 24, 146, 100, 90]) {{}}\n"
-        "called PageGui.enable_buttons() with args ()\n"
-        "called dmls.SortOptions() with args ('fnaam',)\n")
+        "called PageGui.enable_buttons() with args ()\n")
 
     appbase = MockMainWindow()
     parent = MockBook()
@@ -1308,12 +1307,14 @@ def test_page0_vulp(monkeypatch, capsys):
     testobj = setup_page0(monkeypatch, capsys)
 
     testobj.appbase.work_with_user = False
+    testobj.sort_via_options = False
     testobj.parent.rereadlist = False
     testobj.gui.has_selection = lambda *x: False
     testobj.vulp()
     assert testobj.selection == ''
     assert testobj.seltitel == 'alle meldingen '
-    assert capsys.readouterr().out == ('called Page.vulp()\n'
+    assert capsys.readouterr().out == ('called PageGui.enable_sorting(True)\n'
+                                       'called Page.vulp()\n'
                                        'call MainWindow.enable_all_book_tabs(False)\n'
                                        'called PageGui.enable_buttons() with args ()\n'
                                        'call MainWindow.set_statusmessage()\n')
@@ -1327,7 +1328,7 @@ def test_page0_vulp(monkeypatch, capsys):
     testobj.vulp()
     assert testobj.selection == ''
     assert testobj.seltitel == 'alle meldingen '
-    assert capsys.readouterr().out == ('called PageGui.enable_sorting(False)\n'
+    assert capsys.readouterr().out == ('called PageGui.enable_sorting(True)\n'
                                        'called Page.vulp()\n'
                                        'called Page0.populate_list()\n'
                                        'called PageGui.get_first_item() with args ()\n'
@@ -1339,7 +1340,7 @@ def test_page0_vulp(monkeypatch, capsys):
     testobj.vulp()
     assert testobj.selection == 'volgens user gedefinieerde selectie'
     assert testobj.seltitel == 'alle meldingen volgens user gedefinieerde selectie'
-    assert capsys.readouterr().out == ('called PageGui.enable_sorting(True)\n'
+    assert capsys.readouterr().out == ('called PageGui.enable_sorting(False)\n'
                                        'called Page.vulp()\n'
                                        'call MainWindow.enable_all_book_tabs(False)\n'
                                        'called PageGui.enable_buttons() with args ()\n'
@@ -3459,6 +3460,7 @@ def test_mainwindow_exit_app(monkeypatch, capsys):
     assert capsys.readouterr().out == 'called MainGui.exit()\n'
 
 
+#        "called dmls.SortOptions() with args ('fnaam',)\n")
 def test_mainwindow_sign_in(monkeypatch, capsys):
     """unittest for main.MainWindow.sign_in
     """
@@ -3479,6 +3481,10 @@ def test_mainwindow_sign_in(monkeypatch, capsys):
         """stub
         """
         print('called MainWindow.book.rereadlist()')
+    class MockOptions:
+        "stub"
+        def __init__(self, filename):
+            print(f'called dmls.SortOptions.__init__ with arg {filename}')
     counter = 0
     def mock_validate_user(*args):
         """stub
@@ -3488,6 +3494,12 @@ def test_mainwindow_sign_in(monkeypatch, capsys):
         counter += 1
         if counter == 1:
             return '', False, False
+        elif counter == 3:
+            return 'me', True, False
+        elif counter == 4:
+            return 'me', False, True
+        elif counter == 5:
+            return 'me', False, False
         return 'me', True, True
     monkeypatch.setattr(testee.MainWindow, '__init__', mock_init_mainwindow)
     monkeypatch.setattr(testee.gui, 'show_dialog', mock_show_dialog)
@@ -3501,17 +3513,51 @@ def test_mainwindow_sign_in(monkeypatch, capsys):
     monkeypatch.setattr(testee.MainWindow, '__init__', mock_init_mainwindow)
     monkeypatch.setattr(testee.gui, 'show_dialog', mock_show_dialog_ok)
     monkeypatch.setattr(testee.gui, 'show_message', mock_show_message)
+    monkeypatch.setattr(testee.dmls, 'SortOptions', MockOptions)
+    monkeypatch.setattr(testee.dmls, 'validate_user', mock_validate_user)
     testobj = testee.MainWindow()
     assert capsys.readouterr().out == 'called MainGui.__init__()\n'
-    monkeypatch.setattr(testee.dmls, 'validate_user', mock_validate_user)
+    testobj.filename = 'xxx'
     testobj.gui.dialog_data = 'stuff'
     testobj.book.rereadlist = mock_rereadlist
+    testobj.book.pages = [types.SimpleNamespace()]
     testobj.sign_in()
     assert (testobj.user, testobj.is_user, testobj.is_admin) == ('me', True, True)
+    assert isinstance(testobj.book.pages[0].saved_sortopts, testee.dmls.SortOptions)
     assert capsys.readouterr().out == ('called gui.show_dialog() (for login dialog)\n'
                                        'called dmls.validate_user()\n'
                                        'called gui.show_message(`Login failed`)\n'
                                        'called gui.show_dialog() (for login dialog)\n'
+                                       'called dmls.validate_user()\n'
+                                       'called gui.show_message(`Login accepted`)\n'
+                                       'called MainGui.enable_settingsmenu()\n'
+                                       'called dmls.SortOptions.__init__ with arg xxx\n'
+                                       'called MainGui.refresh_page()\n')
+    testobj.book.pages = [types.SimpleNamespace()]
+    testobj.sign_in()
+    assert (testobj.user, testobj.is_user, testobj.is_admin) == ('me', True, False)
+    assert isinstance(testobj.book.pages[0].saved_sortopts, testee.dmls.SortOptions)
+    assert capsys.readouterr().out == ('called gui.show_dialog() (for login dialog)\n'
+                                       'called dmls.validate_user()\n'
+                                       'called gui.show_message(`Login accepted`)\n'
+                                       'called MainGui.enable_settingsmenu()\n'
+                                       'called dmls.SortOptions.__init__ with arg xxx\n'
+                                       'called MainGui.refresh_page()\n')
+    testobj.book.pages = [types.SimpleNamespace()]
+    testobj.sign_in()
+    assert (testobj.user, testobj.is_user, testobj.is_admin) == ('me', False, True)
+    assert isinstance(testobj.book.pages[0].saved_sortopts, testee.dmls.SortOptions)
+    assert capsys.readouterr().out == ('called gui.show_dialog() (for login dialog)\n'
+                                       'called dmls.validate_user()\n'
+                                       'called gui.show_message(`Login accepted`)\n'
+                                       'called MainGui.enable_settingsmenu()\n'
+                                       'called dmls.SortOptions.__init__ with arg xxx\n'
+                                       'called MainGui.refresh_page()\n')
+    testobj.book.pages = [types.SimpleNamespace()]
+    testobj.sign_in()
+    assert (testobj.user, testobj.is_user, testobj.is_admin) == ('me', False, False)
+    assert testobj.book.pages[0].saved_sortopts is None
+    assert capsys.readouterr().out == ('called gui.show_dialog() (for login dialog)\n'
                                        'called dmls.validate_user()\n'
                                        'called gui.show_message(`Login accepted`)\n'
                                        'called MainGui.enable_settingsmenu()\n'

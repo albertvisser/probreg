@@ -170,8 +170,7 @@ class SelectOptions:
 
     def save_options(self, data):
         "schrijf opties terug"
-        newdata = collections.OrderedDict({"arch": 0, "gewijzigd": [], "nummer": [],
-                                           "soort": [], "status": [], "titel": []})
+        newdata = {"arch": 0, "gewijzigd": [], "nummer": [], "soort": [], "status": [], "titel": []}
 
         value = []
         min_value = data.get("idgt", '')

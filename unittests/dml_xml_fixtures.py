@@ -153,11 +153,10 @@ def settings_output():
             'existing': ("called Settings()\n"
                          "called ElementTree.__init__()\n"
                          "called ElementTree.getroot()\n"
-                         "called Element() with args ()\n"
-                         "called Element.__setattr__() with args ('tag', '')\n"
+                         "called Element() with args ('acties',)\n"
+                         "called Element.__setattr__() with args ('tag', 'acties')\n"
                          "called Element.__setattr__() with args ('attrs', {})\n"
                          "called Element.find() with args ('settings',)\n"
-                         "called SubElement() with args  ['parent', 'settings'] {}\n"
                          "called Element() with args ('settings',)\n"
                          "called Element.__setattr__() with args ('tag', 'settings')\n"
                          "called Element.__setattr__() with args ('attrs', {})\n"
@@ -171,6 +170,9 @@ def settings_output():
                          "called Element.__setattr__() with args ('attrs', {})\n"
                          "called Element() with args ('koppen',)\n"
                          "called Element.__setattr__() with args ('tag', 'koppen')\n"
+                         "called Element.__setattr__() with args ('attrs', {})\n"
+                         "called Element() with args ('xxx',)\n"
+                         "called Element.__setattr__() with args ('tag', 'xxx')\n"
                          "called Element.__setattr__() with args ('attrs', {})\n"
                          "called Element.remove() for subelement stats\n"
                          "called Element.remove() for subelement cats\n"
@@ -254,6 +256,18 @@ class ActieFixture:
         return self.finish()
 
     def incomplete(self):
+        self.root = dml.Element('acties')
+        actie = dml.SubElement(self.root, 'actie', id='1', status='1', soort='P')
+        dml.SubElement(actie, 'titel')
+        dml.SubElement(actie, 'melding')
+        dml.SubElement(actie, 'oorzaak')
+        dml.SubElement(actie, 'oplossing')
+        dml.SubElement(actie, 'vervolg')
+        dml.SubElement(actie, 'events')
+        dml.SubElement(actie, 'image')  # wrong type of element
+        return self.finish()
+
+    def incomplete_2(self):
         self.root = dml.Element('acties')
         actie = dml.SubElement(self.root, 'actie', id='1', status='1', soort='P')
         dml.SubElement(actie, 'titel')

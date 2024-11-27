@@ -371,7 +371,7 @@ class PageGui(wx.Panel):
         super().__init__(parent)
         if not self.master.is_text_page:
             return
-        self.actiondict = collections.OrderedDict()
+        self.actiondict = {}
         self.text1 = self.create_text_field()
         if self.appbase.use_rt:
             self.create_toolbar(textfield=self.text1)
@@ -711,18 +711,18 @@ class Page0Gui(PageGui, listmix.ColumnSorterMixin):
         "retrieve all listitems"
         return [self.p0list.GetItem(i) for i in range(self.p0list.GetItemCount())]
 
-    def get_item_text(self, item_or_index, column):
+    def get_item_text(self, itemindicator, column):
         "get the item's text for a specified column"
-        print('in get_item_text; item_or_index is', item_or_index)
+        print('in get_item_text; itemindicator is', itemindicator)
         try:
-            int(item_or_index)
+            int(itemindicator)
         except TypeError:
-            item_or_index = item_or_index.GetId()
-        return self.p0list.GetItemText(item_or_index, column)
+            itemindicator = itemindicator.GetId()
+        return self.p0list.GetItemText(itemindicator, column)
 
-    def set_item_text(self, item_or_index, column, text):
+    def set_item_text(self, itemindicator, column, text):
         "set the item's text for a specified column"
-        self.p0list.SetItem(item_or_index, column, text)
+        self.p0list.SetItem(itemindicator, column, text)
 
     def get_first_item(self):
         "select the first item in the list"
@@ -994,7 +994,7 @@ class Page6Gui(PageGui):
 
         # high = 100 if LIN else 110
         self.textpanel = wx.Panel(self.pnl)
-        self.actiondict = collections.OrderedDict()
+        self.actiondict = {}
         self.progress_text = super().create_text_field(parent=self.textpanel, size=(200, -1))
         # self.progress_text = wx.TextCtrl(self.pnl, size=(250, -1),  # high),
         #                                  style=wx.TE_MULTILINE |        # wx.TE_PROCESS_TAB |

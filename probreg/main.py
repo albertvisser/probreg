@@ -405,27 +405,24 @@ class Page0(Page):
 
         self.sort_via_options = False
         self.saved_sortopts = None
-        if self.appbase.work_with_user and self.appbase.is_user:
-            self.saved_sortopts = dmls.SortOptions(self.appbase.filename)
+        # dit werkt hier alleen als ik met een user heb kunnen aanloggen vóór start van de GUI
+        # if self.appbase.work_with_user and self.appbase.is_user:
+        #     self.saved_sortopts = dmls.SortOptions(self.appbase.filename)
 
     def vulp(self):
         """te tonen gegevens invullen in velden e.a. initialisaties
 
         methode aan te roepen voorafgaand aan het tonen van de pagina
         """
-        # if (self.appbase.datatype == shared.DataType.SQL
-        #         and self.appbase.filename):
         self.selection = ''
         if self.appbase.work_with_user:
             if self.saved_sortopts:
-                test = self.saved_sortopts.load_options()
-                test = bool(test)
-                self.sort_via_options = test
-                value = not test
-                self.selection = 'volgens user gedefinieerde selectie'
-            else:
-                value = False
-            self.gui.enable_sorting(value)
+                # laden hier doen garandeert wijzigen van opties bij wijzigen project
+                self.saved_sortopts.load_options()
+                self.sort_via_options = True
+        self.gui.enable_sorting(not self.sort_via_options)
+        if self.sort_via_options:
+            self.selection = 'volgens user gedefinieerde selectie'
 
         self.seltitel = 'alle meldingen ' + self.selection
         super().vulp()
@@ -566,6 +563,7 @@ class Page0(Page):
             gui.show_message(self.gui, 'Sorry, multi-column sorteren werkt nog niet')
             return
         if not sortlist:  # kan dit? Nu dat deze in dmls geïmporteerd wordt niet meer denk ik
+                          # als de niet-django variant mogelijk wordt kan het wel
             sortlist = list(self.parent.ctitels)  # [x for x in self.parent.ctitels]
             sortlist[1] = "Soort"
         sortlist.insert(0, "(geen)")
@@ -611,9 +609,11 @@ class Page0(Page):
         "retrieve all listitems"
         return self.gui.get_items()
 
-    def get_item_text(self, item_or_index, column):
+    # onduidelijk waarom deze in Page0 wel en in Page, Page1 en Page6 niet geredirect is
+    # terwijl het alleen maar een doorgeefluik is
+    def get_item_text(self, itemindicator, column):
         "get the item's text for a specified column"
-        return self.gui.get_item_text(item_or_index, column)
+        return self.gui.get_item_text(itemindicator, column)
 
     def clear_selection(self):
         "initialize selection criteria"
@@ -1035,7 +1035,7 @@ class MainWindow:
                 self.startfile()
         elif self.datatype == shared.DataType.SQL:
             self.open_sql(do_sel=not bool(self.filename))
-        elif self.datatype == shared.DataType.MNG:
+        else:  # if self.datatype == shared.DataType.MNG:
             self.open_mongo()
         self.initializing = False
 
@@ -1222,7 +1222,7 @@ class MainWindow:
         choice = gui.get_choice_item(self.gui, 'Wat wil je afdrukken?', choices)
         if choice == choices[0]:
             self.print_scherm()
-        elif choice == choices[1]:
+        else:  # if choice == choices[1]:  geen andere mogelijkheid
             self.print_actie()
 
     def print_scherm(self, event=None):
@@ -1279,7 +1279,7 @@ class MainWindow:
             # elif self.book.current_tab == 5:
             #     text = self.book.page5.get_textarea_contents()
             self.printdict['sections'] = [(title, text)]
-        elif self.book.current_tab == 6:
+        else:  # if self.book.current_tab == 6: - geen andere mogelijkheid
             events = []
             for idx, data in enumerate(self.book.pages[6].event_list):
                 # if self.datatype == shared.DataType.SQL:
@@ -1368,9 +1368,12 @@ class MainWindow:
             gui.show_message(self.gui, text)
         if logged_in:
             self.user, self.is_user, self.is_admin = test
-            # print('in signin:', self.user, self.is_user)
             self.book.rereadlist = True
             self.enable_settingsmenu()
+            if self.is_user or self.is_admin:
+                self.book.pages[0].saved_sortopts = dmls.SortOptions(self.filename)
+            else:
+                self.book.pages[0].saved_sortopts = None
             self.gui.refresh_page()
 
     def tab_settings(self, event=None):
@@ -1438,7 +1441,7 @@ class MainWindow:
         gui.show_message(self.gui, "Yeah you wish...\nHet leven is niet in te stellen helaas")
 
     def startfile(self):
-        "initialisatie t.b.v. nieuw bestand"
+        "initialisatie t.b.v. openen bestand / project"
         if self.multiple_files:
             fullname = self.dirname / self.filename
             retval = dmlx.checkfile(fullname, self.is_newfile)
@@ -1475,7 +1478,6 @@ class MainWindow:
         # self.book.cats = {0: ('dummy,', ' ', 0)}
         # self.book.tabs = {0: '0 start'}
         data = shared.Settings[self.datatype](self.book.fnaam)
-        ## print(data.meld)     # "Standaard waarden opgehaald"
         self.imagecount = data.imagecount
         self.startitem = data.startitem
         self.book.stats = {}
@@ -1519,7 +1521,7 @@ class MainWindow:
             self.book.stats = {}
             for item_value, item in data.items():
                 self.book.stats[int(item[1])] = db_stat_to_book_stat(item_value, item)
-        elif srt == "cat":
+        else:  # if srt == "cat":  iets anders niet mogelijk
             settings.cat = data
             result = settings.write()
             if result:
@@ -1551,7 +1553,6 @@ class MainWindow:
     def goto_page(self, page):
         """redirect to the method of the current page
         """
-        # print('in MainWindow.goto_page naar page', page, 'van page', self.book.current_tab)
         Page.goto_page(self.book.pages[self.book.current_tab], page)
 
     def enable_settingsmenu(self):

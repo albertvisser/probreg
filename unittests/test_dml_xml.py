@@ -331,7 +331,7 @@ def test_settings_write(monkeypatch, capsys, settings_output):
         """stub
         """
         print('called ElementTree.getroot()')
-        return MockElement()
+        return MockElement('acties')
     def mock_write(self, *args, **kwargs):
         """stub
         """
@@ -355,7 +355,12 @@ def test_settings_write(monkeypatch, capsys, settings_output):
     def mock_iter(self, *args):
         """stub
         """
-        return (x for x in [MockElement('stats'), MockElement('cats'), MockElement('koppen')])
+        return (x for x in [MockElement('stats'), MockElement('cats'), MockElement('koppen'),
+                            MockElement('xxx')])
+    def mock_find(self, *args):
+        print('called Element.find() with args', args)
+        return MockElement('settings')
+
     monkeypatch.setattr(dml, 'Element', MockElement)
     monkeypatch.setattr(dml.ElementTree, 'getroot', mock_getroot)
     monkeypatch.setattr(dml.ElementTree, 'write', mock_write)
@@ -375,6 +380,24 @@ def test_settings_write(monkeypatch, capsys, settings_output):
     assert capsys.readouterr().out == settings_output['new']
 
     monkeypatch.setattr(MockElement, '__iter__', mock_iter)
+    monkeypatch.setattr(MockElement, 'find', mock_find)
+    monkeypatch.setattr(dml, 'Element', MockElement)
+    monkeypatch.setattr(dml.ElementTree, 'getroot', mock_getroot)
+    monkeypatch.setattr(dml.ElementTree, 'write', mock_write)
+    monkeypatch.setattr(dml, 'ElementTree', MockTree)
+    monkeypatch.setattr(dml, 'SubElement', mock_subelement)
+    testobj = dml.Settings()
+    testobj.exists = True
+    testobj.imagecount = 5
+    testobj.startitem = 15
+    testobj.stat = {'0': ('this', '0'), 1: ('that', '1')}
+    testobj.cat = {'a': ('something', '0'), 'b': ('anything', '1')}
+    testobj.kop = {'1': ('ook',), 2: ('eek',)}
+    testobj.write()
+    assert testobj.exists
+    assert capsys.readouterr().out == settings_output['existing']
+    return
+    monkeypatch.setattr(MockElement, 'find', mock_find)
     monkeypatch.setattr(dml, 'Element', MockElement)
     monkeypatch.setattr(dml.ElementTree, 'getroot', mock_getroot)
     monkeypatch.setattr(dml.ElementTree, 'write', mock_write)
@@ -483,6 +506,21 @@ def test_actie_read(monkeypatch, actie_fixture):
     testobj.read()
     assert not testobj.exists
     testobj = dml.Actie(actie_fixture.incomplete(), '1')
+    testobj.read()
+    assert testobj.exists
+    assert testobj.datum == ''
+    assert testobj.status == '1'
+    assert testobj.soort == 'P'
+    assert not testobj.arch
+    assert testobj.updated == '2020-01-01 00:00:00'
+    assert testobj.titel == ''
+    assert testobj.melding == ''
+    assert testobj.oorzaak == ''
+    assert testobj.oplossing == ''
+    assert testobj.vervolg == ''
+    assert testobj.events == []
+    assert testobj.imagelist == []
+    testobj = dml.Actie(actie_fixture.incomplete_2(), '1')
     testobj.read()
     assert testobj.exists
     assert testobj.datum == ''

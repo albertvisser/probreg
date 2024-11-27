@@ -60,6 +60,7 @@ def test_validate_user(monkeypatch):
     monkeypatch.setattr(dml, 'get_user', lambda x: None)
     assert dml.validate_user('naam', 'passw', 'project') == ('', False, False)
     me = dml.my.User.objects.create(username='testuser')
+    proj = dml.my.Project.objects.create(name='project')
     monkeypatch.setattr(dml, 'get_user', lambda x: me)
     monkeypatch.setattr(dml.hashers, 'check_password', lambda *x: False)
     assert dml.validate_user('naam', 'passw', 'project') == ('', False, False)
@@ -162,6 +163,9 @@ def test_sortoptions_save():
     assert (data[1].volgnr, data[1].veldnm, data[1].richting) == (2, 'z', 'desc')
     with pytest.raises(IndexError):
         data[2]
+    testobj.save_options({})
+    assert len(dml.my.SortOrder.objects.all()) == 0
+
 
 @pytest.mark.django_db
 def test_selectoptions():
@@ -263,7 +267,10 @@ def test_selections_save():
                                                                                 'False', '  ')
     assert (data[7].veldnm, data[7].operator, data[7].value, data[7].extra) == ('arch', 'EQ',
                                                                                 'True', '  ')
-
+    # aanvullingen voor branch coverage (data attributen leeg)
+    assert testobj.save_options({}) == ''
+    assert testobj.save_options({"idgt": "1", "arch": "X"}) == ''
+    assert testobj.save_options({"idlt": "1", "titel": [""]}) == ''
 
 @pytest.mark.django_db
 def test_settings():
@@ -642,6 +649,18 @@ def test_actie_write(monkeypatch, capsys):
                                        f" {repr(testobj._actie)}, {repr(myuser)})\n")
             # "called core.store_event() with args ('msg', <Actie: x>, 'date',"
             # " <User: testuser>)\n")
+    # voor branch coverage nogmaals schrijven (ongewijzigd)
+    testobj.over_oud = testobj.over
+    testobj.titel_oud = testobj.titel
+    testobj.status_oud = testobj.status
+    testobj.soort_oud = testobj.soort
+    testobj.arch_oud = testobj.arch
+    testobj.melding_oud = testobj.melding
+    testobj.oorzaak_oud = testobj.oorzaak
+    testobj.oplossing_oud = testobj.oplossing
+    testobj.vervolg_oud = testobj.vervolg
+    testobj.events_oud = testobj.events
+    testobj.write(myuser)
 
 
 def test_actie_cleanup(monkeypatch):
