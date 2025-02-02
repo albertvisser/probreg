@@ -118,7 +118,7 @@ class Page:
         else:
             state = self.parent.current_tab == 1 and self.parent.newitem
             self.enable_buttons(state)
-            text = self.parent.tabs[self.parent.current_tab].split(None, 1)
+            text = self.parent.tabs[self.parent.current_tab].split(None, 1)[1]
             if self.parent.pagedata:
                 text = self.parent.pagedata.titel
                 if self.appbase.use_separate_subject:
@@ -154,7 +154,7 @@ class Page:
             text = self.parent.pagedata.oorzaak
         elif self.parent.current_tab == 4:
             text = self.parent.pagedata.oplossing
-        elif self.parent.current_tab == 5:
+        else:  # if self.parent.current_tab == 5: -- momenteel enig andere mogelijkhedi
             text = self.parent.pagedata.vervolg
         return text
 

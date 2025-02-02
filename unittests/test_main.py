@@ -447,7 +447,7 @@ def setup_page(monkeypatch, capsys):
         print('called Page.__init__()')
     monkeypatch.setattr(testee.Page, '__init__', mock_init_page)
     testobj = testee.Page()
-    testobj.parent = types.SimpleNamespace(tabs={0: "0 start", 1: "1 vervolg", 2: "rest"},
+    testobj.parent = types.SimpleNamespace(tabs={0: "0 start", 1: "1 vervolg", 2: "2 rest"},
                                            pagedata=MockActie(), count=lambda *x: 3,
                                            fnaam='testfile')
     testobj.appbase = MockMainWindow()
@@ -554,6 +554,27 @@ def test_page_vulp(monkeypatch, capsys):
                                        'call PageGui.enable_toolbar(False)\n'
                                        'call PageGui.get_textarea_contents()\n'
                                        'call PageGui.move_cursor_to_end()\n')
+    testobj.parent.pagedata.arch = True
+    testobj.vulp()
+    assert capsys.readouterr().out == ('call Page.enable_buttons(False)\n'
+                                       'call MainWindow.set_windowtitle(aha | xx titel)\n'
+                                       'call MainWindow.set_statusmessage()\n'
+                                       "call Page.get_pagetext()\n"
+                                       'call PageGui.set_textarea_contents(pagetext)\n'
+                                       'call PageGui.set_text_readonly(True)\n'
+                                       'call PageGui.enable_toolbar(False)\n'
+                                       'call PageGui.get_textarea_contents()\n'
+                                       'call PageGui.move_cursor_to_end()\n')
+    testobj.parent.pagedata = None
+    testobj.vulp()
+    assert capsys.readouterr().out == ('call Page.enable_buttons(False)\n'
+                                       "call MainWindow.set_windowtitle(aha | rest)\n"
+                                       'call MainWindow.set_statusmessage()\n'
+                                       'call PageGui.set_textarea_contents()\n'
+                                       'call PageGui.set_text_readonly(True)\n'
+                                       'call PageGui.enable_toolbar(False)\n'
+                                       'call PageGui.get_textarea_contents()\n'
+                                       'call PageGui.move_cursor_to_end()\n')
     # pagedata = types.SimpleNamespace(id='xx', titel="titel", over='over', arch=True)
     # mock_book = types.SimpleNamespace(parent=MockMainWindow(),
     #                                   tabs={0: "0 start", 1: "1 vervolg", 2: "rest"},
@@ -608,6 +629,12 @@ def test_page_readp(monkeypatch, capsys):
     assert not testobj.parent.newitem
     assert capsys.readouterr().out == ('called Actie.cleanup()\n'
                                        "called Actie.__init__() with args ('fnaam', '15', 'user1')\n")
+    testobj.parent.pagedata = None
+    testobj.readp('15')
+    assert testobj.appbase.imagelist == ['1', '2']
+    assert testobj.parent.old_id == '1'
+    assert not testobj.parent.newitem
+    assert capsys.readouterr().out == "called Actie.__init__() with args ('fnaam', '15', 'user1')\n"
 
 
 def test_page_nieuwp(monkeypatch, capsys):

@@ -23,6 +23,13 @@ def show_message(win, message, title=''):
     qtw.QMessageBox.information(win, title, message)
 
 
+def show_error(win, message, title=''):
+    "present a message and wait for the user to confirm (having read it or whatever)"
+    if not title:
+        title = shared.app_title
+    qtw.QMessageBox.critical(win, title, message)
+
+
 def get_open_filename(win, start=None):
     "get the name of a file to open"
     start = start or pathlib.Path.cwd()
@@ -362,11 +369,10 @@ class PageGui(qtw.QFrame):
         textfield.textChanged.connect(self.master.on_text)
         return textfield
 
-    def create_toolbar(self, textfield=None):
+    def create_toolbar(self, textfield):
         """build toolbar wih buttons for changing text style
         """
-        if textfield is not None:
-            data = self.master.get_toolbar_data(textfield)
+        data = self.master.get_toolbar_data(textfield)
         toolbar = qtw.QToolBar('styles')
         toolbar.setIconSize(core.QSize(16, 16))
         self.combo_font = qtw.QFontComboBox(toolbar)
@@ -374,9 +380,10 @@ class PageGui(qtw.QFrame):
         self.combo_size = qtw.QComboBox(toolbar)
         toolbar.addWidget(self.combo_size)
         self.combo_size.setEditable(True)
-        db = gui.QFontDatabase()
+        # db = gui.QFontDatabase()
         self.fontsizes = []
-        for size in db.standardSizes():
+        # for size in db.standardSizes():
+        for size in gui.QFontDatabase.standardSizes():
             self.combo_size.addItem(str(size))
             self.fontsizes.append(str(size))
         toolbar.addSeparator()
@@ -385,6 +392,8 @@ class PageGui(qtw.QFrame):
             if not menudef:
                 toolbar.addSeparator()
                 continue
+            # callback is vanwege compatibiliteit met wx versie soms twee routines,
+            # waarvan hier alleen de eerste gebruikt wordt
             label, shortcut, icon, info, *callback = menudef
             if icon:
                 action = gui.QAction(gui.QIcon(os.path.join(HERE, icon)), label, self)
@@ -404,15 +413,16 @@ class PageGui(qtw.QFrame):
                         font.setItalic(True)
                     elif info == 'U':
                         font.setUnderline(True)
-                    elif info == 'S':
+                    else:  # if info == 'S':
                         font.setStrikeOut(True)
                     action.setFont(font)
                 self.actiondict[label] = action
             action.triggered.connect(callback[0])
-        if textfield is not None:
-            self.combo_font.activated[str].connect(textfield.text_family)
-            self.combo_size.activated[str].connect(textfield.text_size)
-            textfield.font_changed(textfield.font())
+        # self.combo_font.activated[str].connect(textfield.text_family)
+        self.combo_font.currentTextChanged[str].connect(textfield.text_family)
+        # self.combo_size.activated[str].connect(textfield.text_size)
+        self.combo_size.activated.connect(textfield.text_size)
+        textfield.font_changed(textfield.font())
         self.toolbar = toolbar
 
     def doelayout(self):
@@ -1234,7 +1244,7 @@ class SortOptionsDialog(qtw.QDialog):
             if fieldname and fieldname != '(geen)':
                 if checked_id == self._asc_id:
                     orient = 'asc'
-                elif checked_id == self._desc_id:
+                else:  # if checked_id == self._desc_id:  - geen andere mogelijkheid
                     orient = 'desc'
                 new_sortopts[ix] = (fieldname, orient)
         via_options = self.on_off.isChecked()
@@ -1302,7 +1312,7 @@ class SelectOptionsDialog(qtw.QDialog):
                 radio = qtw.QRadioButton(text, self)
                 self.radio_id2.addButton(radio)
             self.text_zoek2 = qtw.QLineEdit(self)
-            self.text_zoek2.textChanged.connect(functools.partial(self.on_text, 'zoek'))
+            self.text_zoek2.textChanged.connect(functools.partial(self.on_text, 'zoek2'))
         else:
             self.check_options.addButton(qtw.QCheckBox(parent.parent.ctitels[4] + '   -', self))
             self.text_zoek = qtw.QLineEdit(self)
@@ -1471,9 +1481,11 @@ class SelectOptionsDialog(qtw.QDialog):
         "callback voor activiteitnummer checkboxes"
         if arg in ('gt', 'lt'):
             obj = self.check_options.buttons()[0]
-        else:  # if arg == 'zoek':  iets anders niet mogelijk
+            other = self.text_lt if arg == 'gt' else self.text_gt
+        else:  # if arg.startswith('zoek'):  iets anders niet mogelijk
             obj = self.check_options.buttons()[3]
-        if text == "":
+            other = self.text_zoek2 if arg == 'zoek' else self.text_zoek
+        if text == "" and other.text() == "":
             obj.setChecked(False)
         else:
             obj.setChecked(True)
@@ -1501,62 +1513,109 @@ class SelectOptionsDialog(qtw.QDialog):
 
     def accept(self):
         "aangegeven opties verwerken in sel_args dictionary"
-        selection = 'excl.gearchiveerde'
+        selection = 'excl. gearchiveerde'
         sel_args = {}
         if self.check_options.buttons()[0].isChecked():
+            ok, selargs = self.get_actie_selargs()
+            if not ok:
+                show_error(self, 'Kies een verbindende conditie voor actie selecties')
+                self.radio_id.buttons()[0].setFocus()
+                return
             selection = '(gefilterd)'
-            id_gt, id_lt = str(self.text_gt.text()), str(self.text_lt.text())
-            if id_gt:
-                sel_args["idgt"] = id_gt
-            if id_lt:
-                sel_args["idlt"] = id_lt
+            sel_args.update(selargs)
+        if self.check_options.buttons()[1].isChecked():
+            lst = self.get_cat_selargs()
+            if lst:
+                selection = '(gefilterd)'
+                sel_args["soort"] = lst
+        if self.check_options.buttons()[2].isChecked():
+            lst = self.get_stat_selargs()
+            if lst:
+                selection = '(gefilterd)'
+                sel_args["status"] = lst
+        if self.check_options.buttons()[3].isChecked():
+            ok, selargs = self.get_search_selargs()
+            if not ok:
+                show_error(self, 'Kies een verbindende conditie voor zoekargumenten')
+                self.radio_id2.buttons()[0].setFocus()
+                return
+            selection = '(gefilterd)'
+            sel_args.update(selargs)
+        if self.check_options.buttons()[4].isChecked():
+            selection, arch = self.get_arch_selargs(selection)
+            if arch:
+                sel_args['arch'] = arch
+        self.parent.master.selection = selection
+        self.parent.master.sel_args = sel_args
+        if self._data:
+            self._data.save_options(sel_args)
+        super().accept()
+
+    def get_actie_selargs(self):
+        "check conditions for filtering on action ids"
+        sel_args = {}
+        id_gt, id_lt = self.text_gt.text(), self.text_lt.text()
+        if id_gt:
+            sel_args["idgt"] = id_gt
+        if id_lt:
+            sel_args["idlt"] = id_lt
+        if all([id_gt, id_lt]):
             if self.radio_id.buttons()[0].isChecked():
                 sel_args["id"] = "and"
             elif self.radio_id.buttons()[1].isChecked():
                 sel_args["id"] = "or"
-        if self.check_options.buttons()[1].isChecked():
-            selection = '(gefilterd)'
-            lst = [self.parent.parent.cats[x][-1]
-                   for x in range(len(self.parent.parent.cats.keys()))
-                   if self.check_cats.buttons()[x].isChecked()]
-            if lst:
-                sel_args["soort"] = lst
-        if self.check_options.buttons()[2].isChecked():
-            selection = '(gefilterd)'
-            lst = [self.parent.parent.stats[x][-1]
-                   for x in range(len(self.parent.parent.stats.keys()))
-                   if self.check_stats.buttons()[x].isChecked()]
-            if lst:
-                sel_args["status"] = lst
-        if self.check_options.buttons()[3].isChecked():
-            selection = '(gefilterd)'
-            if self.parent.parent.parent.use_separate_subject:
-                sel_args["titel"] = [('about', str(self.text_zoek.text()))]
+            else:
+                return False, {}
+        return True, sel_args
+
+    def get_cat_selargs(self):
+        "check conditions for filtering on category"
+        return [self.parent.parent.cats[x][-1]
+           for x in range(len(self.parent.parent.cats.keys()))
+           if self.check_cats.buttons()[x].isChecked()]
+
+    def get_stat_selargs(self):
+        "check conditions for filtering on status"
+        return [self.parent.parent.stats[x][-1]
+           for x in range(len(self.parent.parent.stats.keys()))
+           if self.check_stats.buttons()[x].isChecked()]
+
+    def get_search_selargs(self):
+        "check conditions for filtering on subject/description"
+        sel_args = {}
+        if self.parent.parent.parent.use_separate_subject:
+            about, desc = self.text_zoek.text(), self.text_zoek2.text()
+            if any([about, desc]):
+                sel_args['titel'] = []
+            if about:
+                sel_args["titel"].append(('about', about))
+            if desc:
+                sel_args["titel"].append(('title', desc))
+            if all([about, desc]):
                 if self.radio_id2.buttons()[0].isChecked():
                     sel_args["titel"].append(("and",))
                 elif self.radio_id2.buttons()[1].isChecked():
                     sel_args["titel"].append(("or",))
                 else:
-                    sel_args["titel"].append(("",))
-                sel_args["titel"].append(('title', str(self.text_zoek2.text())))
-            else:
-                sel_args["titel"] = str(self.text_zoek.text())
+                    return False, {}
+            # else:
+            #     sel_args["titel"].append(("",))   # is dit ergens goed voor?
+        else:
+            sel_args["titel"] = str(self.text_zoek.text())
+        return True, sel_args
 
-        if self.check_options.buttons()[4].isChecked():
-            if self.radio_arch.buttons()[0].isChecked():
-                sel_args["arch"] = "arch"
-                if selection != '(gefilterd)':
-                    selection = '(gearchiveerd)'
-            elif self.radio_arch.buttons()[1].isChecked():
-                sel_args["arch"] = "alles"
-                if selection != '(gefilterd)':
-                    selection = ''
-        self.parent.master.selection = selection
-        self.parent.master.sel_args = sel_args
-
-        if self._data:
-            self._data.save_options(sel_args)
-        super().accept()
+    def get_arch_selargs(self, selection):
+        "check conditions for filtering on archive status"
+        arch = ''
+        if self.radio_arch.buttons()[0].isChecked():
+            arch = "arch"
+            if selection != '(gefilterd)':
+                selection = '(gearchiveerd)'
+        elif self.radio_arch.buttons()[1].isChecked():
+            arch = "alles"
+            if selection != '(gefilterd)':
+                selection = ''
+        return selection, arch
 
 
 class SettOptionsDialog(qtw.QDialog):

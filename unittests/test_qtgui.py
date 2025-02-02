@@ -75,6 +75,19 @@ class MockEditorPanel:
     def setReadOnly(self, value):
         print(f'called EditorWidget.setReadOnly with arg {value}')
 
+    def font_changed(self, value):
+        print(f'called EditorWidget.font_changed with arg {value}')
+
+    def font(self):
+        print(f'called EditorWidget.font')
+        return 'font'
+
+    # dummy methods, needed for callback reference only
+    def text_family(self):
+        "stub"
+    def text_size(self):
+        "stub"
+
 
 def test_show_message(monkeypatch, capsys):
     """unittest for gui_qt.show_message
@@ -89,6 +102,21 @@ def test_show_message(monkeypatch, capsys):
     testee.show_message(win, 'Message', 'yyy')
     assert capsys.readouterr().out == (
             f"called MessageBox.information with args `{win}` `yyy` `Message`\n")
+
+
+def test_show_error(monkeypatch, capsys):
+    """unittest for gui_qt.show_message
+    """
+    monkeypatch.setattr(testee.qtw, 'QMessageBox', mockqtw.MockMessageBox)
+    win = MockGui()
+    assert capsys.readouterr().out == "called Gui.__init__ with args ()\n"
+    testee.shared.app_title = 'xxx'
+    testee.show_error(win, 'Message')
+    assert capsys.readouterr().out == (
+            f"called MessageBox.critical with args `{win}` `xxx` `Message`\n")
+    testee.show_error(win, 'Message', 'yyy')
+    assert capsys.readouterr().out == (
+            f"called MessageBox.critical with args `{win}` `yyy` `Message`\n")
 
 
 def test_get_open_filename(monkeypatch, capsys):
@@ -1044,12 +1072,58 @@ class TestPageGui:
                 "called Editor.resize with args (490, 330)\n"
                 f"called Signal.connect with args ({testobj.master.on_text},)\n")
 
-    def _test_create_toolbar(self, monkeypatch, capsys):
+    def test_create_toolbar(self, monkeypatch, capsys, expected_output):
         """unittest for PageGui.create_toolbar
         """
+        def mock_get_data(arg):
+            print(f'called Main.get_toolbar_data with arg {arg}')
+            return []
+        def mock_get_data_2(arg):
+            print(f'called Main.get_toolbar_data with arg {arg}')
+            return [('xxx', 'y,z', 'x.ico', 'about xxx', testobj.callback1, testobj.callback2),
+                    ('yyy', '', '', '', testobj.callback3),
+                    (),
+                    ('b', 'b', '', 'Toggle B', testobj.callback1),
+                    ('i', 'i', '', 'Toggle I', testobj.callback1),
+                    ('u', 'u', '', 'Toggle U', testobj.callback1),
+                    ('s', 's', '', 'Toggle S', testobj.callback1),
+                    ('z', 'z', '', 'Toggle Z', testobj.callback1)]
+        monkeypatch.setattr(testee.qtw, 'QToolBar', mockqtw.MockToolBar)
+        monkeypatch.setattr(testee.core, 'QSize', mockqtw.MockSize)
+        monkeypatch.setattr(mockqtw.MockFontComboBox, 'currentTextChanged',
+                            {str: mockqtw.MockSignal()})
+        assert capsys.readouterr().out == "called Signal.__init__\n"
+        monkeypatch.setattr(testee.qtw, 'QFontComboBox', mockqtw.MockFontComboBox)
+        monkeypatch.setattr(testee.qtw, 'QComboBox', mockqtw.MockComboBox)
+        monkeypatch.setattr(testee.gui, 'QFontDatabase',
+                            types.SimpleNamespace(standardSizes=lambda: [10, 12, 20]))
+        monkeypatch.setattr(testee.gui, 'QAction', mockqtw.MockAction)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.create_toolbar(textfield=None) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.actiondict = {}
+        testobj.master.get_toolbar_data = mock_get_data
+        textfield = MockEditorPanel('text')  # mockqtw.MockEditorWidget()
+        testobj.create_toolbar(textfield)
+        assert isinstance(testobj.combo_font, testee.qtw.QFontComboBox)
+        assert isinstance(testobj.combo_size, testee.qtw.QComboBox)
+        assert isinstance(testobj.toolbar, testee.qtw.QToolBar)
+        assert not testobj.actiondict
+        assert capsys.readouterr().out == expected_output['pagetoolbar'].format(testobj=testobj,
+                                                                                textfield=textfield)
+
+        testobj.callback1 = lambda: 1
+        testobj.callback2 = lambda: 2
+        testobj.callback3 = lambda: 3
+        testobj.master.get_toolbar_data = mock_get_data_2
+        testobj.create_toolbar(textfield)
+        assert isinstance(testobj.combo_font, testee.qtw.QFontComboBox)
+        assert isinstance(testobj.combo_size, testee.qtw.QComboBox)
+        assert isinstance(testobj.toolbar, testee.qtw.QToolBar)
+        assert len(testobj.actiondict) == 5
+        assert list(testobj.actiondict.keys()) == ['b', 'i', 'u', 's', 'z']
+        for x in testobj.actiondict.values():
+            assert isinstance(x, testee.gui.QAction)
+        assert capsys.readouterr().out == expected_output['pagetoolbar2'].format(testobj=testobj,
+                                                                                textfield=textfield)
 
     def test_doelayout(self, monkeypatch, capsys, expected_output):
         """unittest for PageGui.doelayout
@@ -2151,12 +2225,82 @@ class TestPage6Gui:
         assert not testobj.is_first_line(item2)
         assert capsys.readouterr().out == "called ListWidget.item with arg 0\n"
 
-    def _test_on_select_item(self, monkeypatch, capsys):
+    def test_on_select_item(self, monkeypatch, capsys):
         """unittest for Page6Gui.on_select_item
         """
+        def mock_protect(*args):
+            print('called Page6Gui.protect_textfield with args', args)
+        def mock_get_row():
+            print('called Page6Gui.get_list_row')
+            return 0
+        def mock_get_row2():
+            print('called Page6Gui.get_list_row')
+            return 1
+        def mock_convert(*args, **kwargs):
+            print('called Page6Gui.convert_text with args', args, kwargs)
+            return args[0]
+        def mock_enable(value):
+            print(f'called Page6Gui.enable_toolbar with arg {value}')
+        def mock_move():
+            print('called Page6Gui.move_cursor_to_end')
+        def mock_set_focus():
+            print('called Page6Gui.set_focus_to_textfield')
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.on_select_item(item_n, item_o) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.master = types.SimpleNamespace(event_data=['xxx'])
+        testobj.parent = types.SimpleNamespace(pagedata=types.SimpleNamespace(arch=False))
+        testobj.appbase = types.SimpleNamespace(is_user=False)
+        testobj.protect_textfield = mock_protect
+        testobj.get_list_row = mock_get_row
+        testobj.convert_text = mock_convert
+        testobj.enable_toolbar = mock_enable
+        testobj.move_cursor_to_end = mock_move
+        testobj.set_focus_to_textfield = mock_set_focus
+        testobj.on_select_item(None, 'item_o')
+        assert capsys.readouterr().out == "called Page6Gui.protect_textfield with args ()\n"
+
+        testobj.on_select_item('item_n', 'item_o')
+        assert testobj.current_item == 0
+        assert testobj.master.oldtext == ''
+        assert capsys.readouterr().out == (
+                "called Page6Gui.protect_textfield with args ()\n"
+                "called Page6Gui.get_list_row\n"
+                "called Page6Gui.convert_text with args ('',) {'to': 'rich'}\n"
+                "called Page6Gui.move_cursor_to_end\n"
+                "called Page6Gui.set_focus_to_textfield\n")
+
+        testobj.get_list_row = mock_get_row2
+        testobj.on_select_item('item_n', 'item_o')
+        assert testobj.current_item == 1
+        assert testobj.master.oldtext == 'xxx'
+        assert capsys.readouterr().out == (
+                "called Page6Gui.protect_textfield with args ()\n"
+                "called Page6Gui.get_list_row\n"
+                "called Page6Gui.convert_text with args ('xxx',) {'to': 'rich'}\n"
+                "called Page6Gui.protect_textfield with args (True,)\n"
+                "called Page6Gui.enable_toolbar with arg False\n"
+                "called Page6Gui.move_cursor_to_end\n"
+                "called Page6Gui.set_focus_to_textfield\n")
+
+        testobj.parent.pagedata.arch = True
+        testobj.get_list_row = mock_get_row
+        testobj.on_select_item('item_n', 'item_o')
+        assert testobj.current_item == 0
+        assert testobj.master.oldtext == ''
+        assert capsys.readouterr().out == (
+                "called Page6Gui.protect_textfield with args ()\n"
+                "called Page6Gui.get_list_row\n"
+                "called Page6Gui.convert_text with args ('',) {'to': 'rich'}\n"
+                "called Page6Gui.set_focus_to_textfield\n")
+
+        testobj.get_list_row = mock_get_row2
+        testobj.on_select_item('item_n', 'item_o')
+        assert testobj.current_item == 1
+        assert testobj.master.oldtext == 'xxx'
+        assert capsys.readouterr().out == (
+                "called Page6Gui.protect_textfield with args ()\n"
+                "called Page6Gui.get_list_row\n"
+                "called Page6Gui.convert_text with args ('xxx',) {'to': 'rich'}\n"
+                "called Page6Gui.set_focus_to_textfield\n")
 
     def test_init_textfield(self, monkeypatch, capsys):
         """unittest for Page6Gui.init_textfield
@@ -2549,14 +2693,106 @@ class TestSortOptionsDialog:
                                            "called RadioButton.setEnabled with arg `True`\n"
                                            "called RadioButton.setEnabled with arg `True`\n")
 
-    def _test_accept(self, monkeypatch, capsys):
+    def test_accept(self, monkeypatch, capsys):
         """unittest for SortOptionsDialog.accept
         """
+        def mock_save(*args):
+            print('called SortOptions.save_options with args', args)
+        def mock_currenttext_empty():
+            print('called ComboBox.currentText')
+            return ''
+        def mock_currenttext_geen():
+            print('called ComboBox.currentText')
+            return '(geen)'
+        def mock_currenttext_xxx():
+            print('called ComboBox.currentText')
+            return 'xxx'
+        def mock_get_id_return_asc():
+            print('called ButtonGroup.checked_id')
+            return testobj._asc_id
+        def mock_get_id_return_desc():
+            print('called ButtonGroup.checked_id')
+            return testobj._desc_id
+        monkeypatch.setattr(testee.qtw.QDialog, 'accept', mockqtw.MockDialog.accept)
+        monkeypatch.setattr(testee.qtw.QMessageBox, 'information',
+                            mockqtw.MockMessageBox.information)
+        combobox = mockqtw.MockComboBox()
+        rbgroup = mockqtw.MockButtonGroup()
+        assert capsys.readouterr().out == ("called ComboBox.__init__\n"
+                                           "called ButtonGroup.__init__ with args ()\n")
         testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj._asc_id = 0
+        testobj._desc_id = 1
+        testobj._widgets = []
+        testobj.sortopts = {}
+        testobj.on_off = mockqtw.MockCheckBox()
         testobj.parent = types.SimpleNamespace(master=MockPage())
-        assert capsys.readouterr().out == "called Page.__init__\n"
-        assert testobj.accept() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.parent.master.sort_via_options = False
+        testobj.parent.saved_sortopts = types.SimpleNamespace(save_options=mock_save)
+        assert capsys.readouterr().out == "called CheckBox.__init__\ncalled Page.__init__\n"
+        testobj.accept()
+        assert capsys.readouterr().out == ("called CheckBox.isChecked\n"
+                                           "called MessageBox.information with args"
+                                           f" `{testobj}` `Probreg` `U heeft niets gewijzigd`\n")
+        testobj._widgets = [('', combobox, rbgroup)]
+        combobox.currentText = mock_currenttext_empty
+        rbgroup.checkedId = mock_get_id_return_desc
+        testobj.on_off.setChecked(True)
+        assert capsys.readouterr().out == "called CheckBox.setChecked with arg True\n"
+        testobj.accept()
+        assert testobj.parent.master.sort_via_options
+        assert capsys.readouterr().out == (
+                "called ComboBox.currentText\n"
+                "called ButtonGroup.checked_id\n"
+                "called CheckBox.isChecked\n"
+                "called SortOptions.save_options with args ({},)\n"
+                "called Dialog.accept\n")
+        combobox.currentText = mock_currenttext_geen
+        testobj.accept()
+        assert capsys.readouterr().out == (
+                "called ComboBox.currentText\n"
+                "called ButtonGroup.checked_id\n"
+                "called CheckBox.isChecked\n"
+                "called MessageBox.information with args"
+                f" `{testobj}` `Probreg` `U heeft niets gewijzigd`\n")
+                # "called SortOptions.save_options with args (},)\n"
+                # "called Dialog.accept\n")
+        combobox.currentText = mock_currenttext_xxx
+        rbgroup.checkedId = mock_get_id_return_asc
+        testobj.accept()
+        assert capsys.readouterr().out == (
+                "called ComboBox.currentText\n"
+                "called ButtonGroup.checked_id\n"
+                "called CheckBox.isChecked\n"
+                "called SortOptions.save_options with args ({0: ('xxx', 'asc')},)\n"
+                "called Dialog.accept\n")
+        rbgroup.checkedId = mock_get_id_return_desc
+        testobj.accept()
+        assert capsys.readouterr().out == (
+                "called ComboBox.currentText\n"
+                "called ButtonGroup.checked_id\n"
+                "called CheckBox.isChecked\n"
+                "called SortOptions.save_options with args ({0: ('xxx', 'desc')},)\n"
+                "called Dialog.accept\n")
+        testobj.on_off.setChecked(False)
+        assert capsys.readouterr().out == "called CheckBox.setChecked with arg False\n"
+        testobj.parent.master.sort_via_options = False
+        testobj.accept()
+        assert capsys.readouterr().out == (
+                "called ComboBox.currentText\n"
+                "called ButtonGroup.checked_id\n"
+                "called CheckBox.isChecked\n"
+                "called Dialog.accept\n")
+        testobj.on_off.setChecked(True)
+        assert capsys.readouterr().out == "called CheckBox.setChecked with arg True\n"
+        testobj.parent.master.sort_via_options = True
+        testobj.parent.saved_sortopts = {}
+        testobj.accept()
+        assert capsys.readouterr().out == (
+                "called ComboBox.currentText\n"
+                "called ButtonGroup.checked_id\n"
+                "called CheckBox.isChecked\n"
+                "called Dialog.accept\n")
 
 
 class TestSelectOptionsDialog:
@@ -2752,7 +2988,7 @@ class TestSelectOptionsDialog:
         testobj.set_default_values({})
         assert capsys.readouterr().out == ""
 
-        # TODO: ik moet nog een maniet vinden om aan te geven welke button van een buttongroupi
+        # TODO: ik moet nog een manier vinden om aan te geven welke button van een buttongroup
         # op checked gezet wordt
         testobj.set_default_values({'idgt': 'xx', 'id': '', 'idlt': 'yy', 'soort': '1',
                                     'status': '2', 'titel': '', 'arch': ''})
@@ -2841,6 +3077,12 @@ class TestSelectOptionsDialog:
             return button0, button1, button2, button3, button4
         def mock_set(self, value):
             print(f'called CheckBox.setChecked for {self} with arg {value}')
+        def mock_text(self):
+            print(f'called LineEdit.text for {self}')
+            return ''
+        def mock_text2(self):
+            print(f'called LineEdit.text for {self}')
+            return 'yyy'
         testobj = self.setup_testobj(monkeypatch, capsys)
         testobj.check_options = mockqtw.MockButtonGroup()
         testobj.check_options.buttons = mock_buttons
@@ -2849,14 +3091,22 @@ class TestSelectOptionsDialog:
         button2 = mockqtw.MockCheckBox()
         button3 = mockqtw.MockCheckBox()
         button4 = mockqtw.MockCheckBox()
+        testobj.text_lt = mockqtw.MockLineEdit()
+        testobj.text_gt = mockqtw.MockLineEdit()
+        testobj.text_zoek = mockqtw.MockLineEdit()
+        testobj.text_zoek2 = mockqtw.MockLineEdit()
         assert capsys.readouterr().out == ("called ButtonGroup.__init__ with args ()\n"
                                            "called CheckBox.__init__\ncalled CheckBox.__init__\n"
                                            "called CheckBox.__init__\ncalled CheckBox.__init__\n"
-                                           "called CheckBox.__init__\n")
+                                           "called CheckBox.__init__\n"
+                                           "called LineEdit.__init__\ncalled LineEdit.__init__\n"
+                                           "called LineEdit.__init__\ncalled LineEdit.__init__\n")
         monkeypatch.setattr(mockqtw.MockCheckBox, 'setChecked', mock_set)
+        monkeypatch.setattr(mockqtw.MockLineEdit, 'text', mock_text)
         testobj.on_text('gt', '')
         assert capsys.readouterr().out == (
                 "called ButtonGroup.buttons\n"
+                f"called LineEdit.text for {testobj.text_lt}\n"
                 f"called CheckBox.setChecked for {button0} with arg False\n")
         testobj.on_text('gt', 'xxx')
         assert capsys.readouterr().out == (
@@ -2865,6 +3115,7 @@ class TestSelectOptionsDialog:
         testobj.on_text('lt', '')
         assert capsys.readouterr().out == (
                 "called ButtonGroup.buttons\n"
+                f"called LineEdit.text for {testobj.text_gt}\n"
                 f"called CheckBox.setChecked for {button0} with arg False\n")
         testobj.on_text('lt', 'xxx')
         assert capsys.readouterr().out == (
@@ -2873,10 +3124,41 @@ class TestSelectOptionsDialog:
         testobj.on_text('zoek', '')
         assert capsys.readouterr().out == (
                 "called ButtonGroup.buttons\n"
+                f"called LineEdit.text for {testobj.text_zoek2}\n"
                 f"called CheckBox.setChecked for {button3} with arg False\n")
         testobj.on_text('zoek', 'xxx')
         assert capsys.readouterr().out == (
                 "called ButtonGroup.buttons\n"
+                f"called CheckBox.setChecked for {button3} with arg True\n")
+        testobj.on_text('zoek2', '')
+        assert capsys.readouterr().out == (
+                "called ButtonGroup.buttons\n"
+                f"called LineEdit.text for {testobj.text_zoek}\n"
+                f"called CheckBox.setChecked for {button3} with arg False\n")
+        testobj.on_text('zoek2', 'xxx')
+        assert capsys.readouterr().out == (
+                "called ButtonGroup.buttons\n"
+                f"called CheckBox.setChecked for {button3} with arg True\n")
+        monkeypatch.setattr(mockqtw.MockLineEdit, 'text', mock_text2)
+        testobj.on_text('gt', '')
+        assert capsys.readouterr().out == (
+                "called ButtonGroup.buttons\n"
+                f"called LineEdit.text for {testobj.text_lt}\n"
+                f"called CheckBox.setChecked for {button0} with arg True\n")
+        testobj.on_text('lt', '')
+        assert capsys.readouterr().out == (
+                "called ButtonGroup.buttons\n"
+                f"called LineEdit.text for {testobj.text_gt}\n"
+                f"called CheckBox.setChecked for {button0} with arg True\n")
+        testobj.on_text('zoek', '')
+        assert capsys.readouterr().out == (
+                "called ButtonGroup.buttons\n"
+                f"called LineEdit.text for {testobj.text_zoek2}\n"
+                f"called CheckBox.setChecked for {button3} with arg True\n")
+        testobj.on_text('zoek2', '')
+        assert capsys.readouterr().out == (
+                "called ButtonGroup.buttons\n"
+                f"called LineEdit.text for {testobj.text_zoek}\n"
                 f"called CheckBox.setChecked for {button3} with arg True\n")
 
     def test_on_checked(self, monkeypatch, capsys):
@@ -3004,12 +3286,565 @@ class TestSelectOptionsDialog:
                 "called CheckBox.isChecked\n"
                 f"called CheckBox.setChecked for {button4} with arg True\n")
 
-    def _test_accept(self, monkeypatch, capsys):
+    def test_accept(self, monkeypatch, capsys):
         """unittest for SelectOptionsDialog.accept
         """
+        def mock_show(*args):
+            print('called show_error with args', args)
+        def mock_buttons(arg):
+            print(f'called ButtonGroup.buttons with arg {arg}')
+            if arg == testobj.radio_id:
+                return testobj.check_and1, testobj.check_or1
+            if arg == testobj.radio_id2:
+                return testobj.check_and2, testobj.check_or2
+            # if arg == testobj.check_options:
+            return (testobj.check0, testobj.check1, testobj.check2, testobj.check3, testobj.check4)
+        def mock_check(arg):
+            print(f'called CheckBox.isChecked with arg {arg}')
+            return arg.checked
+        def mock_actie_selargs():
+            print('called SelectOptionsDialog.get_actie_selargs')
+            return False, {}
+        def mock_actie_selargs_2():
+            print('called SelectOptionsDialog.get_actie_selargs')
+            return True, {'x': 'aaa'}
+        def mock_cat_selargs():
+            print('called SelectOptionsDialog.get_cat_selargs')
+            return []
+        def mock_cat_selargs_2():
+            print('called SelectOptionsDialog.get_cat_selargs')
+            return ['ppp']
+        def mock_stat_selargs():
+            print('called SelectOptionsDialog.get_stat_selargs')
+            return []
+        def mock_stat_selargs_2():
+            print('called SelectOptionsDialog.get_stat_selargs')
+            return ['qqq']
+        def mock_search_selargs():
+            print('called SelectOptionsDialog.get_search_selargs')
+            return False, {}
+        def mock_search_selargs_2():
+            print('called SelectOptionsDialog.get_search_selargs')
+            return True, {'y': 'bbb'}
+        def mock_arch_selargs(selection):
+            print(f'called SelectOptionsDialog.get_arch_selargs with arg {selection}')
+            return ('xxx', '')
+        def mock_arch_selargs_2(selection):
+            print(f'called SelectOptionsDialog.get_arch_selargs with arg {selection}')
+            return ('yyy', 'archstatus')
+        def mock_save(arg):
+            print(f'called OptionsData.save_options with arg {arg}')
+        monkeypatch.setattr(testee, 'show_error', mock_show)
+        monkeypatch.setattr(testee.qtw.QDialog, 'accept', mockqtw.MockDialog.accept)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.accept() == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.parent = types.SimpleNamespace(parent=types.SimpleNamespace(
+            parent=types.SimpleNamespace()))
+        testobj.parent.master = types.SimpleNamespace()
+        testobj._data = None
+        monkeypatch.setattr(mockqtw.MockButtonGroup, 'buttons', mock_buttons)
+        monkeypatch.setattr(mockqtw.MockCheckBox, 'isChecked', mock_check)
+        testobj.check_options = mockqtw.MockButtonGroup()
+        testobj.check0 = mockqtw.MockCheckBox()
+        testobj.check1 = mockqtw.MockCheckBox()
+        testobj.check2 = mockqtw.MockCheckBox()
+        testobj.check3 = mockqtw.MockCheckBox()
+        testobj.check4 = mockqtw.MockCheckBox()
+        testobj.radio_id = mockqtw.MockButtonGroup()
+        testobj.check_and1 = mockqtw.MockCheckBox()
+        testobj.check_or1 = mockqtw.MockCheckBox()
+        testobj.radio_id2 = mockqtw.MockButtonGroup()
+        testobj.check_and2 = mockqtw.MockCheckBox()
+        testobj.check_or2 = mockqtw.MockCheckBox()
+        assert capsys.readouterr().out == (
+                "called ButtonGroup.__init__ with args ()\n"
+                "called CheckBox.__init__\ncalled CheckBox.__init__\ncalled CheckBox.__init__\n"
+                "called CheckBox.__init__\ncalled CheckBox.__init__\n"
+                "called ButtonGroup.__init__ with args ()\n"
+                "called CheckBox.__init__\ncalled CheckBox.__init__\n"
+                "called ButtonGroup.__init__ with args ()\n"
+                "called CheckBox.__init__\ncalled CheckBox.__init__\n")
+        testobj.accept()
+        assert testobj.parent.master.selection == 'excl. gearchiveerde'
+        assert testobj.parent.master.sel_args == {}
+        assert capsys.readouterr().out == (
+                f"called ButtonGroup.buttons with arg {testobj.check_options}\n"
+                f"called CheckBox.isChecked with arg {testobj.check0}\n"
+                f"called ButtonGroup.buttons with arg {testobj.check_options}\n"
+                f"called CheckBox.isChecked with arg {testobj.check1}\n"
+                f"called ButtonGroup.buttons with arg {testobj.check_options}\n"
+                f"called CheckBox.isChecked with arg {testobj.check2}\n"
+                f"called ButtonGroup.buttons with arg {testobj.check_options}\n"
+                f"called CheckBox.isChecked with arg {testobj.check3}\n"
+                f"called ButtonGroup.buttons with arg {testobj.check_options}\n"
+                f"called CheckBox.isChecked with arg {testobj.check4}\n"
+                "called Dialog.accept\n")
+
+        testobj._data = types.SimpleNamespace(save_options=mock_save)
+        testobj.check0.setChecked(True)
+        testobj.get_actie_selargs = mock_actie_selargs
+        testobj.check1.setChecked(True)
+        testobj.get_cat_selargs = mock_cat_selargs
+        testobj.check2.setChecked(True)
+        testobj.get_stat_selargs = mock_stat_selargs
+        testobj.check3.setChecked(True)
+        testobj.get_search_selargs = mock_search_selargs
+        testobj.check4.setChecked(True)
+        testobj.get_arch_selargs = mock_arch_selargs
+        assert capsys.readouterr().out == ("called CheckBox.setChecked with arg True\n"
+                                           "called CheckBox.setChecked with arg True\n"
+                                           "called CheckBox.setChecked with arg True\n"
+                                           "called CheckBox.setChecked with arg True\n"
+                                           "called CheckBox.setChecked with arg True\n")
+        testobj.accept()
+        assert testobj.parent.master.selection == 'excl. gearchiveerde'
+        assert testobj.parent.master.sel_args == {}
+        assert capsys.readouterr().out == (
+                f"called ButtonGroup.buttons with arg {testobj.check_options}\n"
+                f"called CheckBox.isChecked with arg {testobj.check0}\n"
+                "called SelectOptionsDialog.get_actie_selargs\n"
+                f"called show_error with args ({testobj},"
+                " 'Kies een verbindende conditie voor actie selecties')\n"
+                f"called ButtonGroup.buttons with arg {testobj.radio_id}\n"
+                "called CheckBox.setFocus\n")
+
+        testobj.get_actie_selargs = mock_actie_selargs_2
+        testobj.accept()
+        assert testobj.parent.master.selection == 'excl. gearchiveerde'
+        assert testobj.parent.master.sel_args == {}
+        assert capsys.readouterr().out == (
+                f"called ButtonGroup.buttons with arg {testobj.check_options}\n"
+                f"called CheckBox.isChecked with arg {testobj.check0}\n"
+                "called SelectOptionsDialog.get_actie_selargs\n"
+                f"called ButtonGroup.buttons with arg {testobj.check_options}\n"
+                f"called CheckBox.isChecked with arg {testobj.check1}\n"
+                "called SelectOptionsDialog.get_cat_selargs\n"
+                f"called ButtonGroup.buttons with arg {testobj.check_options}\n"
+                f"called CheckBox.isChecked with arg {testobj.check2}\n"
+                "called SelectOptionsDialog.get_stat_selargs\n"
+                f"called ButtonGroup.buttons with arg {testobj.check_options}\n"
+                f"called CheckBox.isChecked with arg {testobj.check3}\n"
+                "called SelectOptionsDialog.get_search_selargs\n"
+                f"called show_error with args ({testobj},"
+                " 'Kies een verbindende conditie voor zoekargumenten')\n"
+                f"called ButtonGroup.buttons with arg {testobj.radio_id2}\n"
+                "called CheckBox.setFocus\n")
+
+        testobj.get_search_selargs = mock_search_selargs_2
+        testobj.accept()
+        assert testobj.parent.master.selection == 'xxx'
+        assert testobj.parent.master.sel_args == {'x': 'aaa', 'y': 'bbb'}
+        assert capsys.readouterr().out == (
+                f"called ButtonGroup.buttons with arg {testobj.check_options}\n"
+                f"called CheckBox.isChecked with arg {testobj.check0}\n"
+                "called SelectOptionsDialog.get_actie_selargs\n"
+                f"called ButtonGroup.buttons with arg {testobj.check_options}\n"
+                f"called CheckBox.isChecked with arg {testobj.check1}\n"
+                "called SelectOptionsDialog.get_cat_selargs\n"
+                f"called ButtonGroup.buttons with arg {testobj.check_options}\n"
+                f"called CheckBox.isChecked with arg {testobj.check2}\n"
+                "called SelectOptionsDialog.get_stat_selargs\n"
+                f"called ButtonGroup.buttons with arg {testobj.check_options}\n"
+                f"called CheckBox.isChecked with arg {testobj.check3}\n"
+                "called SelectOptionsDialog.get_search_selargs\n"
+                f"called ButtonGroup.buttons with arg {testobj.check_options}\n"
+                f"called CheckBox.isChecked with arg {testobj.check4}\n"
+                "called SelectOptionsDialog.get_arch_selargs with arg (gefilterd)\n"
+                "called OptionsData.save_options with arg {'x': 'aaa', 'y': 'bbb'}\n"
+                "called Dialog.accept\n")
+
+        testobj.get_cat_selargs = mock_cat_selargs_2
+        testobj.get_stat_selargs = mock_stat_selargs_2
+        testobj.get_arch_selargs = mock_arch_selargs_2
+        testobj.accept()
+        assert testobj.parent.master.selection == 'yyy'
+        assert testobj.parent.master.sel_args == {'x': 'aaa', 'soort': ['ppp'], 'status': ['qqq'],
+                                                  'y': 'bbb', 'arch': 'archstatus'}
+        assert capsys.readouterr().out == (
+                f"called ButtonGroup.buttons with arg {testobj.check_options}\n"
+                f"called CheckBox.isChecked with arg {testobj.check0}\n"
+                "called SelectOptionsDialog.get_actie_selargs\n"
+                f"called ButtonGroup.buttons with arg {testobj.check_options}\n"
+                f"called CheckBox.isChecked with arg {testobj.check1}\n"
+                "called SelectOptionsDialog.get_cat_selargs\n"
+                f"called ButtonGroup.buttons with arg {testobj.check_options}\n"
+                f"called CheckBox.isChecked with arg {testobj.check2}\n"
+                "called SelectOptionsDialog.get_stat_selargs\n"
+                f"called ButtonGroup.buttons with arg {testobj.check_options}\n"
+                f"called CheckBox.isChecked with arg {testobj.check3}\n"
+                "called SelectOptionsDialog.get_search_selargs\n"
+                f"called ButtonGroup.buttons with arg {testobj.check_options}\n"
+                f"called CheckBox.isChecked with arg {testobj.check4}\n"
+                "called SelectOptionsDialog.get_arch_selargs with arg (gefilterd)\n"
+                "called OptionsData.save_options with arg {'x': 'aaa',"
+                " 'soort': ['ppp'], 'status': ['qqq'], 'y': 'bbb', 'arch': 'archstatus'}\n"
+                "called Dialog.accept\n")
+
+    def test_get_actie_selargs(self, monkeypatch, capsys):
+        def mock_buttons(arg):
+            print(f'called ButtonGroup.buttons with arg {arg}')
+            return testobj.check_and1, testobj.check_or1
+        def mock_check(arg):
+            print(f'called CheckBox.isChecked with arg {arg}')
+            return arg.checked
+        monkeypatch.setattr(mockqtw.MockButtonGroup, 'buttons', mock_buttons)
+        monkeypatch.setattr(mockqtw.MockCheckBox, 'isChecked', mock_check)
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.parent = types.SimpleNamespace(parent=types.SimpleNamespace(
+            parent=types.SimpleNamespace()))
+        testobj.text_gt = mockqtw.MockLineEdit()
+        testobj.text_lt = mockqtw.MockLineEdit()
+        testobj.radio_id = mockqtw.MockButtonGroup()
+        testobj.check_and1 = mockqtw.MockCheckBox()
+        testobj.check_or1 = mockqtw.MockCheckBox()
+        assert capsys.readouterr().out == ("called LineEdit.__init__\ncalled LineEdit.__init__\n"
+                                           "called ButtonGroup.__init__ with args ()\n"
+                                           "called CheckBox.__init__\ncalled CheckBox.__init__\n")
+        # nul tekstvelden gevuld
+        assert testobj.get_actie_selargs() == (True, {})
+        assert capsys.readouterr().out == "called LineEdit.text\ncalled LineEdit.text\n"
+
+        testobj.check_and1.setChecked(True)
+        assert capsys.readouterr().out == "called CheckBox.setChecked with arg True\n"
+        assert testobj.get_actie_selargs() == (True, {})
+        assert capsys.readouterr().out == "called LineEdit.text\ncalled LineEdit.text\n"
+
+        testobj.check_and1.setChecked(False)
+        testobj.check_or1.setChecked(True)
+        assert capsys.readouterr().out == ("called CheckBox.setChecked with arg False\n"
+                                           "called CheckBox.setChecked with arg True\n")
+        assert testobj.get_actie_selargs() == (True, {})
+        assert capsys.readouterr().out == "called LineEdit.text\ncalled LineEdit.text\n"
+        # beide checkboxen gecheckt kan niet (radio buttons)
+
+        # alleen gt textbox gevuld
+        testobj.check_or1.setChecked(False)
+        testobj.text_gt.setText('xxx')
+        assert capsys.readouterr().out == ("called CheckBox.setChecked with arg False\n"
+                                           "called LineEdit.setText with arg `xxx`\n")
+        assert testobj.get_actie_selargs() == (True, {'idgt': 'xxx'})
+        assert capsys.readouterr().out == "called LineEdit.text\ncalled LineEdit.text\n"
+
+        testobj.check_and1.setChecked(True)
+        assert capsys.readouterr().out == "called CheckBox.setChecked with arg True\n"
+        assert testobj.get_actie_selargs() == (True, {'idgt': 'xxx'})
+        assert capsys.readouterr().out == "called LineEdit.text\ncalled LineEdit.text\n"
+
+        testobj.check_and1.setChecked(False)
+        testobj.check_or1.setChecked(True)
+        assert capsys.readouterr().out == ("called CheckBox.setChecked with arg False\n"
+                                           "called CheckBox.setChecked with arg True\n")
+        assert testobj.get_actie_selargs() == (True, {'idgt': 'xxx'})
+        assert capsys.readouterr().out == "called LineEdit.text\ncalled LineEdit.text\n"
+
+        # alleen lt textbox gevuld
+        testobj.check_or1.setChecked(False)
+        testobj.text_gt.clear()
+        testobj.text_lt.setText('yyy')
+        assert capsys.readouterr().out == ("called CheckBox.setChecked with arg False\n"
+                                           "called LineEdit.clear\n"
+                                           "called LineEdit.setText with arg `yyy`\n")
+        assert testobj.get_actie_selargs() == (True, {'idlt': 'yyy'})
+        assert capsys.readouterr().out == "called LineEdit.text\ncalled LineEdit.text\n"
+
+        testobj.check_and1.setChecked(True)
+        assert capsys.readouterr().out == "called CheckBox.setChecked with arg True\n"
+        assert testobj.get_actie_selargs() == (True, {'idlt': 'yyy'})
+        assert capsys.readouterr().out == "called LineEdit.text\ncalled LineEdit.text\n"
+
+        testobj.check_and1.setChecked(False)
+        testobj.check_or1.setChecked(True)
+        assert capsys.readouterr().out == ("called CheckBox.setChecked with arg False\n"
+                                           "called CheckBox.setChecked with arg True\n")
+        assert testobj.get_actie_selargs() == (True, {'idlt': 'yyy'})
+        assert capsys.readouterr().out == "called LineEdit.text\ncalled LineEdit.text\n"
+
+        # twee tekstvelden gevuld
+        testobj.check_or1.setChecked(False)
+        testobj.text_gt.setText('xxx')
+        assert capsys.readouterr().out == ("called CheckBox.setChecked with arg False\n"
+                                           "called LineEdit.setText with arg `xxx`\n")
+        assert testobj.get_actie_selargs() == (False, {})
+        assert capsys.readouterr().out == (
+                "called LineEdit.text\n"
+                "called LineEdit.text\n"
+                f"called ButtonGroup.buttons with arg {testobj.radio_id}\n"
+                f"called CheckBox.isChecked with arg {testobj.check_and1}\n"
+                f"called ButtonGroup.buttons with arg {testobj.radio_id}\n"
+                f"called CheckBox.isChecked with arg {testobj.check_or1}\n")
+
+        testobj.check_and1.setChecked(True)
+        assert capsys.readouterr().out == "called CheckBox.setChecked with arg True\n"
+        assert testobj.get_actie_selargs() == (True, {'idgt': 'xxx', 'idlt': 'yyy', 'id': 'and'})
+        assert capsys.readouterr().out == (
+                "called LineEdit.text\n"
+                "called LineEdit.text\n"
+                f"called ButtonGroup.buttons with arg {testobj.radio_id}\n"
+                f"called CheckBox.isChecked with arg {testobj.check_and1}\n")
+
+        testobj.check_and1.setChecked(False)
+        testobj.check_or1.setChecked(True)
+        assert capsys.readouterr().out == ("called CheckBox.setChecked with arg False\n"
+                                           "called CheckBox.setChecked with arg True\n")
+        assert testobj.get_actie_selargs() == (True, {'idgt': 'xxx', 'idlt': 'yyy', 'id': 'or'})
+        assert capsys.readouterr().out == (
+                "called LineEdit.text\n"
+                "called LineEdit.text\n"
+                f"called ButtonGroup.buttons with arg {testobj.radio_id}\n"
+                f"called CheckBox.isChecked with arg {testobj.check_and1}\n"
+                f"called ButtonGroup.buttons with arg {testobj.radio_id}\n"
+                f"called CheckBox.isChecked with arg {testobj.check_or1}\n")
+
+    def test_get_cat_selargs(self, monkeypatch, capsys):
+        def mock_buttons(arg):
+            print(f'called ButtonGroup.buttons with arg {arg}')
+            return testobj.check_cat1, testobj.check_cat2
+        def mock_check(arg):
+            print(f'called CheckBox.isChecked with arg {arg}')
+            return arg.checked
+        monkeypatch.setattr(mockqtw.MockButtonGroup, 'buttons', mock_buttons)
+        monkeypatch.setattr(mockqtw.MockCheckBox, 'isChecked', mock_check)
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.parent = types.SimpleNamespace(parent=types.SimpleNamespace(
+            parent=types.SimpleNamespace()))
+        testobj.parent.parent.cats = {0: ('x', 1), 1: ('y', 2)}
+        testobj.check_cats = mockqtw.MockButtonGroup()
+        testobj.check_cat1 = mockqtw.MockCheckBox()
+        testobj.check_cat2 = mockqtw.MockCheckBox()
+        assert capsys.readouterr().out == (
+                "called ButtonGroup.__init__ with args ()\n"
+                "called CheckBox.__init__\ncalled CheckBox.__init__\n")
+        assert testobj.get_cat_selargs() == []
+        assert capsys.readouterr().out == (
+                f"called ButtonGroup.buttons with arg {testobj.check_cats}\n"
+                f"called CheckBox.isChecked with arg {testobj.check_cat1}\n"
+                f"called ButtonGroup.buttons with arg {testobj.check_cats}\n"
+                f"called CheckBox.isChecked with arg {testobj.check_cat2}\n")
+        testobj.check_cat1.setChecked(True)
+        assert capsys.readouterr().out == "called CheckBox.setChecked with arg True\n"
+        assert testobj.get_cat_selargs() == [1]
+        assert capsys.readouterr().out == (
+                f"called ButtonGroup.buttons with arg {testobj.check_cats}\n"
+                f"called CheckBox.isChecked with arg {testobj.check_cat1}\n"
+                f"called ButtonGroup.buttons with arg {testobj.check_cats}\n"
+                f"called CheckBox.isChecked with arg {testobj.check_cat2}\n")
+        testobj.check_cat2.setChecked(True)
+        assert capsys.readouterr().out == "called CheckBox.setChecked with arg True\n"
+        assert testobj.get_cat_selargs() == [1, 2]
+        assert capsys.readouterr().out == (
+                f"called ButtonGroup.buttons with arg {testobj.check_cats}\n"
+                f"called CheckBox.isChecked with arg {testobj.check_cat1}\n"
+                f"called ButtonGroup.buttons with arg {testobj.check_cats}\n"
+                f"called CheckBox.isChecked with arg {testobj.check_cat2}\n")
+
+    def test_get_stat_selargs(self, monkeypatch, capsys):
+        def mock_buttons(arg):
+            print(f'called ButtonGroup.buttons with arg {arg}')
+            return testobj.check_stat1, testobj.check_stat2
+        def mock_check(arg):
+            print(f'called CheckBox.isChecked with arg {arg}')
+            return arg.checked
+        monkeypatch.setattr(mockqtw.MockButtonGroup, 'buttons', mock_buttons)
+        monkeypatch.setattr(mockqtw.MockCheckBox, 'isChecked', mock_check)
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.parent = types.SimpleNamespace(parent=types.SimpleNamespace(
+            parent=types.SimpleNamespace()))
+        testobj.parent.parent.stats = {0: ('a', 1), 1: ('b', 2)}
+        testobj.check_stats = mockqtw.MockButtonGroup()
+        testobj.check_stat1 = mockqtw.MockCheckBox()
+        testobj.check_stat2 = mockqtw.MockCheckBox()
+        assert capsys.readouterr().out == (
+                "called ButtonGroup.__init__ with args ()\n"
+                "called CheckBox.__init__\ncalled CheckBox.__init__\n")
+        assert testobj.get_stat_selargs() == []
+        assert capsys.readouterr().out == (
+                f"called ButtonGroup.buttons with arg {testobj.check_stats}\n"
+                f"called CheckBox.isChecked with arg {testobj.check_stat1}\n"
+                f"called ButtonGroup.buttons with arg {testobj.check_stats}\n"
+                f"called CheckBox.isChecked with arg {testobj.check_stat2}\n")
+        testobj.check_stat1.setChecked(True)
+        assert capsys.readouterr().out == "called CheckBox.setChecked with arg True\n"
+        assert testobj.get_stat_selargs() == [1]
+        assert capsys.readouterr().out == (
+                f"called ButtonGroup.buttons with arg {testobj.check_stats}\n"
+                f"called CheckBox.isChecked with arg {testobj.check_stat1}\n"
+                f"called ButtonGroup.buttons with arg {testobj.check_stats}\n"
+                f"called CheckBox.isChecked with arg {testobj.check_stat2}\n")
+        testobj.check_stat2.setChecked(True)
+        assert capsys.readouterr().out == "called CheckBox.setChecked with arg True\n"
+        assert testobj.get_stat_selargs() == [1, 2]
+        assert capsys.readouterr().out == (
+                f"called ButtonGroup.buttons with arg {testobj.check_stats}\n"
+                f"called CheckBox.isChecked with arg {testobj.check_stat1}\n"
+                f"called ButtonGroup.buttons with arg {testobj.check_stats}\n"
+                f"called CheckBox.isChecked with arg {testobj.check_stat2}\n")
+
+    def test_get_search_selargs(self, monkeypatch, capsys):
+        def mock_buttons(arg):
+            print(f'called ButtonGroup.buttons with arg {arg}')
+            return testobj.check_and2, testobj.check_or2
+        def mock_check(arg):
+            print(f'called CheckBox.isChecked with arg {arg}')
+            return arg.checked
+        monkeypatch.setattr(mockqtw.MockButtonGroup, 'buttons', mock_buttons)
+        monkeypatch.setattr(mockqtw.MockCheckBox, 'isChecked', mock_check)
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.parent = types.SimpleNamespace(parent=types.SimpleNamespace(
+            parent=types.SimpleNamespace()))
+        testobj.text_zoek = mockqtw.MockLineEdit()
+        testobj.text_zoek2 = mockqtw.MockLineEdit()
+        testobj.radio_id2 = mockqtw.MockButtonGroup()
+        testobj.check_and2 = mockqtw.MockCheckBox()
+        testobj.check_or2 = mockqtw.MockCheckBox()
+        assert capsys.readouterr().out == (
+                "called LineEdit.__init__\ncalled LineEdit.__init__\n"
+                "called ButtonGroup.__init__ with args ()\n"
+                "called CheckBox.__init__\ncalled CheckBox.__init__\n")
+
+        testobj.parent.parent.parent.use_separate_subject = False
+        testobj.text_zoek.setText('aaa')
+        assert capsys.readouterr().out == "called LineEdit.setText with arg `aaa`\n"
+        assert testobj.get_search_selargs() == (True, {'titel': 'aaa'})
+        assert capsys.readouterr().out == "called LineEdit.text\n"
+
+        testobj.parent.parent.parent.use_separate_subject = True
+        testobj.text_zoek.clear()
+        assert capsys.readouterr().out == "called LineEdit.clear\n"
+        assert testobj.get_search_selargs() == (True, {})
+        assert capsys.readouterr().out == "called LineEdit.text\ncalled LineEdit.text\n"
+
+        testobj.check_and2.setChecked(True)
+        assert capsys.readouterr().out == "called CheckBox.setChecked with arg True\n"
+        assert testobj.get_search_selargs() == (True, {})
+        assert capsys.readouterr().out == "called LineEdit.text\ncalled LineEdit.text\n"
+
+        testobj.check_and2.setChecked(False)
+        testobj.check_or2.setChecked(True)
+        assert capsys.readouterr().out == ("called CheckBox.setChecked with arg False\n"
+                                           "called CheckBox.setChecked with arg True\n")
+        assert testobj.get_search_selargs() == (True, {})
+        assert capsys.readouterr().out == "called LineEdit.text\ncalled LineEdit.text\n"
+
+        testobj.check_or2.setChecked(False)
+        testobj.text_zoek.setText('aaa')
+        assert capsys.readouterr().out == ("called CheckBox.setChecked with arg False\n"
+                                           "called LineEdit.setText with arg `aaa`\n")
+        assert testobj.get_search_selargs() == (True, {'titel': [('about', 'aaa')]})
+        assert capsys.readouterr().out == "called LineEdit.text\ncalled LineEdit.text\n"
+
+        testobj.check_and2.setChecked(True)
+        assert capsys.readouterr().out ==  "called CheckBox.setChecked with arg True\n"
+        assert testobj.get_search_selargs() == (True, {'titel': [('about', 'aaa')]})
+        assert capsys.readouterr().out == "called LineEdit.text\ncalled LineEdit.text\n"
+
+        testobj.check_and2.setChecked(False)
+        testobj.check_or2.setChecked(True)
+        assert capsys.readouterr().out == ("called CheckBox.setChecked with arg False\n"
+                                           "called CheckBox.setChecked with arg True\n")
+        assert testobj.get_search_selargs() == (True, {'titel': [('about', 'aaa')]})
+        assert capsys.readouterr().out == "called LineEdit.text\ncalled LineEdit.text\n"
+
+        testobj.check_or2.setChecked(False)
+        testobj.text_zoek.clear()
+        testobj.text_zoek2.setText('bbb')
+        assert capsys.readouterr().out == ("called CheckBox.setChecked with arg False\n"
+                                           "called LineEdit.clear\n"
+                                           "called LineEdit.setText with arg `bbb`\n")
+        assert testobj.get_search_selargs() == (True, {'titel': [('title', 'bbb')]})
+        assert capsys.readouterr().out == "called LineEdit.text\ncalled LineEdit.text\n"
+
+        testobj.check_and2.setChecked(True)
+        assert capsys.readouterr().out == "called CheckBox.setChecked with arg True\n"
+        assert testobj.get_search_selargs() == (True, {'titel': [('title', 'bbb')]})
+        assert capsys.readouterr().out == "called LineEdit.text\ncalled LineEdit.text\n"
+
+        testobj.check_and2.setChecked(False)
+        testobj.check_or2.setChecked(True)
+        assert capsys.readouterr().out == ("called CheckBox.setChecked with arg False\n"
+                                           "called CheckBox.setChecked with arg True\n")
+        assert testobj.get_search_selargs() == (True, {'titel': [('title', 'bbb')]})
+        assert capsys.readouterr().out == "called LineEdit.text\ncalled LineEdit.text\n"
+
+        testobj.check_or2.setChecked(False)
+        testobj.text_zoek.setText('aaa')
+        assert capsys.readouterr().out == ("called CheckBox.setChecked with arg False\n"
+                                           "called LineEdit.setText with arg `aaa`\n")
+        assert testobj.get_search_selargs() == (False, {})
+        assert capsys.readouterr().out == (
+                "called LineEdit.text\ncalled LineEdit.text\n"
+                f"called ButtonGroup.buttons with arg {testobj.radio_id2}\n"
+                f"called CheckBox.isChecked with arg {testobj.check_and2}\n"
+                f"called ButtonGroup.buttons with arg {testobj.radio_id2}\n"
+                f"called CheckBox.isChecked with arg {testobj.check_or2}\n")
+
+        testobj.check_and2.setChecked(True)
+        assert capsys.readouterr().out == "called CheckBox.setChecked with arg True\n"
+        assert testobj.get_search_selargs() == (True, {'titel': [('about', 'aaa'),
+                                                                 ('title', 'bbb'), ('and',)]})
+        assert capsys.readouterr().out == (
+                "called LineEdit.text\ncalled LineEdit.text\n"
+                f"called ButtonGroup.buttons with arg {testobj.radio_id2}\n"
+                f"called CheckBox.isChecked with arg {testobj.check_and2}\n")
+
+        testobj.check_and2.setChecked(False)
+        testobj.check_or2.setChecked(True)
+        assert capsys.readouterr().out == ("called CheckBox.setChecked with arg False\n"
+                                           "called CheckBox.setChecked with arg True\n")
+        assert testobj.get_search_selargs() == (True, {'titel': [('about', 'aaa'),
+                                                                 ('title', 'bbb'), ('or',)]})
+        assert capsys.readouterr().out == (
+                "called LineEdit.text\ncalled LineEdit.text\n"
+                f"called ButtonGroup.buttons with arg {testobj.radio_id2}\n"
+                f"called CheckBox.isChecked with arg {testobj.check_and2}\n"
+                f"called ButtonGroup.buttons with arg {testobj.radio_id2}\n"
+                f"called CheckBox.isChecked with arg {testobj.check_or2}\n")
+
+    def test_get_arch_selargs(self, monkeypatch, capsys):
+        def mock_buttons(arg):
+            print(f'called ButtonGroup.buttons with arg {arg}')
+            return testobj.check_arch, testobj.check_all
+        def mock_check(arg):
+            print(f'called CheckBox.isChecked with arg {arg}')
+            return arg.checked
+        monkeypatch.setattr(mockqtw.MockButtonGroup, 'buttons', mock_buttons)
+        monkeypatch.setattr(mockqtw.MockCheckBox, 'isChecked', mock_check)
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.radio_arch = mockqtw.MockButtonGroup()
+        testobj.check_arch = mockqtw.MockCheckBox()
+        testobj.check_all = mockqtw.MockCheckBox()
+        assert capsys.readouterr().out == ("called ButtonGroup.__init__ with args ()\n"
+                                           "called CheckBox.__init__\ncalled CheckBox.__init__\n")
+        assert testobj.get_arch_selargs('selection') == ('selection', '')
+        assert capsys.readouterr().out == (
+                f"called ButtonGroup.buttons with arg {testobj.radio_arch}\n"
+                f"called CheckBox.isChecked with arg {testobj.check_arch}\n"
+                f"called ButtonGroup.buttons with arg {testobj.radio_arch}\n"
+                f"called CheckBox.isChecked with arg {testobj.check_all}\n")
+        testobj.check_arch.setChecked(True)
+        assert capsys.readouterr().out == 'called CheckBox.setChecked with arg True\n'
+        assert testobj.get_arch_selargs('') == ('(gearchiveerd)', 'arch')
+        assert capsys.readouterr().out == (
+                f"called ButtonGroup.buttons with arg {testobj.radio_arch}\n"
+                f"called CheckBox.isChecked with arg {testobj.check_arch}\n")
+        assert testobj.get_arch_selargs('(gefilterd)') == ('(gefilterd)', 'arch')
+        assert capsys.readouterr().out == (
+                f"called ButtonGroup.buttons with arg {testobj.radio_arch}\n"
+                f"called CheckBox.isChecked with arg {testobj.check_arch}\n")
+        testobj.check_arch.setChecked(False)
+        testobj.check_all.setChecked(True)
+        assert capsys.readouterr().out == ('called CheckBox.setChecked with arg False\n'
+                                           'called CheckBox.setChecked with arg True\n')
+        assert testobj.get_arch_selargs('') == ('', 'alles')
+        assert capsys.readouterr().out == (
+                f"called ButtonGroup.buttons with arg {testobj.radio_arch}\n"
+                f"called CheckBox.isChecked with arg {testobj.check_arch}\n"
+                f"called ButtonGroup.buttons with arg {testobj.radio_arch}\n"
+                f"called CheckBox.isChecked with arg {testobj.check_all}\n")
+        assert testobj.get_arch_selargs('(gefilterd)') == ('(gefilterd)', 'alles')
+        assert capsys.readouterr().out == (
+                f"called ButtonGroup.buttons with arg {testobj.radio_arch}\n"
+                f"called CheckBox.isChecked with arg {testobj.check_arch}\n"
+                f"called ButtonGroup.buttons with arg {testobj.radio_arch}\n"
+                f"called CheckBox.isChecked with arg {testobj.check_all}\n")
 
 
 class TestSettOptionsDialog:
