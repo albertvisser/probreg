@@ -3,7 +3,6 @@
 import os
 import sys
 import pathlib
-import collections
 import tempfile
 # import functools
 import wx
@@ -222,11 +221,12 @@ class EditorPanelRt(wxrt.RichTextCtrl):
 
     def text_font(self, event):
         "lettertype en/of -grootte instellen"
-        if not self.HasFocus():
-            return
+        # if not self.HasFocus():
+        #     return
         range = self.GetSelectionRange()
         fontData = wx.FontData()
         fontData.EnableEffects(False)
+        # attr = wxrt.TextAttrEx()
         attr = wxrt.RichTextAttr()
         attr.SetFlags(wx.TEXT_ATTR_FONT)
         if self.GetStyle(self.GetInsertionPoint(), attr):
@@ -239,6 +239,7 @@ class EditorPanelRt(wxrt.RichTextCtrl):
                     attr.SetFlags(wx.TEXT_ATTR_FONT)
                     attr.SetFont(font)
                     self.SetStyle(range, attr)
+        self.SetFocus()
 
     def text_family(self, event, family):
         "lettertype instellen"
@@ -355,7 +356,6 @@ class EditorPanelRt(wxrt.RichTextCtrl):
 class MyListCtrl(wx.ListCtrl, listmix.ListCtrlAutoWidthMixin):
     "list control mixed in with width adapter"
     def __init__(self, parent, pos=wx.DefaultPosition, size=wx.DefaultSize, style=0):
-        print(pos, size, style)
         wx.ListCtrl.__init__(self, parent, pos=pos, size=size, style=style)
         listmix.ListCtrlAutoWidthMixin.__init__(self)
         self.has_selection = False
@@ -479,22 +479,8 @@ class PageGui(wx.Panel):
 
     def choose_font(self, event):
         """show font dialog
-         """
-        # TODO: how to apply?
-        # self.curFont = self.sampleText.GetFont()
-        # self.curClr = wx.BLACK
-        data = wx.FontData()
-        data.EnableEffects(True)
-        # data.SetColour(self.curClr)         # set colour
-        # data.SetInitialFont(self.curFont)
-        with wx.FontDialog(self, data) as dlg:
-            if dlg.ShowModal() == wx.ID_OK:
-                data = dlg.GetFontData()
-                # font = data.GetChosenFont()
-                # colour = data.GetColour()
-                # print(font.GetFaceName(), font.GetPointSize(), colour.Get()))
-                # self.curFont = font
-                # self.curClr = colour
+        """
+        self.text1.text_font(event)
 
     def doelayout(self):
         "layout page"
@@ -764,7 +750,7 @@ class Page0Gui(PageGui, listmix.ColumnSorterMixin):
 
     def get_selected_action(self):
         "return the key of the selected action"
-        data = self.p0list.GetItemData(self.p0list.GetFirstSelected())
+        data = str(self.p0list.GetItemData(self.p0list.GetFirstSelected()))
         print('in Page0.get_selected_action, data is', data)
         return '-'.join((data[:4], data[4:]))
 
@@ -980,9 +966,9 @@ class Page6Gui(PageGui):
         self.pnl = wx.SplitterWindow(self, size=(500, 400), style=wx.SP_LIVE_UPDATE)
 
         self.progress_list = MyListCtrl(self.pnl, size=(250, -1),  # high),
-                                style=wx.LC_REPORT | wx.LC_HRULES | wx.LC_VRULES | wx.LC_SINGLE_SEL)
+                                style=wx.LC_REPORT | wx.LC_VRULES | wx.LC_SINGLE_SEL)
         accel_data = []
-        if not appbase.work_with_user:
+        if not self.appbase.work_with_user:
             self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.on_activate_item, self.progress_list)
             accel_data.append(('new-item', self.on_activate_item, 'Shift-Ctrl-N'))
         # self.progress_list.Bind(wx.EVT_LIST_ITEM_SELECTED, self.on_select_item)
@@ -1044,7 +1030,6 @@ class Page6Gui(PageGui):
         self.SetSizer(sizer0)
         sizer0.Fit(self)
         sizer0.SetSizeHints(self)
-        print('layout done')
 
     def on_activate_item(self, event):
         """callback voor activeren van een item

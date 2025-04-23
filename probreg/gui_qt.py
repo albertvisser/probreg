@@ -279,7 +279,7 @@ class EditorPanel(qtw.QTextEdit):
         if pointsize > 0:
             fmt = gui.QTextCharFormat()
             fmt.setFontPointSize(pointsize)
-            self.setTabStopWidth(shared.tabsize(pointsize))
+            self.setTabStopDistance(shared.tabsize(pointsize))
             self.mergeCurrentCharFormat(fmt)
             self.setFocus()
 
@@ -312,7 +312,7 @@ class EditorPanel(qtw.QTextEdit):
         if not cursor.hasSelection():
             cursor.select(gui.QTextCursor.SelectionType.WordUnderCursor)
         cursor.mergeCharFormat(format)
-        super().mergeCurrentCharFormat(self, format)
+        super().mergeCurrentCharFormat(format)
 
     def update_bold(self):
         "compatibility"

@@ -79,7 +79,7 @@ class MockEditorPanel:
         print(f'called EditorWidget.font_changed with arg {value}')
 
     def font(self):
-        print(f'called EditorWidget.font')
+        print('called EditorWidget.font')
         return 'font'
 
     # dummy methods, needed for callback reference only
@@ -818,7 +818,7 @@ class TestEditorPanel:
             print('called shared.mock_tabsize with arg', arg)
             return 18
         def mock_settab(arg):
-            print('called EditorPanel.setTabStopWidth with arg', arg)
+            print('called EditorPanel.setTabStopDistance with arg', arg)
         def mock_merge(arg):
             print('called EditorPanel.mergeCurrentcharformat')
         def mock_setfocus():
@@ -826,7 +826,7 @@ class TestEditorPanel:
         monkeypatch.setattr(testee.gui, 'QTextCharFormat', mockqtw.MockTextCharFormat)
         monkeypatch.setattr(testee.shared, 'tabsize', mock_tabsize)
         testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.setTabStopWidth = mock_settab
+        testobj.setTabStopDistance = mock_settab
         testobj.mergeCurrentCharFormat = mock_merge
         testobj.setFocus = mock_setfocus
         testobj.text_size(0)
@@ -836,7 +836,7 @@ class TestEditorPanel:
                 "called TextCharFormat.__init__ with args ()\n"
                 "called TextCharFormat.setFontPointSize with arg 10.0\n"
                 "called shared.mock_tabsize with arg 10.0\n"
-                "called EditorPanel.setTabStopWidth with arg 18\n"
+                "called EditorPanel.setTabStopDistance with arg 18\n"
                 "called EditorPanel.mergeCurrentcharformat\n"
                 "called EditorPanel.set_focus\n")
 
@@ -932,7 +932,7 @@ class TestEditorPanel:
                 "called TextCursor.select with"
                 f" arg {testee.gui.QTextCursor.SelectionType.WordUnderCursor}\n"
                 "called TextCursor.mergeCharFormat with arg format\n"
-                f"called TextCursor.mergeCurrentCharFormat with args ({testobj}, 'format')\n")
+                "called TextCursor.mergeCurrentCharFormat with args ('format',)\n")
         monkeypatch.setattr(mockqtw.MockTextCursor, 'hasSelection', mock_has_sel)
         testobj.mergeCurrentCharFormat('format')
         assert capsys.readouterr().out == (
@@ -940,7 +940,7 @@ class TestEditorPanel:
                 "called TextCursor.__init__\n"
                 "called TextCursor.hasSelection\n"
                 "called TextCursor.mergeCharFormat with arg format\n"
-                f"called TextCursor.mergeCurrentCharFormat with args ({testobj}, 'format')\n")
+                "called TextCursor.mergeCurrentCharFormat with args ('format',)\n")
 
     def _test_update_bold(self, monkeypatch, capsys):
         """unittest for EditorPanel.update_bold - not implemented
@@ -3732,7 +3732,7 @@ class TestSelectOptionsDialog:
         assert capsys.readouterr().out == "called LineEdit.text\ncalled LineEdit.text\n"
 
         testobj.check_and2.setChecked(True)
-        assert capsys.readouterr().out ==  "called CheckBox.setChecked with arg True\n"
+        assert capsys.readouterr().out == "called CheckBox.setChecked with arg True\n"
         assert testobj.get_search_selargs() == (True, {'titel': [('about', 'aaa')]})
         assert capsys.readouterr().out == "called LineEdit.text\ncalled LineEdit.text\n"
 

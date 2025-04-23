@@ -130,7 +130,7 @@ class Page:
         else:
             self.appbase.set_windowtitle(text)
         self.appbase.set_statusmessage()
-        if 1 < self.parent.current_tab < self.parent.count() - 1:
+        if 1 < self.parent.current_tab < len(self.parent.pages) - 1:
             self.oldbuf = ''
             is_readonly = False
             if self.parent.pagedata is not None:
@@ -277,7 +277,7 @@ class Page:
         # reset font - are these also needed: case? indent? linespacing? paragraphspacing?
         if self.parent.current_tab > 1 and self.appbase.use_rt:
             self.gui.reset_font()
-        if self.parent.current_tab == self.parent.count() - 1 and self.status_auto_changed:
+        if self.parent.current_tab == len(self.parent.pages) - 1 and self.status_auto_changed:
             self.parent.pagedata.status = '0'
         self.vulp()
 
@@ -392,7 +392,7 @@ class Page0(Page):
         self.sorted = (0, "A")
 
         # widths = [94, 24, 146, 90, 400] if LIN else [64, 24, 114, 72, 292]
-        widths = [122, 24, 146, 100] if LIN else [64, 24, 114, 72]
+        widths = [122, 24, 146, 100, 300] if LIN else [64, 24, 114, 72, 292]
         if self.appbase.use_separate_subject:
             # widths[4] = 90 if LIN else 72
             # extra = 310 if LIN else 220
@@ -492,6 +492,7 @@ class Page0(Page):
         for data in self.parent.data.values():
             new_item = self.gui.add_listitem(data[0])
             self.gui.set_listitem_values(new_item, [data[0]] + list(data[2:]))
+        return f'{len(data)} items found'
 
     def change_selected(self, item_n):
         """callback voor wijzigen geselecteerd item, o.a. door verplaatsen van de
@@ -1003,7 +1004,6 @@ class MainWindow:
         self.is_newfile = False
         self.oldsort = -1
         self.idlist = self.actlist = self.alist = []
-        shared.log('fnaam is %s', fnaam)
         self.projnames = dmls.get_projnames()
         if fnaam:
             self.determine_datatype_from_filename(fnaam)
@@ -1147,7 +1147,6 @@ class MainWindow:
             self.book.pages.append(Page(self.book, 5))
         self.book.pages.append(Page6(self.book))
 
-        # print('in create_book_pages: book.tabs is', self.book.tabs)
         for i, page in enumerate(self.book.pages):
             self.gui.add_book_tab(page, "&" + self.book.tabs[i])
         self.enable_all_book_tabs(False)
@@ -1174,7 +1173,6 @@ class MainWindow:
 
     def open_xml(self, event=None):
         "Menukeuze: open file"
-        # shared.log('in open_xml: %s', self.filename)
         self.dirname = self.dirname or os.getcwd()
         fname = gui.get_open_filename(self.gui, start=self.dirname)
         if fname:
@@ -1465,6 +1463,8 @@ class MainWindow:
         self.gui.set_tab_titles(self.book.tabs)
         self.book.pages[0].clear_selection()
         self.book.pages[1].vul_combos()
+        if self.book.current_tab == -1:
+            self.book.current_tab = 0
         if self.book.current_tab == 0:
             self.book.pages[0].vulp()
         else:

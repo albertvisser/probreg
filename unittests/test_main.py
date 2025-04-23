@@ -536,7 +536,7 @@ def test_page_vulp(monkeypatch, capsys):
                                        'call MainWindow.set_windowtitle(aha | xx titel)\n'
                                        'call MainWindow.set_statusmessage()\n')
     testobj = setup_page(monkeypatch, capsys)
-    testobj.parent.count = lambda *x: 6
+    testobj.parent.pages = ['1', '2', '3', '4', '5', '6']
     testobj.parent.pagedata.arch = False
     testobj.seltitel = 'hallo'
     testobj.appbase.title = 'aha'
@@ -582,7 +582,7 @@ def test_page_vulp(monkeypatch, capsys):
     # assert capsys.readouterr().out == 'called MainWindow.__init__()\n'
     testobj = setup_page(monkeypatch, capsys)
     testobj.seltitel = 'hallo'
-    monkeypatch.setattr(testobj.parent, 'count', lambda *x: 3)
+    testobj.parent.pages = ['1', '2', '3']
     testobj.appbase.title = ''
     testobj.appbase.is_user = True
     testobj.parent.current_tab = 2
@@ -918,6 +918,7 @@ def test_page_restorep(monkeypatch, capsys):
     testobj.appbase.use_rt = True
     testobj.parent.pagedata.status = '1'
     testobj.parent.current_tab = 1
+    testobj.parent.pages = ['1', '2', '3']
     testobj.restorep()
     assert testobj.parent.pagedata.status == '1'
     assert capsys.readouterr().out == 'called Page.vulp()\n'
@@ -1224,7 +1225,7 @@ def test_page0_init(monkeypatch, capsys):
     assert testobj.saved_sortopts is None
     assert capsys.readouterr().out == (
         "called MainWindow.__init__() with args ()\ncalled MainGui.__init__()\n"
-        f"called PageGui.__init__() with args ({parent}, {testobj}, [122, 24, 146, 100]) {{}}\n"
+        f"called PageGui.__init__() with args ({parent}, {testobj}, [122, 24, 146, 100, 300]) {{}}\n"
         "called PageGui.enable_buttons() with args ()\n")
 
     appbase = MockMainWindow()
@@ -1243,7 +1244,8 @@ def test_page0_init(monkeypatch, capsys):
     assert testobj.saved_sortopts is None
     assert capsys.readouterr().out == (
         "called MainWindow.__init__() with args ()\ncalled MainGui.__init__()\n"
-        f"called PageGui.__init__() with args ({parent}, {testobj}, [122, 24, 146, 100, 90]) {{}}\n"
+        f"called PageGui.__init__() with args ({parent}, {testobj},"
+        " [122, 24, 146, 100, 300, 90]) {}\n"
         "called PageGui.enable_buttons() with args ()\n")
 
     appbase = MockMainWindow()
@@ -1262,7 +1264,7 @@ def test_page0_init(monkeypatch, capsys):
     assert testobj.saved_sortopts is None
     assert capsys.readouterr().out == (
         "called MainWindow.__init__() with args ()\ncalled MainGui.__init__()\n"
-        f"called PageGui.__init__() with args ({parent}, {testobj}, [64, 24, 114, 72]) {{}}\n"
+        f"called PageGui.__init__() with args ({parent}, {testobj}, [64, 24, 114, 72, 292]) {{}}\n"
         "called PageGui.enable_buttons() with args ()\n")
 
     appbase = MockMainWindow()
@@ -1281,7 +1283,8 @@ def test_page0_init(monkeypatch, capsys):
     assert testobj.saved_sortopts is None
     assert capsys.readouterr().out == (
         "called MainWindow.__init__() with args ()\ncalled MainGui.__init__()\n"
-        f"called PageGui.__init__() with args ({parent}, {testobj}, [64, 24, 114, 72, 72]) {{}}\n"
+        f"called PageGui.__init__() with args ({parent}, {testobj},"
+        " [64, 24, 114, 72, 292, 72]) {}\n"
         "called PageGui.enable_buttons() with args ()\n")
 
 
