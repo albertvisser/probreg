@@ -1543,17 +1543,20 @@ class MainWindow:
     def goto_next(self, *args):
         """redirect to the method of the current page
         """
-        Page.goto_next(self.book.pages[self.book.current_tab])
+        # Page.goto_next(self.book.pages[self.book.current_tab])
+        self.book.pages[self.book.current_tab].goto_next()
 
     def goto_prev(self, *args):
         """redirect to the method of the current page
         """
-        Page.goto_prev(self.book.pages[self.book.current_tab])
+        # Page.goto_prev(self.book.pages[self.book.current_tab])
+        self.book.pages[self.book.current_tab].goto_prev()
 
     def goto_page(self, page):
         """redirect to the method of the current page
         """
-        Page.goto_page(self.book.pages[self.book.current_tab], page)
+        # Page.goto_page(self.book.pages[self.book.current_tab], page)
+        self.book.pages[self.book.current_tab].goto_page(page)
 
     def enable_settingsmenu(self):
         "instellen of gebruik van settingsmenu mogelijk is"

@@ -3999,52 +3999,67 @@ def test_mainwindow_save_startitem_on_exit(monkeypatch, capsys):
 def test_mainwindow_goto_next(monkeypatch, capsys):
     """unittest for main.MainWindow.goto_next
     """
-    def mock_goto_next(*args):
+    # def mock_goto_next(*args):
+    #     """stub
+    #     """
+    #     print('called Page.goto_next() with args', args)
+    class MockPage:
         """stub
         """
-        print('called Page.goto_next() with args', args)
+        def goto_next(self, *args):
+            print('called Page.goto_next() with args', args)
     monkeypatch.setattr(testee.MainWindow, '__init__', mock_init_mainwindow)
-    monkeypatch.setattr(testee.Page, 'goto_next', mock_goto_next)
+    # monkeypatch.setattr(testee.Page, 'goto_next', mock_goto_next)
     testobj = testee.MainWindow()
     assert capsys.readouterr().out == 'called MainGui.__init__()\n'
-    testobj.book.pages = ['page0', 'page1']
+    testobj.book.pages = ['page0', MockPage()]
     testobj.book.current_tab = 1
     testobj.goto_next()
-    assert capsys.readouterr().out == "called Page.goto_next() with args ('page1',)\n"
+    assert capsys.readouterr().out == "called Page.goto_next() with args ()\n"
 
 
 def test_mainwindow_goto_prev(monkeypatch, capsys):
     """unittest for main.MainWindow.goto_prev
     """
-    def mock_goto_prev(*args):
+    # def mock_goto_prev(*args):
+    #     """stub
+    #     """
+    #     print('called Page.goto_prev() with args', args)
+    class MockPage:
         """stub
         """
-        print('called Page.goto_prev() with args', args)
+        def goto_prev(self, *args):
+            print('called Page.goto_prev() with args', args)
     monkeypatch.setattr(testee.MainWindow, '__init__', mock_init_mainwindow)
-    monkeypatch.setattr(testee.Page, 'goto_prev', mock_goto_prev)
+    # monkeypatch.setattr(testee.Page, 'goto_prev', mock_goto_prev)
     testobj = testee.MainWindow()
     assert capsys.readouterr().out == 'called MainGui.__init__()\n'
-    testobj.book.pages = ['page0', 'page1']
+    testobj.book.pages = ['page0', MockPage()]
     testobj.book.current_tab = 1
     testobj.goto_prev()
-    assert capsys.readouterr().out == "called Page.goto_prev() with args ('page1',)\n"
+    assert capsys.readouterr().out == "called Page.goto_prev() with args ()\n"
 
 
 def test_mainwindow_goto_page(monkeypatch, capsys):
     """unittest for main.MainWindow.goto_page
     """
-    def mock_goto_page(*args):
+    # def mock_goto_page(*args):
+    #     """stub
+    #     """
+    #     print('called Page.goto_page() with args', args)
+    class MockPage:
         """stub
         """
-        print('called Page.goto_page() with args', args)
+        def goto_page(self, *args):
+            print('called Page.goto_page() with args', args)
     monkeypatch.setattr(testee.MainWindow, '__init__', mock_init_mainwindow)
-    monkeypatch.setattr(testee.Page, 'goto_page', mock_goto_page)
+    # monkeypatch.setattr(testee.Page, 'goto_page', mock_goto_page)
     testobj = testee.MainWindow()
     assert capsys.readouterr().out == 'called MainGui.__init__()\n'
-    testobj.book.pages = ['page0', 'page1']
+    testobj.book.pages = [MockPage(), 'page1']
     testobj.book.current_tab = 0
     testobj.goto_page(1)
-    assert capsys.readouterr().out == "called Page.goto_page() with args ('page0', 1)\n"
+    assert capsys.readouterr().out == "called Page.goto_page() with args (1,)\n"
 
 
 def test_mainwindow_enable_settingsmenu(monkeypatch, capsys):

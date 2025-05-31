@@ -1889,9 +1889,9 @@ class MainGui(qtw.QMainWindow):
         """reload page while staying on it
         this method is called after a user has signed in
         """
-        self.on_page_changing(0)
+        self.on_page_changing()
 
-    def on_page_changing(self, newtabnum):
+    def on_page_changing(self, newtabnum=None):
         """deze methode is bedoeld om wanneer er van pagina gewisseld gaat worden
         te controleren of dat wel mogelijk is en zo niet, te melden waarom en de
         paginawissel tegen te houden (ok, terug te gaan naar de vorige pagina).
@@ -1900,14 +1900,12 @@ class MainGui(qtw.QMainWindow):
         tevens bedoeld om ervoor te zorgen dat na het wisselen van pagina
         het veld / de velden van de nieuwe pagina een waarde krijgen met behulp van de vulp methode
 
-        newtabnum wordt door de event meegegeven, maar kan ook geforceerd worden
-        (door refresh_page, om verversen van tab 0 te veroorzaken)
+        newtabnum wordt door de event meegegeven maar niet door refresh_page
         """
         firsttab, lasttab = 0, 6
         old = self.master.book.current_tab
-        new = self.master.book.current_tab = self.get_page()
-        # om eens te vergelijken: hoe `new` verschilt vam newtabnum
-        # print(newtabnum, new)i
+        new = self.get_page()
+        self.master.book.current_tab = new
         if LIN and old == -1:  # bij initialisatie en bij afsluiten - op Windows is deze altijd -1?
             return
         self.enable_all_other_tabs(True)

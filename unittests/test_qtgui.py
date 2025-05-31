@@ -4298,12 +4298,12 @@ class TestMainGui:
     def test_refresh_page(self, monkeypatch, capsys):
         """unittest for MainGui.refresh_page
         """
-        def mock_change(arg):
-            print(f'called mainGui.on_page_changing with arg {arg}')
+        def mock_change():
+            print('called mainGui.on_page_changing')
         testobj = self.setup_testobj(monkeypatch, capsys)
         testobj.on_page_changing = mock_change
         testobj.refresh_page()
-        assert capsys.readouterr().out == "called mainGui.on_page_changing with arg 0\n"
+        assert capsys.readouterr().out == "called mainGui.on_page_changing\n"
 
     def test_on_page_changing(self, monkeypatch, capsys):
         """unittest for MainGui.on_page_changing
