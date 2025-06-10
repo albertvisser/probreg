@@ -1451,10 +1451,11 @@ class TestPage0Gui:
         assert capsys.readouterr().out == "called Tree.__init__\n"
         result = testobj.add_listitem('data')
         assert isinstance(result, testee.qtw.QTreeWidgetItem)
-        assert capsys.readouterr().out == ("called TreeItem.__init__ with args ()\n"
-                                           "called TreeItem.setData to `data` with role"
-                                           f" {testee.core.Qt.ItemDataRole.UserRole} for col 0\n"
-                                           "called Tree.addTopLevelItem\n")
+        assert capsys.readouterr().out == (
+                "called TreeItem.__init__ with args ()\n"
+                "called TreeItem.setData with args"
+                f" (0, {testee.core.Qt.ItemDataRole.UserRole!r}, 'data')\n"
+                "called Tree.addTopLevelItem\n")
 
     def test_set_listitem_values(self, monkeypatch, capsys):
         """unittest for Page0Gui.set_listitem_values
@@ -1466,16 +1467,16 @@ class TestPage0Gui:
                                            "called TreeItem.__init__ with args ()\n")
         testobj.set_listitem_values(item, ('xxx', 'yyy.a', 'zzz.b', 'q'))
         assert testobj.p0list.has_selection
-        assert capsys.readouterr().out == ("called TreeItem.setText with arg `xxx (A)` for col 0\n"
-                                           "called TreeItem.setText with arg `A` for col 1\n"
-                                           "called TreeItem.setText with arg `b` for col 2\n")
+        assert capsys.readouterr().out == ("called TreeItem.setText with args (0, 'xxx (A)')\n"
+                                           "called TreeItem.setText with args (1, 'A')\n"
+                                           "called TreeItem.setText with args (2, 'b')\n")
         testobj.set_listitem_values(item, ('xxx', 'y.abc', 'z.defg', 'hij', 'klm', ''))
         assert testobj.p0list.has_selection
-        assert capsys.readouterr().out == ("called TreeItem.setText with arg `xxx` for col 0\n"
-                                           "called TreeItem.setText with arg `A` for col 1\n"
-                                           "called TreeItem.setText with arg `defg` for col 2\n"
-                                           "called TreeItem.setText with arg `hij` for col 3\n"
-                                           "called TreeItem.setText with arg `klm` for col 4\n")
+        assert capsys.readouterr().out == ("called TreeItem.setText with args (0, 'xxx')\n"
+                                           "called TreeItem.setText with args (1, 'A')\n"
+                                           "called TreeItem.setText with args (2, 'defg')\n"
+                                           "called TreeItem.setText with args (3, 'hij')\n"
+                                           "called TreeItem.setText with args (4, 'klm')\n")
 
     def test_get_items(self, monkeypatch, capsys):
         """unittest for Page0Gui.get_items
@@ -1504,8 +1505,8 @@ class TestPage0Gui:
         assert capsys.readouterr().out == "called TreeItem.__init__ with args ('col0', 'col1')\n"
         for column in (0, 1):
             assert testobj.get_item_text(item, column) == f"col{column}"
-        assert capsys.readouterr().out == ("called TreeItem.text for col 0\n"
-                                           "called TreeItem.text for col 1\n")
+        assert capsys.readouterr().out == ("called TreeItem.text with arg 0\n"
+                                           "called TreeItem.text with arg 1\n")
 
     def test_set_item_text(self, monkeypatch, capsys):
         """unittest for Page0Gui.set_item_text
@@ -1514,7 +1515,7 @@ class TestPage0Gui:
         item = mockqtw.MockTreeItem()
         assert capsys.readouterr().out == "called TreeItem.__init__ with args ()\n"
         testobj.set_item_text(item, 0, 'text')
-        assert capsys.readouterr().out == ("called TreeItem.setText with arg `text` for col 0\n")
+        assert capsys.readouterr().out == ("called TreeItem.setText with args (0, 'text')\n")
 
     def test_get_first_item(self, monkeypatch, capsys):
         """unittest for Page0Gui.get_first_item
@@ -1620,10 +1621,11 @@ class TestPage0Gui:
         assert capsys.readouterr().out == (
                 "called Tree.__init__\n"
                 "called TreeItem.__init__ with args ()\n"
-                "called TreeItem.setData to `data` with role 256 for col 0\n")
+                "called TreeItem.setData with args (0, <ItemDataRole.UserRole: 256>, 'data')\n")
         assert testobj.get_selected_action() == "data"
-        assert capsys.readouterr().out == ("called Tree.currentItem\n"
-                                           "called TreeItem.data for col 0 role 256\n")
+        assert capsys.readouterr().out == (
+                "called Tree.currentItem\n"
+                "called TreeItem.data with args (0, <ItemDataRole.UserRole: 256>)\n")
 
     def test_get_list_row(self, monkeypatch, capsys):
         """unittest for Page0Gui.get_list_row
@@ -2200,7 +2202,7 @@ class TestPage6Gui:
                 f"called ListItem.setData with args ({testee.core.Qt.ItemDataRole.UserRole!r}, 0)\n"
                 "called List.insertItem with args (1, item of type"
                 " <class 'mockgui.mockqtwidgets.MockListItem'>)\n"
-                "called List.setCurrentRow with rownumber 1\n"
+                "called List.setCurrentRow with arg 1\n"
                 "called Editor.setText with arg `some text`\n"
                 "called Editor.setReadOnly with arg `False`\n"
                 "called Editor.setFocus\n")
@@ -2488,7 +2490,7 @@ class TestPage6Gui:
         testobj.progress_list = mockqtw.MockListBox()
         assert capsys.readouterr().out == "called List.__init__\n"
         testobj.set_list_row('num')
-        assert capsys.readouterr().out == ("called List.setCurrentRow with rownumber num\n")
+        assert capsys.readouterr().out == ("called List.setCurrentRow with arg num\n")
 
     def test_get_list_rowcount(self, monkeypatch, capsys):
         """unittest for Page6Gui.get_list_rowcount
@@ -2497,7 +2499,7 @@ class TestPage6Gui:
         testobj.progress_list = mockqtw.MockListBox()
         assert capsys.readouterr().out == "called List.__init__\n"
         assert testobj.get_list_rowcount() == 0
-        assert capsys.readouterr().out == ("")
+        assert capsys.readouterr().out == "called List.count\n"
 
     def test_move_cursor_to_end(self, monkeypatch, capsys):
         """unittest for Page6Gui.move_cursor_to_end
@@ -2551,7 +2553,8 @@ class TestPage6Gui:
         testobj.progress_list.item = mock_item
         assert capsys.readouterr().out == "called List.__init__\n"
         assert testobj.get_listitem_text('itemindex') == "xxx"
-        assert capsys.readouterr().out == ("called List.item with arg itemindex\n")
+        assert capsys.readouterr().out == ("called List.item with arg itemindex\n"
+                                           "called ListItem.text\n")
 
     def test_build_newbuf(self, monkeypatch, capsys):
         """unittest for Page6Gui.build_newbuf
@@ -4044,26 +4047,32 @@ class TestSettOptionsDialog:
                                            "called ListItem.__init__ with args ('to',)\n")
         testobj.move_item()
         assert capsys.readouterr().out == ("called List.currentItem\n"
+                                           "called ListItem.text\n"
                                            "called List.currentRow\n")
         testobj.move_item(up=False)
         assert capsys.readouterr().out == ("called List.currentItem\n"
+                                           "called ListItem.text\n"
                                            "called List.currentRow\n"
                                            "called List.currentRow\n"
                                            "called List.count\n"
                                            "called List.item with arg 1\n"
+                                           "called ListItem.text\n"
                                            "called ListItem.setText with arg 'from'\n"
                                            "called ListItem.setText with arg 'to'\n"
                                            "called List.setCurrentItem\n")
         testobj.elb.currentRow = mock_row2
         testobj.move_item()
         assert capsys.readouterr().out == ("called List.currentItem\n"
+                                           "called ListItem.text\n"
                                            "called List.currentRow\n"
                                            "called List.item with arg 0\n"
+                                           "called ListItem.text\n"
                                            "called ListItem.setText with arg 'to'\n"
                                            "called ListItem.setText with arg 'from'\n"
                                            "called List.setCurrentItem\n")
         testobj.move_item(up=False)
         assert capsys.readouterr().out == ("called List.currentItem\n"
+                                           "called ListItem.text\n"
                                            "called List.currentRow\n"
                                            "called List.currentRow\n"
                                            "called List.count\n")
@@ -4094,7 +4103,9 @@ class TestSettOptionsDialog:
                 "called List.closePersistentEditor with arg current item\n"
                 "called List.count\n"
                 "called List.item with arg 0\n"
+                "called ListItem.text\n"
                 "called List.item with arg 1\n"
+                "called ListItem.text\n"
                 f"called Obj.leesuit with args ({testobj}, {testobj.parent}, ['text', 'text'])\n"
                 "called Dialog.accept\n")
 
