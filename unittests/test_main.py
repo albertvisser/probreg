@@ -1937,7 +1937,7 @@ def test_page1_savep(monkeypatch, capsys):
             """stub
             """
             print(f'called Actie.add_event with text `{text}`')
-    def mock_get_text(self, fieldname):
+    def mock_get_text(self, fieldname):    # proc leeg, desc en rest geven veldnmaam terug
         """stub
         """
         if fieldname == 'proc':
@@ -1945,7 +1945,7 @@ def test_page1_savep(monkeypatch, capsys):
         if fieldname == 'desc':
             return 'desc'
         return fieldname
-    def mock_get_text_2(self, fieldname):
+    def mock_get_text_2(self, fieldname):  # desc leeg, proc en rest geven veldnaam terug
         """stub
         """
         if fieldname == 'proc':
@@ -1953,17 +1953,17 @@ def test_page1_savep(monkeypatch, capsys):
         if fieldname == 'desc':
             return ''
         return fieldname
-    def mock_get_text_3(self, fieldname):
+    def mock_get_text_3(self, fieldname):  # proc en desc gefven veldnaam terug, rest leeg
         """stub
         """
         if fieldname in ('proc', 'desc'):
             return fieldname
         return ''
-    def mock_get_text_4(self, fieldname):
+    def mock_get_text_4(self, fieldname):  # alles geeft veldnaam terug
         """stub
         """
         return fieldname
-    def mock_get_text_5(self, fieldname):
+    def mock_get_text_5(self, fieldname):  # proc desc en summary geven veldnaam terug, rest niks
         """stub
         """
         if fieldname in ('proc', 'desc'):
@@ -1971,7 +1971,12 @@ def test_page1_savep(monkeypatch, capsys):
         if fieldname == 'summary':
             return fieldname
         return ''
-    def mock_get_choice_data(self, fieldname):
+    def mock_get_text_6(self, fieldname):
+        """stub
+        """
+        return {'proc': 'xx', 'desc': 'yy', 'status': 0, 'soort': '', 'arch': False,
+                'melding': ''}[fieldname]
+    def mock_get_choice_data(self, fieldname):    # stat en cat geven defaults terug
         """stub
         """
         if fieldname == 'stat':
@@ -1979,7 +1984,7 @@ def test_page1_savep(monkeypatch, capsys):
         if fieldname == 'cat':
             return '', 'onbekend'
         return None, None
-    def mock_get_choice_data_2(self, fieldname):
+    def mock_get_choice_data_2(self, fieldname):  # stat en cat geven niet defaults terug
         """stub
         """
         if fieldname == 'stat':
@@ -1999,29 +2004,28 @@ def test_page1_savep(monkeypatch, capsys):
         """stub
         """
         print('called Page.update_actie()')
-
     monkeypatch.setattr(testee.Page, 'savep', mock_super_savep)
     monkeypatch.setattr(testee.gui, 'show_message', mock_show_message)
     monkeypatch.setattr(MockPageGui, 'get_text', mock_get_text)
     monkeypatch.setattr(testee.Page1, 'update_actie', mock_update_actie)
     testobj = setup_page1(monkeypatch, capsys)
+    testobj.parent.newitem = False
     testobj.enable_buttons = mock_enable_buttons
     assert not testobj.savep()
-    assert capsys.readouterr().out == ('called Page.super_savep()\n'
-                                       'called PageGui.set_text() for field `proc` text ``\n'
-                                       'called Page.enable_buttons(False)\n'
-                                       'called gui.show_message with args ``'
-                                       ' `Beide tekstrubrieken moeten worden ingevuld`\n')
+    assert capsys.readouterr().out == (
+            'called Page.super_savep()\n'
+            'called PageGui.set_text() for field `proc` text ``\n'
+            'called Page.enable_buttons(False)\n'
+            'called gui.show_message with args `` `Beide tekstrubrieken moeten worden ingevuld`\n')
 
     monkeypatch.setattr(MockPageGui, 'get_text', mock_get_text_2)
-    testobj = setup_page1(monkeypatch, capsys)
     testobj.enable_buttons = mock_enable_buttons
     assert not testobj.savep()
-    assert capsys.readouterr().out == ('called Page.super_savep()\n'
-                                       'called PageGui.set_text() for field `proc` text `Proc`\n'
-                                       'called Page.enable_buttons(False)\n'
-                                       'called gui.show_message with args ``'
-                                       ' `Beide tekstrubrieken moeten worden ingevuld`\n')
+    assert capsys.readouterr().out == (
+            'called Page.super_savep()\n'
+            'called PageGui.set_text() for field `proc` text `Proc`\n'
+            'called Page.enable_buttons(False)\n'
+            'called gui.show_message with args `` `Beide tekstrubrieken moeten worden ingevuld`\n')
 
     monkeypatch.setattr(MockPageGui, 'get_text', mock_get_text_3)
     monkeypatch.setattr(MockPageGui, 'get_choice_data', mock_get_choice_data)
@@ -2030,42 +2034,92 @@ def test_page1_savep(monkeypatch, capsys):
     testobj.appbase.use_text_panels = True
     testobj.parent.pagedata = MockActie()
     assert testobj.savep()
-    assert capsys.readouterr().out == ('called Page.super_savep()\n'
-                                       'called PageGui.set_text() for field `proc` text `Proc`\n'
-                                       'called Page.enable_buttons(False)\n'
-                                       'called Actie.add_event with text'
-                                       ' `Titel gewijzigd in "proc - desc"`\n'
-                                       'called Page.update_actie()\n')
+    assert capsys.readouterr().out == (
+            'called Page.super_savep()\n'
+            'called PageGui.set_text() for field `proc` text `Proc`\n'
+            'called Page.enable_buttons(False)\n'
+            'called Actie.add_event with text `Titel gewijzigd in "proc - desc"`\n'
+            'called Page.update_actie()\n')
 
+    testobj.parent.newitem = True
     monkeypatch.setattr(MockPageGui, 'get_text', mock_get_text_4)
+    assert testobj.savep()
+    assert capsys.readouterr().out == (
+            'called Page.super_savep()\n'
+            'called PageGui.set_text() for field `proc` text `Proc`\n'
+            'called Page.enable_buttons(False)\n'
+            # 'called Actie.add_event with text `Titel gewijzigd in "proc - desc"`\n'
+            'called Actie.add_event with text `Status is "gemeld"`\n'
+            'called Actie.add_event with text `Categorie is "onbekend"`\n'
+            'called Page.update_actie()\n')
+
+    testobj.parent.newitem = False
     monkeypatch.setattr(MockPageGui, 'get_choice_data', mock_get_choice_data_2)
     testobj.parch = True
     testobj.appbase.use_separate_subject = True
     testobj.appbase.use_text_panels = False
     assert testobj.savep()
-    assert capsys.readouterr().out == ('called Page.super_savep()\n'
-                                       'called PageGui.set_text() for field `proc` text `Proc`\n'
-                                       'called Page.enable_buttons(False)\n'
-                                       'called Actie.add_event with text'
-                                       ' `Status gewijzigd in "Started"`\n'
-                                       'called Actie.add_event with text'
-                                       ' `Categorie gewijzigd in "Problem"`\n'
-                                       'called Actie.add_event with text `Actie gearchiveerd`\n'
-                                       'called Actie.add_event with text `Meldingtekst aangepast`\n'
-                                       'called Page.update_actie()\n')
+    assert capsys.readouterr().out == (
+            'called Page.super_savep()\n'
+            'called PageGui.set_text() for field `proc` text `Proc`\n'
+            'called Page.enable_buttons(False)\n'
+            'called Actie.add_event with text `Onderwerp gewijzigd in "proc"`\n'
+            'called Actie.add_event with text `Titel gewijzigd in "desc"`\n'
+            'called Actie.add_event with text `Status gewijzigd in "Started"`\n'
+            'called Actie.add_event with text `Categorie gewijzigd in "Problem"`\n'
+            'called Actie.add_event with text `Actie gearchiveerd`\n'
+            'called Actie.add_event with text `Meldingtekst aangepast`\n'
+            'called Page.update_actie()\n')
+    testobj.parent.newitem = True
+    assert testobj.savep()
+    assert capsys.readouterr().out == (
+            'called Page.super_savep()\n'
+            'called PageGui.set_text() for field `proc` text `Proc`\n'
+            'called Page.enable_buttons(False)\n'
+            # 'called Actie.add_event with text `Onderwerp gewijzigd in "proc"`\n'
+            # 'called Actie.add_event with text `Titel gewijzigd in "desc"`\n'
+            'called Actie.add_event with text `Status is "Started"`\n'
+            'called Actie.add_event with text `Categorie is "Problem"`\n'
+            # 'called Actie.add_event with text `Actie gearchiveerd`\n'
+            # 'called Actie.add_event with text `Meldingtekst aangepast`\n'
+            'called Page.update_actie()\n')
 
+    testobj.parent.newitem = False
     monkeypatch.setattr(MockPageGui, 'get_text', mock_get_text_5)
     testobj.parch = False
     assert testobj.savep()
-    assert capsys.readouterr().out == ('called Page.super_savep()\n'
-                                       'called PageGui.set_text() for field `proc` text `Proc`\n'
-                                       'called Page.enable_buttons(False)\n'
-                                       'called Actie.add_event with text'
-                                       ' `Onderwerp gewijzigd in "Proc"`\n'
-                                       'called Actie.add_event with text'
-                                       ' `Titel gewijzigd in "Desc"`\n'
-                                       'called Actie.add_event with text `Actie herleefd`\n'
-                                       'called Page.update_actie()\n')
+    assert capsys.readouterr().out == (
+            'called Page.super_savep()\n'
+            'called PageGui.set_text() for field `proc` text `Proc`\n'
+            'called Page.enable_buttons(False)\n'
+            'called Actie.add_event with text `Onderwerp gewijzigd in "Proc"`\n'
+            'called Actie.add_event with text `Titel gewijzigd in "Desc"`\n'
+            'called Actie.add_event with text `Actie herleefd`\n'
+            'called Page.update_actie()\n')
+    testobj.parent.newitem = True
+    assert testobj.savep()
+    assert capsys.readouterr().out == (
+            'called Page.super_savep()\n'
+            'called PageGui.set_text() for field `proc` text `Proc`\n'
+            'called Page.enable_buttons(False)\n'
+            'called Actie.add_event with text `Status is "Started"`\n'
+            # 'called Actie.add_event with text `Onderwerp gewijzigd in "Proc"`\n'
+            # 'called Actie.add_event with text `Titel gewijzigd in "Desc"`\n'
+            # 'called Actie.add_event with text `Actie herleefd`\n'
+            'called Actie.add_event with text `Categorie is "Problem"`\n'
+            'called Page.update_actie()\n')
+
+    testobj.parent.newitem = False
+    testobj.appbase.use_separate_subject = False
+    testobj.appbase.use_text_panels = True
+    # testobj.parent.pagedata.over = 'xx'
+    # testobj.parent.pagedata.titel = 'yy'
+    testobj.parent.pagedata.titel = 'xx - yy'
+    monkeypatch.setattr(MockPageGui, 'get_text', mock_get_text_6)
+    assert testobj.savep()
+    assert capsys.readouterr().out == ("called Page.super_savep()\n"
+                                       "called PageGui.set_text() for field `proc` text `Xx`\n"
+                                       "called Page.enable_buttons(False)\n")
 
 
 def test_page1_archiveer(monkeypatch, capsys):

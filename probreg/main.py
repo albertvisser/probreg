@@ -697,24 +697,47 @@ class Page1(Page):
             return False
         wijzig = False
         procdesc = f"{proc} - {desc}"
-        if procdesc != self.parent.pagedata.titel:
-            if self.appbase.use_separate_subject:
-                self.parent.pagedata.over = proc
-                self.parent.pagedata.add_event(f'Onderwerp gewijzigd in "{proc}"')
-                self.parent.pagedata.titel = procdesc = desc
-            else:
-                self.parent.pagedata.titel = procdesc
+        # if procdesc != self.parent.pagedata.titel:
+        #     if self.appbase.use_separate_subject:
+        #         self.parent.pagedata.over = proc
+        #         self.parent.pagedata.add_event(f'Onderwerp gewijzigd in "{proc}"')
+        #         self.parent.pagedata.titel = procdesc = desc
+        #     else:
+        #         self.parent.pagedata.titel = procdesc
+        #     self.parent.pagedata.add_event(f'Titel gewijzigd in "{procdesc}"')
+        #     wijzig = True
+        if procdesc != self.parent.pagedata.titel and not self.appbase.use_separate_subject:
+            self.parent.pagedata.titel = procdesc
             self.parent.pagedata.add_event(f'Titel gewijzigd in "{procdesc}"')
             wijzig = True
+        elif self.appbase.use_separate_subject:
+            if proc != self.parent.pagedata.over:
+                self.parent.pagedata.over = proc
+                self.parent.pagedata.add_event(f'Onderwerp gewijzigd in "{proc}"')
+                wijzig = True
+            if desc != self.parent.pagedata.titel:
+                self.parent.pagedata.titel = desc
+                self.parent.pagedata.add_event(f'Titel gewijzigd in "{desc}"')
+                wijzig = True
         newstat, sel = self.gui.get_choice_data(self.gui.stat_choice)
-        if newstat != self.parent.pagedata.status:
+        verb = ''
+        if self.parent.newitem:
+            verb = 'is'
+        elif newstat != self.parent.pagedata.status:
+            verb = 'gewijzigd in'
+        if verb:
             self.parent.pagedata.status = newstat
-            self.parent.pagedata.add_event(f'Status gewijzigd in "{sel}"')
+            self.parent.pagedata.add_event(f'Status {verb} "{sel}"')
             wijzig = True
         newcat, sel = self.gui.get_choice_data(self.gui.cat_choice)
-        if newcat != self.parent.pagedata.soort:
+        verb = ''
+        if self.parent.newitem:
+            verb = 'is'
+        elif newcat != self.parent.pagedata.soort:
+            verb = 'gewijzigd in'
+        if verb:
             self.parent.pagedata.soort = newcat
-            self.parent.pagedata.add_event(f'Categorie gewijzigd in "{sel}"')
+            self.parent.pagedata.add_event(f'Categorie {verb} "{sel}"')
             wijzig = True
         if self.parch != self.parent.pagedata.arch:
             self.parent.pagedata.arch = self.parch
