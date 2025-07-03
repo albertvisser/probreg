@@ -10,7 +10,7 @@ from xml.etree.ElementTree import ElementTree, Element, SubElement
 # from probreg.shared import DataError, kopdict, statdict, catdict
 
 datapad = os.getcwd()
-dtformat = '%d-%m-%Y %H:%I:%S'  # zelfde als in shared.get_dts()
+dtformat = '%d-%m-%Y %H:%M:%S'  # zelfde als in shared.get_dts()
 
 
 kopdict = {

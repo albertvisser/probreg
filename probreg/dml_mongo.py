@@ -14,7 +14,7 @@ db = cl.probreg_database
 coll = db.default  # for now we only do one collection per database
 
 datapad = os.getcwd()
-dtformat = '%d-%m-%Y %H:%I:%S'  # zelfde als in shared.get_dts()
+dtformat = '%d-%m-%Y %H:%M:%S'  # zelfde als in shared.get_dts()
 
 
 kopdict = {
