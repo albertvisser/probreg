@@ -1832,9 +1832,11 @@ def test_page1_vulp(monkeypatch, capsys):
     class MockActie:
         """stub
         """
-        def __init__(self):
+        def __init__(self, new=False):
             self.id = '2000-0001'
             self.datum = 'datestring'
+            if new:
+                return
             self.arch = True
             self.over = 'subject'
             self.titel = "it's: the arts"
@@ -1848,19 +1850,24 @@ def test_page1_vulp(monkeypatch, capsys):
     monkeypatch.setattr(testee.Page, 'vulp', mock_super_vulp)
     testobj = setup_page1(monkeypatch, capsys)
     testobj.appbase.is_user = True
-    testobj.parent.pagedata = None
+    testobj.parent.pagedata = MockActie(new=True)
+    testobj.parent.newitem = True
     testobj.vulp()
-    assert capsys.readouterr().out == ('called Page.super_vulp()\n'
-                                       'called PageGui.init_fields()\n'
-                                       'called PageGui.set_text() for field `arch` text ``\n'
-                                       'called PageGui.set_archive_button_text(`Archiveren`)\n'
-                                       'called PageGui.enable_fields() with args (True,)\n')
+    assert capsys.readouterr().out == (
+            'called Page.super_vulp()\n'
+            'called PageGui.init_fields()\n'
+            "called PageGui.set_text() for field `id` text `2000-0001`\n"
+            "called PageGui.set_text() for field `date` text `datestring`\n"
+            'called PageGui.set_text() for field `arch` text ``\n'
+            'called PageGui.set_archive_button_text(`Archiveren`)\n'
+            'called PageGui.enable_fields() with args (True,)\n')
 
     testobj = setup_page1(monkeypatch, capsys)
     testobj.parent.pagedata = MockActie()
     testobj.parent.pages = [MockPage()]
     assert capsys.readouterr().out == ('called Page.__init__() with args () {}\n'
                                        'called PageGui.__init__() with args () {}\n')
+    testobj.parent.newitem = False
     testobj.parent.cats = []
     testobj.parent.stats = []
     testobj.appbase.use_separate_subject = True
@@ -2278,6 +2285,16 @@ def test_page6_savep(monkeypatch, capsys):
         """stub
         """
         print('called Page.super_savep()')
+    def mock_get(self):
+        """stub
+        """
+        print('called PageGui.get_textfield_contents()')
+        return f"{20 * 'text'}\naaabbb"
+    def mock_get2(self):
+        """stub
+        """
+        print('called PageGui.get_textfield_contents()')
+        return f"{20 * 'text'}a\naabbb"
     def mock_update_actie(*args):
         """stub
         """
@@ -2294,6 +2311,7 @@ def test_page6_savep(monkeypatch, capsys):
     assert testobj.savep()
     assert capsys.readouterr().out == ('called Page.super_savep()\n'
                                        'called PageGui.get_textfield_contents()\n')
+    monkeypatch.setattr(MockPageGui, 'get_textfield_contents', mock_get)
     testobj.current_item = 0
     testobj.parent.current_item = 'parentitem'  # for tab 0
     testobj.old_data = ['not_text', 'text']
@@ -2301,14 +2319,16 @@ def test_page6_savep(monkeypatch, capsys):
     assert capsys.readouterr().out == ('called Page.super_savep()\n'
                                        'called PageGui.get_textfield_contents()\n'
                                        'called PageGui.set_listitem_text() with args'
-                                       ' `1` `date1 - text...`\n'
+                                       f" `1` `date1 - {20 * 'text'}`\n"
                                        'called PageGui.set_listitem_data() with args `1`\n'
                                        'called Page.update_actie()\n'
                                        "called PageGui.set_item_text() with args"
                                        " ('parentitem', 3, True)\n")
-    assert testobj.parent.pagedata.events == [('date2', 'text'), ('date1', 'text')]
-    assert testobj.oldbuf == (['date1', 'date2'], ['text', 'text'])
+    assert testobj.parent.pagedata.events == [('date2', 'text'),
+                                              ('date1', f"{20 * 'text'}\naaabbb")]
+    assert testobj.oldbuf == (['date1', 'date2'], [f"{20 * 'text'}\naaabbb", 'text'])
 
+    monkeypatch.setattr(MockPageGui, 'get_textfield_contents', mock_get2)
     testobj.current_item = 3
     testobj.event_list = ['date1', 'date2', 'date3']
     testobj.old_list = testobj.event_list[:-1]
@@ -2318,14 +2338,17 @@ def test_page6_savep(monkeypatch, capsys):
     assert capsys.readouterr().out == ('called Page.super_savep()\n'
                                        'called PageGui.get_textfield_contents()\n'
                                        'called PageGui.set_listitem_text() with args'
-                                       ' `3` `date3 - text...`\n'
+                                       f" `3` `date3 - {20 * 'text'}...`\n"
                                        'called PageGui.set_listitem_data() with args `3`\n'
                                        'called Page.update_actie()\n'
                                        "called PageGui.set_item_text() with args"
                                        " ('parentitem', 3, True)\n")
-    assert testobj.parent.pagedata.events == [('date3', 'text'), ('date2', 'text'),
-                                              ('date1', 'not text')]
-    assert testobj.oldbuf == (['date1', 'date2', 'date3'], ['not text', 'text', 'text'])
+    assert testobj.parent.pagedata.events == [('date3', f"{20 * 'text'}a\naabbb"),
+                                              ('date2', 'text'), ('date1', 'not text')]
+    assert testobj.oldbuf == (['date1', 'date2', 'date3'],
+                              ['not text', 'text', f"{20 * 'text'}a\naabbb"])
+    # 860->858 savep: geen bestaande event en geen nieuwe event (kan niet?)
+    # 863->862 savep: nieuwe event index niet voorbij bestaande event (kan dit)?
 
 
 def test_page6_goto_prev(monkeypatch, capsys):
@@ -2607,22 +2630,46 @@ def test_catoptions_leesuit(capsys):
 def test_mainwindow_init(monkeypatch, capsys):
     """unittest for main.MainWindow.init
     """
+    def mock_get():
+        """stub
+        """
+        print('called dmls.get_projnames')
+        return []
+    def mock_get_2():
+        """stub
+        """
+        print('called dmls.get_projnames')
+        return ['xxx', 'yyy']
+    def mock_determine(self, name):
+        """stub
+        """
+        print(f"called MainWindow.determine_datatype_from_filename with arg '{name}'")
+        self.datatype = testee.shared.DataType.XML
+    def mock_determine_2(self, name):
+        """stub
+        """
+        print(f"called MainWindow.determine_datatype_from_filename with arg '{name}'")
+        self.datatype = None
     def mock_select_datatype_x(self):
         """stub
         """
+        print("called MainWindow.select_datatype")
         self.datatype = testee.shared.DataType.XML
     def mock_select_datatype_x_f(self):
         """stub
         """
+        print("called MainWindow.select_datatype")
         self.datatype = testee.shared.DataType.XML
         self.filename = 'something'
     def mock_select_datatype_s(self):
         """stub
         """
+        print("called MainWindow.select_datatype")
         self.datatype = testee.shared.DataType.SQL
     def mock_select_datatype_m(self):
         """stub
         """
+        print("called MainWindow.select_datatype")
         self.datatype = testee.shared.DataType.MNG
     def mock_create_book(self):
         """stub
@@ -2648,8 +2695,8 @@ def test_mainwindow_init(monkeypatch, capsys):
         """stub
         """
         print('called.MainWindow.open_mongo()')
-    monkeypatch.setattr(testee.dmls, 'get_projnames', lambda *x: ['django', 'project'])
-    monkeypatch.setattr(testee.MainWindow, 'determine_datatype_from_filename', lambda *x: None)
+    monkeypatch.setattr(testee.dmls, 'get_projnames', mock_get)
+    monkeypatch.setattr(testee.MainWindow, 'determine_datatype_from_filename', mock_determine)
     monkeypatch.setattr(testee.MainWindow, 'select_datatype', mock_select_datatype_x)
     monkeypatch.setattr(testee.gui, 'MainGui', MockMainGui)
     monkeypatch.setattr(testee.MainWindow, 'create_book', mock_create_book)
@@ -2658,10 +2705,10 @@ def test_mainwindow_init(monkeypatch, capsys):
     monkeypatch.setattr(testee.MainWindow, 'startfile', mock_startfile)
     monkeypatch.setattr(testee.MainWindow, 'open_sql', mock_open_sql)
     monkeypatch.setattr(testee.MainWindow, 'open_mongo', mock_open_mongo)
-    testobj = testee.MainWindow('parent', 'xml')
+    testobj = testee.MainWindow('parent', 'some name')
     assert testobj.parent == 'parent'
     assert testobj.title == 'Actieregistratie'
-    # altijd hetzelfde
+    # de uitkomst van deze is altijd hetzelfde
     assert not testobj.initializing
     assert not testobj.exiting
     assert testobj.oldsort == -1
@@ -2669,7 +2716,7 @@ def test_mainwindow_init(monkeypatch, capsys):
     assert testobj.actlist == []
     assert testobj.alist == []
     assert hasattr(testobj, 'gui')
-    # verschillend per aansturing
+    # de uitkomst van deze is verschillend per aansturing
     assert testobj.datatype == testee.shared.DataType.XML
     assert not testobj.work_with_user
     assert testobj.user == 1
@@ -2680,13 +2727,17 @@ def test_mainwindow_init(monkeypatch, capsys):
     assert testobj.use_text_panels
     assert testobj.use_rt
     assert not testobj.use_separate_subject
-    assert capsys.readouterr().out == ('called MainGui.__init__()\n'
-                                       'called.MainWindow.create_book()\n'
-                                       'called MainGui.create_menu()\n'
-                                       'called MainGui.enable_settingsmenu()\n'
-                                       'called MainGui.create_actions()\n'
-                                       'called.MainWindow.create_book_pages()\n'
-                                       'called.MainWindow.open_xml()\n')
+    assert capsys.readouterr().out == (
+            "called dmls.get_projnames\n"
+            "called MainWindow.determine_datatype_from_filename with arg 'some name'\n"
+            'called MainGui.__init__()\n'
+            'called.MainWindow.create_book()\n'
+            'called MainGui.create_menu()\n'
+            'called MainGui.enable_settingsmenu()\n'
+            'called MainGui.create_actions()\n'
+            'called.MainWindow.create_book_pages()\n'
+            'called.MainWindow.open_xml()\n')
+    monkeypatch.setattr(testee.MainWindow, 'determine_datatype_from_filename', mock_determine_2)
     monkeypatch.setattr(testee.MainWindow, 'select_datatype', mock_select_datatype_x_f)
     testobj = testee.MainWindow('parent')
     assert testobj.datatype == testee.shared.DataType.XML
@@ -2699,7 +2750,9 @@ def test_mainwindow_init(monkeypatch, capsys):
     assert testobj.use_text_panels
     assert testobj.use_rt
     assert not testobj.use_separate_subject
-    assert capsys.readouterr().out == ('called MainGui.__init__()\n'
+    assert capsys.readouterr().out == ("called dmls.get_projnames\n"
+                                       'called MainGui.__init__()\n'
+                                       'called MainWindow.select_datatype\n'
                                        'called.MainWindow.create_book()\n'
                                        'called MainGui.create_menu()\n'
                                        'called MainGui.enable_settingsmenu()\n'
@@ -2707,7 +2760,15 @@ def test_mainwindow_init(monkeypatch, capsys):
                                        'called.MainWindow.create_book_pages()\n'
                                        'called.MainWindow.startfile()\n')
     monkeypatch.setattr(testee.MainWindow, 'select_datatype', mock_select_datatype_s)
-    testobj = testee.MainWindow('parent', 'sql')
+    testobj = None
+    with pytest.raises(SystemExit) as exc:
+        testobj = testee.MainWindow('parent')
+    assert str(exc.value) == "No projects found; add one ior more in the webapp first"
+    assert capsys.readouterr().out == ("called dmls.get_projnames\n"
+                                       'called MainGui.__init__()\n'
+                                       'called MainWindow.select_datatype\n')
+    monkeypatch.setattr(testee.dmls, 'get_projnames', mock_get_2)
+    testobj = testee.MainWindow('parent')
     assert testobj.datatype == testee.shared.DataType.SQL
     assert testobj.work_with_user
     assert testobj.user is None
@@ -2718,7 +2779,9 @@ def test_mainwindow_init(monkeypatch, capsys):
     assert testobj.use_text_panels
     assert not testobj.use_rt
     assert testobj.use_separate_subject
-    assert capsys.readouterr().out == ('called MainGui.__init__()\n'
+    assert capsys.readouterr().out == ("called dmls.get_projnames\n"
+                                       'called MainGui.__init__()\n'
+                                       'called MainWindow.select_datatype\n'
                                        'called.MainWindow.create_book()\n'
                                        'called MainGui.create_menu()\n'
                                        'called MainGui.enable_settingsmenu()\n'
@@ -2726,7 +2789,7 @@ def test_mainwindow_init(monkeypatch, capsys):
                                        'called.MainWindow.create_book_pages()\n'
                                        'called.MainWindow.open_sql() with arg True\n')
     monkeypatch.setattr(testee.MainWindow, 'select_datatype', mock_select_datatype_m)
-    testobj = testee.MainWindow('parent', 'mongo')
+    testobj = testee.MainWindow('parent')
     assert testobj.datatype == testee.shared.DataType.MNG
     assert not testobj.work_with_user
     assert testobj.user == 1
@@ -2737,7 +2800,9 @@ def test_mainwindow_init(monkeypatch, capsys):
     assert not testobj.use_text_panels
     assert not testobj.use_rt
     assert testobj.use_separate_subject
-    assert capsys.readouterr().out == ('called MainGui.__init__()\n'
+    assert capsys.readouterr().out == ("called dmls.get_projnames\n"
+                                       'called MainGui.__init__()\n'
+                                       'called MainWindow.select_datatype\n'
                                        'called.MainWindow.create_book()\n'
                                        'called MainGui.create_menu()\n'
                                        'called MainGui.enable_settingsmenu()\n'
@@ -2747,7 +2812,7 @@ def test_mainwindow_init(monkeypatch, capsys):
 
 
 def mock_init_mainwindow(self, *args):
-    """stubi for setting up MainWindow object
+    """stub for setting up MainWindow object
     """
     self.filename = self.dirname = ''
     self.projnames = [('django', 'project'), ('basic', 'another_project')]
@@ -2760,36 +2825,66 @@ def test_mainwindow_determine_datatype(monkeypatch):
     """
     monkeypatch.setattr(testee.MainWindow, '__init__', mock_init_mainwindow)
     testobj = testee.MainWindow()
+
     testobj.determine_datatype_from_filename('xml')
     assert testobj.datatype == testee.shared.DataType.XML
     assert (testobj.dirname, testobj.filename) == ('', '')
+
     monkeypatch.setattr(testee.os.path, 'exists', lambda x: True)
     monkeypatch.setattr(testee.os.path, 'isfile', lambda x: True)
-    testobj = testee.MainWindow()
+    testobj.datatype = None
     testobj.determine_datatype_from_filename('path/to/file/filename')
     assert testobj.datatype == testee.shared.DataType.XML
     assert (testobj.dirname, testobj.filename) == (testee.pathlib.Path('path/to/file'), 'filename')
+
     monkeypatch.setattr(testee.os.path, 'exists', lambda x: False)
-    testobj = testee.MainWindow()
+    testobj.datatype = None
+    testobj.dirname = ''
+    testobj.filename = ''
+    testobj.determine_datatype_from_filename('path/to/file/filename')
+    assert not testobj.datatype
+    assert (testobj.dirname, testobj.filename) == ('', '')
+
+    monkeypatch.setattr(testee.os.path, 'exists', lambda x: True)
+    monkeypatch.setattr(testee.os.path, 'isfile', lambda x: False)
+    testobj.datatype = None
+    testobj.determine_datatype_from_filename('path/to/file/filename')
+    assert not testobj.datatype
+    assert (testobj.dirname, testobj.filename) == ('', '')
+
+    testobj.datatype = None
     testobj.determine_datatype_from_filename('sql')
     assert testobj.datatype == testee.shared.DataType.SQL
     assert (testobj.dirname, testobj.filename) == ('', '')
-    monkeypatch.setattr(testee.os.path, 'exists', lambda x: True)
-    monkeypatch.setattr(testee.os.path, 'isfile', lambda x: False)
-    testobj = testee.MainWindow()
+
+    testobj.datatype = None
     testobj.determine_datatype_from_filename('django')
     assert testobj.datatype == testee.shared.DataType.SQL
-    assert (testobj.dirname, testobj.filename) == ('', 'django')
-    monkeypatch.setattr(testee.os.path, 'exists', lambda x: False)
-    testobj = testee.MainWindow()
-    testobj.determine_datatype_from_filename('basic')
+    assert (testobj.dirname, testobj.filename) == ('', '')
+
+    testobj.datatype = None
+    testobj.projnames = {'xxx': ('Xxx', 'yyyy')}
+    testobj.determine_datatype_from_filename('qqq')
+    assert testobj.datatype is None
+    assert (testobj.dirname, testobj.filename) == ('', '')
+
+    testobj.datatype = None
+    testobj.determine_datatype_from_filename('xxx')
     assert testobj.datatype == testee.shared.DataType.SQL
-    assert (testobj.dirname, testobj.filename) == ('', '_basic')
-    testobj = testee.MainWindow()
+    assert (testobj.dirname, testobj.filename) == ('', 'xxx')
+
+    testobj.datatype = None
+    testobj.determine_datatype_from_filename('Xxx')
+    assert testobj.datatype == testee.shared.DataType.SQL
+    assert (testobj.dirname, testobj.filename) == ('', 'Xxx')
+
+    testobj.datatype = None
+    testobj.filename = ''
     testobj.determine_datatype_from_filename('mongo')
     assert testobj.datatype == testee.shared.DataType.MNG
     assert (testobj.dirname, testobj.filename) == ('', '')
-    testobj = testee.MainWindow()
+
+    testobj.datatype = None
     testobj.determine_datatype_from_filename('mongodb')
     assert testobj.datatype == testee.shared.DataType.MNG
     assert (testobj.dirname, testobj.filename) == ('', '')
@@ -3188,26 +3283,23 @@ def test_mainwindow_new_project(monkeypatch, capsys):
     testobj = testee.MainWindow()
     assert capsys.readouterr().out == 'called MainGui.__init__()\n'
     testobj.new_project()
-    assert capsys.readouterr().out == 'called MainWindow.show_message(`Sorry, werkt nog niet`)\n'
+    assert capsys.readouterr().out == (
+            'called MainWindow.show_message('
+            '`Voor deze functie moet u de ActieReg webapplicatie gebruiken`)\n')
 
 
 def test_mainwindow_open_sql(monkeypatch, capsys):
     """unittest for main.MainWindow.open_sql
     """
-    projects = ['Demo: demo: sample project', 'unchanged: same: real project',
-                'basic: basic: base project']
-    counter = 0
     def mock_get_choice_item(*args):
         """stub
         """
-        nonlocal counter
-        counter += 1
-        if counter == 1:
-            return projects[0]
-        if counter == 2:
-            return projects[1]
-        if counter == 3:
-            return projects[2]
+        print('called gui.get_choice_item with args', args)
+        return 'xxxx'
+    def mock_get_choice_item_2(*args):
+        """stub
+        """
+        print('called gui.get_choice_item with args', args)
         return ''
     def mock_startfile(self):
         """stub
@@ -3215,39 +3307,54 @@ def test_mainwindow_open_sql(monkeypatch, capsys):
         print('called MainWindow.startfile()')
     monkeypatch.setattr(testee.MainWindow, '__init__', mock_init_mainwindow)
     monkeypatch.setattr(testee.MainWindow, 'startfile', mock_startfile)
-    monkeypatch.setattr(testee.gui, 'get_choice_item', mock_get_choice_item)
     testobj = testee.MainWindow()
     assert capsys.readouterr().out == 'called MainGui.__init__()\n'
+    testobj.projnames = {'xxxx': ('xxxx', 'xxxxxx xxxxxxx'), 'yyyy': ('yyyy', 'yyyy yyyyyyy')}
 
-    testobj.projnames = [x.split(': ') for x in projects]
-    testobj.filename = testobj.projnames[0]
+    monkeypatch.setattr(testee.gui, 'get_choice_item', mock_get_choice_item)
+    testobj.filename = 'xxxx'
     testobj.open_sql()
-    assert testobj.filename == '_basic'
-    assert capsys.readouterr().out == 'called MainWindow.startfile()\n'
+    assert testobj.filename == 'xxxx'
+    assert capsys.readouterr().out == (
+            f"called gui.get_choice_item with args ({testobj.gui},"
+            " 'Kies een project om te openen', ['xxxx: xxxxxx xxxxxxx', 'yyyy: yyyy yyyyyyy'], 0)\n"
+            'called MainWindow.startfile()\n')
 
     testobj.filename = ''
     testobj.open_sql()
-    assert testobj.filename == 'unchanged'
-    assert capsys.readouterr().out == 'called MainWindow.startfile()\n'
+    assert testobj.filename == 'xxxx'
+    assert capsys.readouterr().out == (
+            f"called gui.get_choice_item with args ({testobj.gui},"
+            " 'Kies een project om te openen', ['xxxx: xxxxxx xxxxxxx', 'yyyy: yyyy yyyyyyy'], 1)\n"
+            'called MainWindow.startfile()\n')
 
-    testobj.filename = ''
+    monkeypatch.setattr(testee.gui, 'get_choice_item', mock_get_choice_item_2)
+    testobj.filename = 'xxxx'
     testobj.open_sql()
-    assert testobj.filename == '_basic'
-    assert capsys.readouterr().out == 'called MainWindow.startfile()\n'
+    assert testobj.filename == 'xxxx'
+    assert capsys.readouterr().out == (
+            f"called gui.get_choice_item with args ({testobj.gui},"
+            " 'Kies een project om te openen', ['xxxx: xxxxxx xxxxxxx', 'yyyy: yyyy yyyyyyy'], 0)\n")
 
     testobj.filename = ''
     testobj.open_sql()
     assert testobj.filename == ''
-    assert capsys.readouterr().out == ''
+    assert capsys.readouterr().out == (
+            f"called gui.get_choice_item with args ({testobj.gui},"
+            " 'Kies een project om te openen', ['xxxx: xxxxxx xxxxxxx', 'yyyy: yyyy yyyyyyy'], 1)\n")
 
+    monkeypatch.setattr(testee.gui, 'get_choice_item', mock_get_choice_item)
     testobj.filename = '_basic'
     testobj.open_sql(do_sel=False)
-    assert testobj.filename == '_basic'
-    assert capsys.readouterr().out == 'called MainWindow.startfile()\n'
+    assert testobj.filename == 'xxxx'  # uitkomst van selector
+    assert capsys.readouterr().out == (
+            f"called gui.get_choice_item with args ({testobj.gui},"
+            " 'Kies een project om te openen', ['xxxx: xxxxxx xxxxxxx', 'yyyy: yyyy yyyyyyy'], 0)\n"
+            'called MainWindow.startfile()\n')
 
-    testobj.filename = 'unchanged'
+    testobj.filename = 'yyyy'
     testobj.open_sql(do_sel=False)
-    assert testobj.filename == 'unchanged'
+    assert testobj.filename == 'yyyy'
     assert capsys.readouterr().out == 'called MainWindow.startfile()\n'
 
 
@@ -3343,7 +3450,7 @@ def test_mainwindow_print_scherm(monkeypatch, capsys):
                          6: '6 zes'}
     testobj.book.cats = {0: ['this', 'I'], 1: ['that', 'A']}
     testobj.book.stats = {0: ['new', 0], 1: ['old', 1]}
-    testobj.book.pagedata = types.SimpleNamespace(id='this', titel='action')
+    testobj.book.pagedata = types.SimpleNamespace(id='this', titel='action', datum='startdate')
 
     testobj.book.current_tab = 0
     testobj.use_separate_subject = False
@@ -3352,11 +3459,11 @@ def test_mainwindow_print_scherm(monkeypatch, capsys):
     testobj.print_scherm()
     assert testobj.printdict == {'actie': [],
                                  'events': [],
-                                 'lijst': [('actie1', 'titel', 'this', '',
+                                 'lijst': [('actie1', 'titel', 'this', 'startdate',
                                             'status: 0, laatst behandeld op eerder'),
-                                           ('actie2', 'titel2', 'that', '',
+                                           ('actie2', 'titel2', 'that', 'startdate',
                                             'status: 1, laatst behandeld op later'),
-                                           ('actie3', 'titel3', 'X', '', 'status: 2')],
+                                           ('actie3', 'titel3', 'X', 'startdate', 'status: 2')],
                                  'sections': [], }
     assert testobj.hdr == 'Overzicht acties uit Filename'
     assert capsys.readouterr().out == ('called Page.get_items()\n'
@@ -3381,11 +3488,12 @@ def test_mainwindow_print_scherm(monkeypatch, capsys):
     testobj.print_scherm()
     assert testobj.printdict == {'actie': [],
                                  'events': [],
-                                 'lijst': [('actie1 - onderwerp1', 'titel1', 'this', '',
-                                            'status: new op eens'),
-                                           ('actie2 - onderwerp2', 'titel2', 'that', '',
+                                 'lijst': [('actie1 - onderwerp1', 'titel1', 'this', 'startdate',
+                                            'status: new op startdate'),
+                                           ('actie2 - onderwerp2', 'titel2', 'that', 'startdate',
                                             'status: old, laatst behandeld op ooit'),
-                                           ('actie3 - onderwerp3', 'titel3', 'X', '', 'status: old')],
+                                           ('actie3 - onderwerp3', 'titel3', 'X', 'startdate',
+                                            'status: old')],
                                  'sections': [], }
     assert testobj.hdr == 'Overzicht acties uit Filename'
     assert capsys.readouterr().out == ('called Page.get_items()\n'
@@ -3448,7 +3556,7 @@ def test_mainwindow_print_scherm(monkeypatch, capsys):
     testobj.book.pages[6].event_data = ['event_text', 'another_event']
     testobj.print_scherm()
     assert testobj.printdict == {'events': [('01-01-2001 01:01:01', 'event_text'),
-                                            ('02-02-2002 02:02:02', 'another_event')],
+                                            ('02-02-2002 02:02:02T12345', 'another_event')],
                                  'actie': [],
                                  'lijst': [],
                                  'sections': []}
@@ -3492,7 +3600,7 @@ def test_mainwindow_print_actie(monkeypatch, capsys):
     testobj.book.cats = {0: ['this', 'I'], 1: ['that', 'A']}
     testobj.book.stats = {0: ['new', 0], 1: ['old', 1]}
     testobj.use_text_panels = True
-    testobj.book.pagedata = types.SimpleNamespace(id='this', datum='today', soort='I', status=0,
+    testobj.book.pagedata = types.SimpleNamespace(id='this', datum='today', soort='A', status=1,
                                                   titel='xxx: yyy', melding='zzzzzzzzzzzzzzz',
                                                   oorzaak='aaaa', oplossing='bbbb', vervolg='ccc',
                                                   events=[('time1', 'text1'), ('time2', 'text2')])
@@ -3502,7 +3610,7 @@ def test_mainwindow_print_actie(monkeypatch, capsys):
                                  'lijst': [], 'oms': 'xxx',
                                  'sections': [['twee', 'zzzzzzzzzzzzzzz'], ['drie', 'aaaa'],
                                               ['vier', 'bbbb'], ['vijf', 'ccc']],
-                                 'soort': 'this', 'status': 'new', 'tekst': 'yyy'}
+                                 'soort': 'that', 'status': 'old', 'tekst': 'yyy'}
     assert testobj.hdr == 'Actie: this xxx: yyy'
     assert capsys.readouterr().out == 'called MainGui.preview()\n'
 
@@ -3881,13 +3989,27 @@ def test_mainwindow_startfile(monkeypatch, capsys):
     testobj.book.tabs = ['tab', 'titles']
     testobj.book.pages = [types.SimpleNamespace(clear_selection=mock_clear_selection, vulp=mock_vulp),
                           types.SimpleNamespace(vul_combos=mock_vul_combos)]
-    testobj.book.current_tab = 0
+    testobj.book.current_tab = -1
     assert testobj.startfile() == ''
     assert str(testobj.book.fnaam) == 'path/to/file.xml'
-    assert testobj.title == 'file.xml'
+    assert testobj.title == 'path/to/file.xml'
     assert testobj.book.rereadlist
     assert testobj.book.sorter is None
     assert testobj.book.changed_item
+    assert testobj.book.current_tab == 0
+    assert capsys.readouterr().out == ("called MainWindow.lees_settings()\n"
+                                       "called MainGui.set_tab_titles([['tab', 'titles']]\n"
+                                       "called Page.clear_selection()\n"
+                                       "called Page.vul_combos()\n"
+                                       "called Page.vulp()\n")
+    testobj.book.current_tab = 0
+    assert testobj.startfile() == ''
+    assert str(testobj.book.fnaam) == 'path/to/file.xml'
+    assert testobj.title == 'path/to/file.xml'
+    assert testobj.book.rereadlist
+    assert testobj.book.sorter is None
+    assert testobj.book.changed_item
+    assert testobj.book.current_tab == 0
     assert capsys.readouterr().out == ("called MainWindow.lees_settings()\n"
                                        "called MainGui.set_tab_titles([['tab', 'titles']]\n"
                                        "called Page.clear_selection()\n"
@@ -3895,15 +4017,16 @@ def test_mainwindow_startfile(monkeypatch, capsys):
                                        "called Page.vulp()\n")
     testobj.multiple_files = False
     testobj.multiple_projects = True
-    testobj.filename = 'project'
-    testobj.projnames = (('x', 'y', 'z'), ('Project', 'Project', 'Demo Project'))
+    testobj.filename = 'Project'
+    testobj.projnames = {'x': ('y', 'z'), 'project': ('Project', 'Demo Project')}
     testobj.book.current_tab = 1
     assert testobj.startfile() == ''
-    assert testobj.book.fnaam == 'project'
+    assert testobj.book.fnaam == 'Project'
     assert testobj.title == 'Project'
     assert testobj.book.rereadlist
     assert testobj.book.sorter is None
     assert testobj.book.changed_item
+    assert testobj.book.current_tab == 1
     assert capsys.readouterr().out == ("called MainWindow.lees_settings()\n"
                                        "called MainGui.set_tab_titles([['tab', 'titles']]\n"
                                        "called Page.clear_selection()\n"

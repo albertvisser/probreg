@@ -205,9 +205,11 @@ class Page:
                     wat = 'bestand'
                 elif self.appbase.multiple_projects:  # datatype == shared.DataType.SQL.name:
                     wat = 'project'
-                if wat:
-                    msg = f"Kies eerst een {wat} om mee te werken"
-                    ok_to_leave = False
+                else:
+                    raise ValueError('ProgrammingError: fnaam should only be empty'
+                                     ' with multiple files or projects')
+                msg = f"Kies eerst een {wat} om mee te werken"
+                ok_to_leave = False
             elif not self.parent.data and not self.parent.newitem:
                 # bestand bevat nog geen gegevens en we zijn nog niet bezig met de eerste opvoeren
                 msg = "Voer eerst één of meer acties op"
@@ -485,6 +487,8 @@ class Page0(Page):
                                          item[6],
                                          item[7],
                                          item[9])
+            else:
+                raise ValueError('ProgrammingError: Unexpected length of pagedata item')
         # items = self.parent.data.items()
         # if items is None:
         #     self.appbase.set_statusmessage('Selection is None?')
@@ -529,10 +533,12 @@ class Page0(Page):
                             sel_args['idgt'] = item[0]
                         elif item[1] == 'LT':
                             sel_args['idlt'] = item[0]
-                # elif key == 'arch':
-                #     sel_args[key] = {0: 'narch', 1: 'arch', 2: 'alles'}[value]
+                        else:
+                            raise('ProgrammingError: illegal value in select arguments')
                 elif value:
                     sel_args[key] = value
+                else:
+                    raise('ProgrammingError: illegal value in select arguments')
             args = sel_args, data
         while True:
             test = gui.show_dialog(self.gui, gui.SelectOptionsDialog, args)
@@ -611,7 +617,7 @@ class Page0(Page):
         return self.gui.get_items()
 
     # onduidelijk waarom deze in Page0 wel en in Page, Page1 en Page6 niet geredirect is
-    # terwijl het alleen maar een doorgeefluik is
+    # terwijl het alleen maar een doorgeefluik is (alleen gebruikt in MainWindow.print_scherm op p0?)
     def get_item_text(self, itemindicator, column):
         "get the item's text for a specified column"
         return self.gui.get_item_text(itemindicator, column)
@@ -636,14 +642,15 @@ class Page1(Page):
         self.initializing = True
         self.gui.init_fields()
         self.parch = False
-        if self.parent.pagedata is not None:  # and not self.parent.newitem:
-            self.gui.set_text('id', str(self.parent.pagedata.id))
-            self.gui.set_text('date', self.parent.pagedata.datum)
+        # if self.parent.pagedata is not None:  # is altijd een Actie object
+        self.gui.set_text('id', str(self.parent.pagedata.id))
+        self.gui.set_text('date', self.parent.pagedata.datum)
+        if not self.parent.newitem:
             self.parch = self.parent.pagedata.arch
             if self.appbase.use_separate_subject:
                 self.gui.set_text('proc', self.parent.pagedata.over)
                 self.gui.set_text('desc', self.parent.pagedata.titel)
-            elif self.parent.pagedata.titel is not None:
+            elif self.parent.pagedata.titel:
                 if " - " in self.parent.pagedata.titel:
                     hlp = self.parent.pagedata.titel.split(" - ", 1)
                 else:
@@ -651,6 +658,10 @@ class Page1(Page):
                 self.gui.set_text('proc', hlp[0])
                 if len(hlp) > 1:
                     self.gui.set_text('desc', hlp[1])
+                else:
+                    raise ValueError('ProgrammmingError: subject should be splittable')
+            else:
+                raise ValueError('ProgrammmingError: subject should not be empty')
             self.gui.set_choice(self.parent.stats, self.gui.stat_choice, self.parent.pagedata.status)
             self.gui.set_choice(self.parent.cats, self.gui.cat_choice, self.parent.pagedata.soort)
             if not self.appbase.use_text_panels:
@@ -799,7 +810,9 @@ class Page6(Page):
         self.initializing = True
         self.gui.init_textfield()
 
-        if self.parent.pagedata:
+        if not self.parent.pagedata:
+            raise ValueError('ProgrammingError: page data should not be empty')
+        else:
             self.event_list = [dbdate2listdate(x[0]) for x in self.parent.pagedata.events]
             self.event_list.reverse()
             self.old_list = self.event_list[:]
@@ -834,7 +847,7 @@ class Page6(Page):
             self.oldtext = hlp
             short_text = hlp.split("\n", 1)[0]
             maxlen = 80
-            if len(short_text) < maxlen:
+            if len(short_text) > maxlen:
                 short_text = short_text[:maxlen] + "..."
             self.gui.set_listitem_text(idx + 1, f"{self.event_list[idx]} - {short_text}")
             self.gui.set_listitem_data(idx + 1)
@@ -1027,7 +1040,7 @@ class MainWindow:
         self.is_newfile = False
         self.oldsort = -1
         self.idlist = self.actlist = self.alist = []
-        self.projnames = dmls.get_projnames()
+        self.projnames = {x[0].lower(): (x[0], x[1]) for x in dmls.get_projnames()}
         if fnaam:
             self.determine_datatype_from_filename(fnaam)
         self.gui = gui.MainGui(self)
@@ -1035,6 +1048,8 @@ class MainWindow:
             self.select_datatype()
         self.work_with_user = self.datatype == shared.DataType.SQL
         if self.work_with_user:
+            if not self.projnames:
+                raise SystemExit('No projects found; add one ior more in the webapp first')
             self.user = None                        # start without user
             self.is_user = self.is_admin = False
         else:
@@ -1064,21 +1079,19 @@ class MainWindow:
 
     def determine_datatype_from_filename(self, fnaam):
         "get datatype from input parameters"
-        if fnaam == 'xml' or (os.path.exists(fnaam) and os.path.isfile(fnaam)):
+        if fnaam == 'xml':
             self.datatype = shared.DataType.XML
-            if fnaam != 'xml':
-                test = pathlib.Path(fnaam)
-                self.dirname, self.filename = test.parent, test.name
-            shared.log('XML: %s %s', self.dirname, self.filename)
-        elif fnaam == 'sql' or fnaam.lower() in [x[0] for x in self.projnames]:
+        elif fnaam in ('sql', 'django'):
             self.datatype = shared.DataType.SQL
-            if fnaam == 'basic':
-                self.filename = '_basic'
-            elif fnaam != 'sql':
-                self.filename = fnaam.lower()
-            shared.log('SQL: %s', self.filename)
         elif fnaam in ('mongo', 'mongodb'):
             self.datatype = shared.DataType.MNG
+        elif fnaam.lower() in self.projnames:
+            self.datatype = shared.DataType.SQL
+            self.filename = fnaam  # .lower()
+        elif os.path.exists(fnaam) and os.path.isfile(fnaam):
+            self.datatype = shared.DataType.XML
+            test = pathlib.Path(fnaam)
+            self.dirname, self.filename = test.parent, test.name
 
     def select_datatype(self):
         "get datatype from user if not determinable from filename"
@@ -1205,28 +1218,21 @@ class MainWindow:
 
     def new_project(self, event=None):
         "Menukeuze: nieuw project"
-        self.not_implemented_message()
+        gui.show_message(self.gui, "Voor deze functie moet u de ActieReg webapplicatie gebruiken")
 
     def open_sql(self, event=None, do_sel=True):
         "Menukeuze: open project"
         # shared.log('in open_sql: %s', self.filename)
         current = choice = 0
-        data = self.projnames
-        if self.filename in data:
-            current = data.index(self.filename)
-        if do_sel:
-            choice = gui.get_choice_item(self.gui, 'Kies een project om te openen',
-                                         [": ".join((h[0], h[2])) for h in data], current)
-        else:
-            for h in data:
-                # shared.log(h)
-                if h[0] == self.filename or (h[0] == 'basic' and self.filename == "_basic"):
-                    choice = h[0]
-                    break
+        data = [f'{x}: {y}' for x, y in self.projnames.values()]
+        for i, x in enumerate(data):
+            if x.lower().startswith(self.filename.lower()):
+                current = i
+                choice = self.filename
+        if do_sel or not choice:
+            choice = gui.get_choice_item(self.gui, 'Kies een project om te openen', data, current)
         if choice:
             self.filename = choice.split(': ')[0]
-            if self.filename in ("Demo", 'basic'):
-                self.filename = "_basic"
             self.startfile()
 
     def open_mongo(self, event=None):
@@ -1257,7 +1263,7 @@ class MainWindow:
             page = self.book.pages[0]
             for item in page.get_items():
                 actie = page.get_item_text(item, 0)
-                started = ''
+                started = self.book.pagedata.datum
                 soort = page.get_item_text(item, 1)
                 for x in self.book.cats.values():
                     oms, code = x[0], x[1]
@@ -1275,13 +1281,10 @@ class MainWindow:
                     started = started[:19]
                 if status != self.book.stats[0][0]:
                     if l_wijz:
-                        l_wijz = ", laatst behandeld op " + l_wijz
+                        l_wijz = f", laatst behandeld op {l_wijz}"
                     l_wijz = f"status: {status}{l_wijz}"
                 else:
-                    hlp = f"status: {status}"
-                    if l_wijz and not started:
-                        hlp += f' op {l_wijz}'
-                    l_wijz = hlp
+                    l_wijz = f"status: {status} op {started}"
                 lijst.append((actie, titel, soort, started, l_wijz))
             self.printdict['lijst'] = lijst
         elif self.book.current_tab == 1:
@@ -1289,23 +1292,16 @@ class MainWindow:
                                                                       'tekst', 'soort', 'status')}
             self.hdr = f"Informatie over actie {data['actie']}: samenvatting"
             self.printdict.update(data)
-        elif 2 <= self.book.current_tab <= 5:
+        elif 2 <= self.book.current_tab <= 5:  # and self.parent.use_textpages
             title = self.book.tabs[self.book.current_tab].split(None, 1)[1]
-            # if self.book.current_tab == 2:
             text = self.book.pages[self.book.current_tab].get_textarea_contents()
-            # elif self.book.current_tab == 3:
-            #     text = self.book.page3.get_textarea_contents()
-            # elif self.book.current_tab == 4:
-            #     text = self.book.page4.get_textarea_contents()
-            # elif self.book.current_tab == 5:
-            #     text = self.book.page5.get_textarea_contents()
             self.printdict['sections'] = [(title, text)]
         else:  # if self.book.current_tab == 6: - geen andere mogelijkheid
             events = []
             for idx, data in enumerate(self.book.pages[6].event_list):
                 # if self.datatype == shared.DataType.SQL:
-                if len(data) >= len('eejj-mm-dd hh:mm:ss'):
-                    data = data[:19]
+                # if len(data) >= len('eejj-mm-dd hh:mm:ss'):
+                #     data = data[:19]
                 events.append((data, self.book.pages[6].event_data[idx]))
             self.printdict['events'] = events
         self.gui.preview()
@@ -1367,7 +1363,7 @@ class MainWindow:
         "Menukeuze: exit applicatie"
         self.exiting = True
         ok_to_leave = True
-        if self.book.current_tab > -1:
+        if self.book.current_tab >= 0:
             ok_to_leave = self.book.pages[self.book.current_tab].leavep()
         if ok_to_leave:
             self.gui.exit()
@@ -1470,13 +1466,12 @@ class MainWindow:
                 gui.show_message(self.gui, retval)
                 return retval
             self.book.fnaam = fullname
-            self.title = self.filename
+            self.title = str(fullname)  # self.filename
         elif self.multiple_projects:
             self.book.fnaam = self.filename
-            for name, title, desc in self.projnames:  # TODO: dict van maken
-                if name.lower() == self.filename.lower():
-                    self.title = title
-                    break
+            if not self.projnames:
+                raise ValueError('ProgrammingError: self.projnames should never be empty')
+            self.title = self.filename
         else:
             self.book.fnaam = self.filename
             self.title = ''

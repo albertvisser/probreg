@@ -31,7 +31,7 @@ dtformat = '%d-%m-%Y %H:%I:%S'  # was '%x %X' en daarvoor .isoformat(' ')
 def get_projnames():
     "return a list of registered projects"
     data = my.Project.objects.order_by('name')
-    return [(x.name, x.name, x.description) for x in data]
+    return [(x.name, x.description) for x in data]
 
 
 def get_user(inp):
