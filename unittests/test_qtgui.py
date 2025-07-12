@@ -346,9 +346,7 @@ class TestEditorPanel:
                 "called TextDocument.__init__ with args ()\n"
                 "called image.save with arg test_00001.png\n"
                 "called Url.__init__ with args ('test_00001.png',)\n"
-                "called TextDocument.addResource with args"
-                " (2, <class 'mockgui.mockqtwidgets.MockUrl'>,"
-                " <class 'mockgui.mockqtwidgets.MockImage'>)\n"
+                "called TextDocument.addResource with args (2, MockUrl, MockImage)\n"
                 "called Cursor.insertImage with arg test_00001.png\n")
 
     def test_set_contents(self, monkeypatch, capsys):
@@ -1129,7 +1127,7 @@ class TestPageGui:
         """unittest for PageGui.doelayout
         """
         def mock_setLayout(arg):
-            print(f'called Frame.setLayout with arg of type {type(arg)}')
+            print(f'called Frame.setLayout with arg {type(arg).__name__}')
         monkeypatch.setattr(testee.qtw, 'QVBoxLayout', mockqtw.MockVBoxLayout)
         monkeypatch.setattr(testee.qtw, 'QHBoxLayout', mockqtw.MockHBoxLayout)
         testobj = self.setup_testobj(monkeypatch, capsys)
@@ -2200,8 +2198,7 @@ class TestPage6Gui:
         assert capsys.readouterr().out == (
                 "called ListItem.__init__ with args ('someday - some text',)\n"
                 f"called ListItem.setData with args ({testee.core.Qt.ItemDataRole.UserRole!r}, 0)\n"
-                "called List.insertItem with args (1, item of type"
-                " <class 'mockgui.mockqtwidgets.MockListItem'>)\n"
+                "called List.insertItem with args (1, MockListItem)\n"
                 "called List.setCurrentRow with arg 1\n"
                 "called Editor.setText with arg `some text`\n"
                 "called Editor.setReadOnly with arg `False`\n"
