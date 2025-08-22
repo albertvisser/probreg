@@ -55,6 +55,14 @@ def get_choice_item(win, caption, choices, current=0):
     return ''
 
 
+def ask_question(win, message):
+    "ask the user a question with an option to cancel the process"
+    retval = qtw.QMessageBox.question(win, shared.app_title, message,
+                                      qtw.QMessageBox.StandardButton.Yes
+                                      | qtw.QMessageBox.StandardButton.No)
+    return retval == qtw.QMessageBox.StandardButton.Yes
+
+
 def ask_cancel_question(win, message):
     "ask the user a question with an option to cancel the process"
     retval = qtw.QMessageBox.question(win, shared.app_title, message,
@@ -76,7 +84,9 @@ class EditorPanel(qtw.QTextEdit):
     "Rich text editor displaying the selected comment"
     def __init__(self, parent):
         self.parent = parent
-        self.appbase = parent.parent.parent
+        # self.appbase = parent.book.parent
+        # assert self.appbase == parent.appbase
+        self.appbase = parent.appbase
         super().__init__()
         if self.appbase.use_rt:
             self.setAcceptRichText(True)
@@ -339,9 +349,9 @@ class EditorPanel(qtw.QTextEdit):
 class PageGui(qtw.QFrame):
     "base class for notebook page"
     def __init__(self, parent, master):
-        self.parent = parent
+        self.book = parent
         self.master = master
-        self.appbase = master.parent.parent
+        self.appbase = self.book.parent
         super().__init__(parent)
         if not self.master.is_text_page:
             return
@@ -448,7 +458,8 @@ class PageGui(qtw.QFrame):
     def reset_font(self):
         "initialize to standard values"
         progress_tab = 6
-        win = self.progress_text if self.master.parent.current_tab == progress_tab else self.text1
+        # win = self.progress_text if self.master.parent.current_tab == progress_tab else self.text1
+        win = self.progress_text if self.book.current_tab == progress_tab else self.text1
         win.setFontWeight(gui.QFont.Weight.Normal)
         win.setFontItalic(False)
         win.setFontUnderline(False)
@@ -458,7 +469,7 @@ class PageGui(qtw.QFrame):
     def enable_buttons(self, state=True):
         "buttons wel of niet bruikbaar maken"
         self.save_button.setEnabled(state)
-        if self.parent.current_tab < self.parent.count() - 1:
+        if self.book.current_tab < self.book.count() - 1:
             self.saveandgo_button.setEnabled(state)
         self.cancel_button.setEnabled(state)
 
@@ -507,7 +518,7 @@ class Page0Gui(PageGui):
         self.p0list = qtw.QTreeWidget(self)
         # self.sort_via_options = False
         self.p0list.setSortingEnabled(True)
-        self.p0list.setHeaderLabels(self.parent.ctitels)
+        self.p0list.setHeaderLabels(self.book.ctitels)
         self.p0list.setAlternatingRowColors(True)
         self.p0list.has_selection = False
         self.p0hdr = self.p0list.header()
@@ -640,8 +651,8 @@ class Page0Gui(PageGui):
 
     def set_selection(self):
         "set selected item if any"
-        if self.parent.current_item:  # is not None
-            self.p0list.setCurrentItem(self.parent.current_item)
+        if self.book.current_item:  # is not None
+            self.p0list.setCurrentItem(self.book.current_item)
 
     def get_selection(self):
         "get selected item"
@@ -707,13 +718,15 @@ class Page1Gui(PageGui):
             self.summary_entry = qtw.QTextEdit(self)
             self.summary_entry.textChanged.connect(self.master.on_text)
 
-        self.save_button = qtw.QPushButton('Sla wijzigingen op (Ctrl-S)', self)
+        self.abort_button = qtw.QPushButton('&Breek opvoeren nieuwe actie af (Alt-0)', self)
+        self.abort_button.clicked.connect(self.master.breekaf)
+        self.save_button = qtw.QPushButton('&Sla wijzigingen op (Ctrl-S)', self)
         self.save_button.clicked.connect(self.master.savep)
         gui.QShortcut('Ctrl+S', self, self.master.savep)
-        self.saveandgo_button = qtw.QPushButton('Sla op en ga verder (Ctrl-G)', self)
+        self.saveandgo_button = qtw.QPushButton('Sla op en &ga verder (Ctrl-G)', self)
         self.saveandgo_button.clicked.connect(self.master.savepgo)
         gui.QShortcut('Ctrl+G', self, self.master.savepgo)
-        self.cancel_button = qtw.QPushButton('Maak wijzigingen ongedaan (Alt-Ctrl-Z)', self)
+        self.cancel_button = qtw.QPushButton('Maak wij&zigingen ongedaan (Alt-Ctrl-Z)', self)
         self.cancel_button.clicked.connect(self.master.restorep)
         gui.QShortcut('Alt+Ctrl+Z', self, self.master.restorep)  # Ctrl-Z is al in gebruik
         gui.QShortcut('Alt+N', self, self.master.nieuwp)
@@ -787,6 +800,12 @@ class Page1Gui(PageGui):
 
         sizer2 = qtw.QHBoxLayout()
         sizer2.addStretch()
+        sizer2.addWidget(self.abort_button)
+        sizer2.addStretch()
+        sizer0.addLayout(sizer2)
+
+        sizer2 = qtw.QHBoxLayout()
+        sizer2.addStretch()
         sizer2.addWidget(self.save_button)
         sizer2.addWidget(self.saveandgo_button)
         sizer2.addWidget(self.cancel_button)
@@ -806,6 +825,7 @@ class Page1Gui(PageGui):
             self.summary_entry.clear()
         self.cat_choice.setCurrentIndex(0)
         self.stat_choice.setCurrentIndex(0)
+        self.abort_button.hide()
 
     def set_text(self, fieldtype, value):
         "set textfield value"
@@ -875,13 +895,15 @@ class Page1Gui(PageGui):
         self.desc_entry.setEnabled(state)
         self.cat_choice.setEnabled(state)
         self.stat_choice.setEnabled(state)
-        if self.master.parent.newitem or not self.appbase.is_user:
+        if self.book.newitem or not self.appbase.is_user:
             # archiveren niet mogelijk bij nieuw item of als de user niet is ingelogd (?)
             self.archive_button.setEnabled(False)
         else:
             self.archive_button.setEnabled(True)
         if not self.appbase.use_text_panels:
             self.summary_entry.setEnabled(state)
+        if self.book.newitem:
+            self.abort_button.show()
 
     def clear_stats(self):
         "initialize status choices"
@@ -1041,7 +1063,7 @@ class Page6Gui(PageGui):
         self.master.initializing = True
         self.master.oldtext = self.convert_text(self.master.oldtext, to='rich')
         self.master.initializing = False
-        if not self.parent.pagedata.arch:
+        if not self.book.pagedata.arch:
             if indx > -1:
                 self.protect_textfield(not self.appbase.is_user)
                 self.enable_toolbar(self.appbase.is_user)
@@ -1571,14 +1593,14 @@ class SelectOptionsDialog(qtw.QDialog):
     def get_cat_selargs(self):
         "check conditions for filtering on category"
         return [self.parent.parent.cats[x][-1]
-           for x in range(len(self.parent.parent.cats.keys()))
-           if self.check_cats.buttons()[x].isChecked()]
+                for x in range(len(self.parent.parent.cats.keys()))
+                if self.check_cats.buttons()[x].isChecked()]
 
     def get_stat_selargs(self):
         "check conditions for filtering on status"
         return [self.parent.parent.stats[x][-1]
-           for x in range(len(self.parent.parent.stats.keys()))
-           if self.check_stats.buttons()[x].isChecked()]
+                for x in range(len(self.parent.parent.stats.keys()))
+                if self.check_stats.buttons()[x].isChecked()]
 
     def get_search_selargs(self):
         "check conditions for filtering on subject/description"
@@ -1825,6 +1847,7 @@ class MainGui(qtw.QMainWindow):
         """
         def add_to_menu(menu, menuitem):
             "parse line and create menu item"
+            action = None
             if len(menuitem) == 1:
                 menu.addSeparator()
             elif len(menuitem) == len(['caption', 'callback', 'keys', 'tip']):
@@ -1842,12 +1865,16 @@ class MainGui(qtw.QMainWindow):
                     self.settingsmenu = sub
                 for subitem in items:
                     add_to_menu(sub, subitem)
+            return action
 
         menu_bar = self.menuBar()
+        self.master.tabmenus = []
         for title, items in self.master.get_menu_data():
             menu = menu_bar.addMenu(title)
             for menuitem in items:
-                add_to_menu(menu, menuitem)
+                action = add_to_menu(menu, menuitem)
+                if title == '&View':
+                    self.master.tabmenus.append(action)
 
     def create_actions(self):
         """Create additional application actions
@@ -1855,12 +1882,11 @@ class MainGui(qtw.QMainWindow):
         gui.QShortcut('Ctrl+P', self, self.master.print_something)
         gui.QShortcut('Alt+Left', self, self.master.goto_prev)
         gui.QShortcut('Alt+Right', self, self.master.goto_next)
-        # for char in '0123456':
-        #     qtw.QShortcut('Alt+{}'.format(char), self, functools.partial(self.go_to, int(char)))
 
     def get_bookwidget(self):
         "build the tabbed widget"
         self.bookwidget = qtw.QTabWidget(self.pnl)
+        # self.bookwidget = MyBook(self)
         self.bookwidget.resize(300, 300)
         self.bookwidget.sorter = None
         self.bookwidget.textcallbacks = {}
@@ -1892,15 +1918,19 @@ class MainGui(qtw.QMainWindow):
         self.on_page_changing()
 
     def on_page_changing(self, newtabnum=None):
-        """deze methode is bedoeld om wanneer er van pagina gewisseld gaat worden
+        """deze methode was in de wx versie bedoeld om wanneer er van pagina gewisseld gaat worden
         te controleren of dat wel mogelijk is en zo niet, te melden waarom en de
         paginawissel tegen te houden (ok, terug te gaan naar de vorige pagina).
 
-        PyQt kent geen aparte beforechanging methode zoals wx, daarom is deze methode
-        tevens bedoeld om ervoor te zorgen dat na het wisselen van pagina
+        PyQt kent geen aparte beforechanging methode zoals wx, daarom is wordt die controle (leavep)
+        niet meer in deze methode gedaan maar in nieuwp, goto_next/prev/page en exit_app
+        wel wordt hier ervoor gezorgd dat na het wisselen van pagina
         het veld / de velden van de nieuwe pagina een waarde krijgen met behulp van de vulp methode
 
-        newtabnum wordt door de event meegegeven maar niet door refresh_page
+        een probleem hiermee is wel dat je met klikken op een tab deze controle overslaat
+        je komt direct op de nieuwe tab en teruggaan vind ik geen fraaie optie
+
+        newtabnum wo:wrdt door de event meegegeven maar niet door refresh_page
         """
         firsttab, lasttab = 0, 6
         old = self.master.book.current_tab
@@ -1919,18 +1949,24 @@ class MainGui(qtw.QMainWindow):
                 self.master.book.pages[new].gui.set_list_row(item)     # reselect item
         self.set_tabfocus(self.master.book.current_tab)
 
-    def enable_book_tabs(self, state, tabfrom=0, tabto=-1):
+    def enable_book_navigation(self, state, tabfrom=0, tabto=-1):
         "make specified tabs (in)accessible"
         if tabto == -1:
             tabto = self.master.book.count()
         for i in range(tabfrom, tabto):
             self.bookwidget.setTabEnabled(i, state)
+            # self.master.tabmenus[i].setEnabled(state)
+
+    def enable_navigation_via_menu(self, tabno, state):
+        "make specified tabs (in)accessible"
+        self.master.tabmenus[tabno].setEnabled(state)
 
     def enable_all_other_tabs(self, state):
         "make all tabs accessible except the current one"
         for i in range(self.master.book.count()):
             if i != self.master.book.current_tab:
                 self.bookwidget.setTabEnabled(i, state)
+                # self.master.tabmenus[i].setEnabled(state)
 
     def add_book_tab(self, tab, title):
         "add a new tab to the widget"
@@ -1972,21 +2008,6 @@ class MainGui(qtw.QMainWindow):
             lasttab = 2
         widgets.append(self.master.book.pages[lasttab].gui.progress_list)
         widgets[tabno].setFocus()
-
-    def go_next(self):
-        """redirect to the method of the current page
-        """
-        self.master.goto_next()
-
-    def go_prev(self):
-        """redirect to the method of the current page
-        """
-        self.master.goto_prev()
-
-    def go_to(self, page):
-        """redirect to the method of the current page
-        """
-        self.master.goto_page(page)
 
     def print_(self):
         """callback voor ctrl-P(rint)

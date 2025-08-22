@@ -60,8 +60,8 @@ def listdate2dbdate(datestring):
 class Page:
     "base class for notebook page"
     def __init__(self, parent, pageno, standard=True):
-        self.parent = parent
-        self.appbase = parent.parent
+        self.book = parent
+        self.appbase = self.book.parent
         self.pageno = pageno
         self.is_text_page = standard
         if standard:
@@ -113,29 +113,31 @@ class Page:
         methode aan te roepen voorafgaand aan het tonen van de pagina"""
         self.initializing = True
         # if self.appbase.datatype != shared.DataType.MNG:
-        if self.parent.current_tab == 0:
+        if self.book.current_tab == 0:
             text = self.seltitel
         else:
-            state = self.parent.current_tab == 1 and self.parent.newitem
-            self.enable_buttons(state)
-            text = self.parent.tabs[self.parent.current_tab].split(None, 1)[1]
-            if self.parent.pagedata:
-                text = self.parent.pagedata.titel
+            # state = self.book.current_tab == 1 and self.book.newitem
+            # self.enable_buttons(state)
+            # if state:
+            #     self.book.changed_item = not state  # zorgen dat deze hier altijd uit staat
+            text = self.book.tabs[self.book.current_tab].split(None, 1)[1]
+            if self.book.pagedata:
+                text = self.book.pagedata.titel
                 if self.appbase.use_separate_subject:
-                    text = f'{self.parent.pagedata.over} - {text}'
-                text = f'{self.parent.pagedata.id} {text}'
+                    text = f'{self.book.pagedata.over} - {text}'
+                text = f'{self.book.pagedata.id} {text}'
         test = self.appbase.title
         if test:
             self.appbase.set_windowtitle(f"{test} | {text}")
         else:
             self.appbase.set_windowtitle(text)
         self.appbase.set_statusmessage()
-        if 1 < self.parent.current_tab < len(self.parent.pages) - 1:
+        if 1 < self.book.current_tab < len(self.book.pages) - 1:
             self.oldbuf = ''
             is_readonly = False
-            if self.parent.pagedata is not None:
+            if self.book.pagedata is not None:
                 self.oldbuf = self.get_pagetext()
-                is_readonly = self.parent.pagedata.arch
+                is_readonly = self.book.pagedata.arch
             self.gui.set_textarea_contents(self.oldbuf)
             if not is_readonly:
                 is_readonly = not self.appbase.is_user
@@ -144,62 +146,65 @@ class Page:
             self.oldbuf = self.gui.get_textarea_contents()  # make sure it's rich text
             self.gui.move_cursor_to_end()
         self.initializing = False
+        self.appbase.gui.enable_all_other_tabs(not self.book.newitem)
 
     def get_pagetext(self):
         "read the textfield on the given page"
         text = ''
-        if self.parent.current_tab == 2:
-            text = self.parent.pagedata.melding
-        elif self.parent.current_tab == 3:
-            text = self.parent.pagedata.oorzaak
-        elif self.parent.current_tab == 4:
-            text = self.parent.pagedata.oplossing
-        else:  # if self.parent.current_tab == 5: -- momenteel enig andere mogelijkhedi
-            text = self.parent.pagedata.vervolg
+        if self.book.current_tab == 2:
+            text = self.book.pagedata.melding
+        elif self.book.current_tab == 3:
+            text = self.book.pagedata.oorzaak
+        elif self.book.current_tab == 4:
+            text = self.book.pagedata.oplossing
+        else:  # if self.book.current_tab == 5: -- momenteel enig andere mogelijkhedi
+            text = self.book.pagedata.vervolg
         return text
 
     def readp(self, pid):
         "lezen van een actie"
-        if self.parent.pagedata:  # spul van de vorige actie opruimen
-            self.parent.pagedata.cleanup()
-        self.parent.pagedata = shared.Actie[self.appbase.datatype](self.parent.fnaam, pid,
-                                                                   self.appbase.user)
-        self.appbase.imagelist = self.parent.pagedata.imagelist
-        self.parent.old_id = self.parent.pagedata.id
-        self.parent.newitem = False
+        if self.book.pagedata:  # spul van de vorige actie opruimen
+            self.book.pagedata.cleanup()
+        self.book.pagedata = shared.Actie[self.appbase.datatype](self.book.fnaam, pid,
+                                                                 self.appbase.user)
+        self.appbase.imagelist = self.book.pagedata.imagelist
+        self.book.old_id = self.book.pagedata.id
+        self.book.newitem = False
 
     def nieuwp(self, *args):
         """voorbereiden opvoeren nieuwe actie"""
         shared.log('opvoeren nieuwe actie')
-        self.parent.newitem = True
-        if self.leavep():
-            if self.parent.current_tab == 0:
-                self.appbase.gui.enable_book_tabs(True, tabfrom=1)
-            self.parent.pagedata = shared.Actie[self.appbase.datatype](self.parent.fnaam, 0,
-                                                                       self.appbase.user)
-            self.parent.pagedata.add_event('Actie opgevoerd')
-            self.appbase.imagelist = self.parent.pagedata.imagelist
-            if self.parent.current_tab == 1:
+        # breakpoint()
+        if self.leavep(1):
+            self.book.oldselection = self.book.current_item
+            self.book.newitem = True
+            # is dit wel slim? Alle navigatie moet dicht maar dat moeten we in tab 1 regelen
+            # if self.book.current_tab == 0:
+            #     self.appbase.gui.enable_book_navigation(True, tabfrom=1)
+            self.book.pagedata = shared.Actie[self.appbase.datatype](self.book.fnaam, 0,
+                                                                     self.appbase.user)
+            self.book.pagedata.add_event('Actie opgevoerd')
+            self.appbase.imagelist = self.book.pagedata.imagelist
+            if self.book.current_tab == 1:
                 self.vulp()  # om de velden leeg te maken
                 self.gui.set_focus()
             else:
                 self.goto_page(1, check=False)
         else:
-            self.parent.newitem = False
             shared.log("leavep() geeft False: nog niet klaar met huidige pagina")
 
-    def leavep(self):
+    def leavep(self, newtab):
         "afsluitende acties uit te voeren alvorens de pagina te verlaten"
-        # newbuf = []                     # wordt nu via on_text methode bijgouden in changed_item?
-        # if self.parent.current_tab > 0:
-        #     newbuf = self.oldbuf
-        #     newbuf = self.gui.build_newbuf()
         ok_to_leave = True
-        if self.parent.current_tab == 0:
+        # if newtab == self.current_tab:  # or self.appbase.exiting:
+        #     return ok_to_leave  # niks doen
+        if self.book.current_tab == 0:
             if self.appbase.exiting:
                 pass
-            # overgenomen uit wx versie on_page_changing
-            elif self.parent.fnaam == "":
+            elif not self.book.current_item:
+                msg = "Selecteer eerst een actie"
+                ok_to_leave = False
+            elif self.book.fnaam == "":
                 wat = ''
                 if self.appbase.multiple_files:  # datatype == shared.DataType.XML.name:
                     wat = 'bestand'
@@ -210,25 +215,31 @@ class Page:
                                      ' with multiple files or projects')
                 msg = f"Kies eerst een {wat} om mee te werken"
                 ok_to_leave = False
-            elif not self.parent.data and not self.parent.newitem:
+            elif not self.book.data and not self.book.newitem:
                 # bestand bevat nog geen gegevens en we zijn nog niet bezig met de eerste opvoeren
                 msg = "Voer eerst één of meer acties op"
                 ok_to_leave = False
-            elif self.parent.current_item == -1 and not self.parent.newitem:
+            elif self.book.current_item == -1 and not self.book.newitem:
                 # geen actie geselecteerd en we zijn niet bezig met een nieuwe
                 msg = "Selecteer eerst een actie"
                 ok_to_leave = False
-            # mag_weg = self.parent.book.pages[self.parent.book.current_tab].leavep()
             if not ok_to_leave:
-                gui.show_message(self.parent, msg, "Navigatie niet toegestaan")
-        elif self.parent.changed_item:
+                gui.show_message(self.book, msg, "Navigatie niet toegestaan")
+        elif self.book.current_tab == 1 and self.book.newitem:
+            if newtab > 1:
+                gui.show_message(self.book,
+                                 "Nieuwe actie: navigatie naar vervolgpagina's niet toegestaan",
+                                 self.appbase.title)
+                ok_to_leave = False
+            elif newtab == 0:
+                ok_to_leave = self.abort_add()
+        elif self.book.changed_item:
             message = ("De gegevens op de pagina zijn gewijzigd,\n"
                        "wilt u de wijzigingen opslaan voordat u verder gaat?")
             ok, cancel = gui.ask_cancel_question(self.gui, message)
             if ok:
                 ok_to_leave = self.savep()
             elif cancel:
-                # self.parent.checked_for_leaving = ok_to_leave = False
                 ok_to_leave = False
             if not cancel:
                 self.appbase.gui.enable_all_other_tabs(True)
@@ -239,30 +250,30 @@ class Page:
         if not self.gui.can_save:
             return False
         self.enable_buttons(False)
-        if self.parent.current_tab <= 1 or self.parent.current_tab == 6:
+        if self.book.current_tab <= 1 or self.book.current_tab == 6:
             return False
-        if self.parent.current_tab == 2 and not self.appbase.use_text_panels:
+        if self.book.current_tab == 2 and not self.appbase.use_text_panels:
             return False
         text = self.gui.get_textarea_contents()
         event_text = ''
-        if self.parent.current_tab == 2 and text != self.parent.pagedata.melding:
-            self.oldbuf = self.parent.pagedata.melding = text
+        if self.book.current_tab == 2 and text != self.book.pagedata.melding:
+            self.oldbuf = self.book.pagedata.melding = text
             event_text = "Meldingtekst aangepast"
-        if self.parent.current_tab == 3 and text != self.parent.pagedata.oorzaak:
-            self.oldbuf = self.parent.pagedata.oorzaak = text
+        if self.book.current_tab == 3 and text != self.book.pagedata.oorzaak:
+            self.oldbuf = self.book.pagedata.oorzaak = text
             event_text = "Beschrijving oorzaak aangepast"
-        if self.parent.current_tab == 4 and text != self.parent.pagedata.oplossing:
-            self.oldbuf = self.parent.pagedata.oplossing = text
+        if self.book.current_tab == 4 and text != self.book.pagedata.oplossing:
+            self.oldbuf = self.book.pagedata.oplossing = text
             event_text = "Beschrijving oplossing aangepast"
-        if self.parent.current_tab == 5 and text != self.parent.pagedata.vervolg:
-            self.oldbuf = self.parent.pagedata.vervolg = text
+        if self.book.current_tab == 5 and text != self.book.pagedata.vervolg:
+            self.oldbuf = self.book.pagedata.vervolg = text
             event_text = "Tekst vervolgactie aangepast"
         if event_text:
-            self.parent.pagedata.add_event(event_text)
+            self.book.pagedata.add_event(event_text)
             self.update_actie()
             # onderstaande verplaatst naar update_actie
-            # self.parent.pages[0].gui.set_item_text(self.parent.pages[0].gui.get_selection(), 3,
-            #                                        self.parent.pagedata.updated)
+            # self.book.pages[0].gui.set_item_text(self.book.pages[0].gui.get_selection(), 3,
+            #                                        self.book.pagedata.updated)
         return True
 
     def savepgo(self, *args):
@@ -277,10 +288,10 @@ class Page:
     def restorep(self, *args):
         "oorspronkelijke (laatst opgeslagen) inhoud van de pagina herstellen"
         # reset font - are these also needed: case? indent? linespacing? paragraphspacing?
-        if self.parent.current_tab > 1 and self.appbase.use_rt:
+        if self.book.current_tab > 1 and self.appbase.use_rt:
             self.gui.reset_font()
-        if self.parent.current_tab == len(self.parent.pages) - 1 and self.status_auto_changed:
-            self.parent.pagedata.status = '0'
+        if self.book.current_tab == len(self.book.pages) - 1 and self.status_auto_changed:
+            self.book.pagedata.status = '0'
         self.vulp()
 
     def on_text(self, *args):
@@ -300,58 +311,58 @@ class Page:
     def update_actie(self):
         """pass page data from the GUI to the internal storage
         """
-        self.parent.pagedata.imagecount = self.appbase.imagecount
-        self.parent.pagedata.imagelist = self.appbase.imagelist
+        self.book.pagedata.imagecount = self.appbase.imagecount
+        self.book.pagedata.imagelist = self.appbase.imagelist
         # aangenomen dat "gemeld" altijd "0" zal blijven en de eerstvolgende status "1"
-        # if self.parent.current_tab >= 3 and self.parent.pagedata.status == '0':
-        if (self.parent.pagedata.status == '0' and self.appbase.use_text_panels
-                and self.parent.current_tab >= 3):
-            self.parent.pagedata.status = '1'
-            sel = [y for x, y in self.parent.stats.items() if y[1] == '1'][0]
-            self.parent.pagedata.add_event(f'Status gewijzigd in "{sel[0]}"')
+        # if self.book.current_tab >= 3 and self.book.pagedata.status == '0':
+        if (self.book.pagedata.status == '0' and self.appbase.use_text_panels
+                and self.book.current_tab >= 3):
+            self.book.pagedata.status = '1'
+            sel = [y for x, y in self.book.stats.items() if y[1] == '1'][0]
+            self.book.pagedata.add_event(f'Status gewijzigd in "{sel[0]}"')
 
         if self.appbase.work_with_user:
-            self.parent.pagedata.write(self.appbase.user)
+            self.book.pagedata.write(self.appbase.user)
         else:
-            self.parent.pagedata.write()
+            self.book.pagedata.write()
 
-        self.parent.pagedata.read()
-        if self.parent.newitem:
+        self.book.pagedata.read()
+        if self.book.newitem:
             # nieuwe entry maken in de tabel voor panel 0
             # jamaar hier zit toch ook een verschil voor de verschillende datatypes?
-            newindex = len(self.parent.data)  # + 1
-            pagegui = self.parent.pages[1].gui
+            newindex = len(self.book.data)  # + 1
+            pagegui = self.book.pages[1].gui
             itemdata = (pagegui.get_text('date'),
                         " - ".join((pagegui.get_text('proc'),
                                     pagegui.get_text('desc'))),
                         pagegui.get_choice_data(self.gui.stat_choice)[0],
                         pagegui.get_choice_data(self.gui.cat_choice)[0],
                         pagegui.get_text('id'))
-            self.parent.data[newindex] = itemdata
+            self.book.data[newindex] = itemdata
             # ook nieuwe entry maken in de visuele tree
-            page = self.parent.pages[0]
-            self.parent.current_item = page.gui.add_listitem(itemdata[0].split(' ')[0])
+            page = self.book.pages[0]
+            self.book.current_item = page.gui.add_listitem(itemdata[0].split(' ')[0])
             page.gui.set_selection()
-            self.parent.newitem = False
-            self.parent.rereadlist = True
+            self.book.newitem = False
+            self.book.rereadlist = True
         else:
             # actiegegevens bijwerken op panel 0
-            pagegui = self.parent.pages[0].gui
+            pagegui = self.book.pages[0].gui
             item = pagegui.get_selection()
-            pagegui.set_item_text(item, 1, self.parent.pagedata.get_soorttext()[0].upper())
-            pagegui.set_item_text(item, 2, self.parent.pagedata.get_statustext())
-            pagegui.set_item_text(item, 3, self.parent.pagedata.updated)
+            pagegui.set_item_text(item, 1, self.book.pagedata.get_soorttext()[0].upper())
+            pagegui.set_item_text(item, 2, self.book.pagedata.get_statustext())
+            pagegui.set_item_text(item, 3, self.book.pagedata.updated)
             if self.appbase.use_separate_subject:
-                pagegui.set_item_text(item, 4, self.parent.pagedata.over)
-                pagegui.set_item_text(item, 5, self.parent.pagedata.titel)
+                pagegui.set_item_text(item, 4, self.book.pagedata.over)
+                pagegui.set_item_text(item, 5, self.book.pagedata.titel)
             else:
-                pagegui.set_item_text(item, 4, self.parent.pagedata.titel)
+                pagegui.set_item_text(item, 4, self.book.pagedata.titel)
 
     def enable_buttons(self, state=True):
         "buttons wel of niet bruikbaar maken"
         self.gui.enable_buttons(state)
-        self.parent.changed_item = state
-        if self.parent.current_tab > 0:
+        self.book.changed_item = state
+        if self.book.current_tab > 0:
             self.appbase.gui.enable_all_other_tabs(not state)
 
     def goto_actie(self, *args):
@@ -360,34 +371,44 @@ class Page:
 
     def goto_next(self, *args):
         "naar de volgende pagina gaan"
-        if self.leavep():
-            next = self.parent.current_tab + 1
-            if next >= len(self.parent.pages):
+        next = self.book.current_tab + 1
+        if self.leavep(next):
+            if next >= len(self.book.pages):
                 next = 0
             self.appbase.gui.set_page(next)
 
     def goto_prev(self, *args):
         "naar de vorige pagina gaan"
-        if self.leavep():
-            next = self.parent.current_tab - 1
+        next = self.book.current_tab - 1
+        if self.leavep(next):
             if next < 0:
-                next = len(self.parent.pages) - 1
+                next = len(self.book.pages) - 1
             self.appbase.gui.set_page(next)
 
     def goto_page(self, page_num, check=True):
         "naar de aangegeven pagina gaan"
-        if (not check or self.leavep()) and 0 <= page_num < len(self.parent.pages):
+        if (not check or self.leavep(page_num)) and 0 <= page_num < len(self.book.pages):
             self.appbase.gui.set_page(page_num)
 
     def get_textarea_contents(self):
         "get the page text"
         return self.gui.get_textarea_contents()
 
+    def abort_add(self):
+        "opvoeren nieuw item afbreken"
+        message = "Weet u zeker dat u het opvoeren van de actie wilt afbreken?"
+        ok = gui.ask_question(self.gui, message)
+        if ok:
+            self.book.newitem = False
+            self.appbase.gui.enable_all_other_tabs(True)
+            self.book.current_item = self.book.oldselection  # oude selectie terugzetten
+        return ok
+
 
 class Page0(Page):
     "pagina 0: overzicht acties"
     def __init__(self, parent):
-        self.parent = parent
+        self.book = parent
         super().__init__(parent, pageno=0, standard=False)
         self.selection = 'excl. gearchiveerde'
         self.sel_args = {}
@@ -416,6 +437,7 @@ class Page0(Page):
 
         methode aan te roepen voorafgaand aan het tonen van de pagina
         """
+        # breakpoint()
         self.selection = ''
         if self.appbase.work_with_user:
             if self.saved_sortopts:
@@ -429,71 +451,66 @@ class Page0(Page):
         self.seltitel = 'alle meldingen ' + self.selection
         super().vulp()
         msg = ''
-        if self.parent.rereadlist:
+        if self.book.rereadlist:
             msg = self.populate_list()
-            self.parent.rereadlist = False
-            # nodig voor sorteren?  Geen idee maar als het ergens goed voor is dan moet dit
-            # naar de gui module want sortItems is een qt methode
-            # if self.appbase.datatype == shared.DataType.XML:
-            #     self.gui.p0list.sortItems(self.sorted[0], sortorder[self.sorted[1]])  # , True)
-            #
+            self.book.rereadlist = False
             if self.appbase.startitem:
-                self.parent.current_item = self.gui.get_item_by_id(self.appbase.startitem)
+                self.book.current_item = self.gui.get_item_by_id(self.appbase.startitem)
             else:
-                self.parent.current_item = self.gui.get_first_item()
+                self.book.current_item = self.gui.get_first_item()
         self.appbase.enable_all_book_tabs(False)
         self.gui.enable_buttons()
         if self.gui.has_selection():
             self.appbase.enable_all_book_tabs(True)
             self.gui.set_selection()
-            self.gui.ensure_visible(self.parent.current_item)
+            self.gui.ensure_visible(self.book.current_item)
         self.appbase.set_statusmessage(msg)
 
     def populate_list(self):
         "list control vullen"
-        self.parent.data = {}
+        self.book.data = {}
         self.gui.clear_list()
 
         select = self.sel_args.copy()
         arch = select.pop("arch") if ("arch" in select) else ""  # "alles"
-        data = shared.get_acties[self.appbase.datatype](self.parent.fnaam, select,
+        data = shared.get_acties[self.appbase.datatype](self.book.fnaam, select,
                                                         arch, self.appbase.user)
         for idx, item in enumerate(data):
             if len(item) == 7:  # type == self.appbase.shared.DataType.XML:
-                self.parent.data[idx] = (item[0],
-                                         item[1],
-                                         ".".join((item[3][1], item[3][0])),
-                                         ".".join((item[2][1], item[2][0])),
-                                         item[5],
-                                         item[4],
-                                         item[6] == 'arch')
+                self.book.data[idx] = (item[0],
+                                       item[1],
+                                       ".".join((item[3][1], item[3][0])),
+                                       ".".join((item[2][1], item[2][0])),
+                                       item[5],
+                                       item[4],
+                                       item[6] == 'arch')
             elif len(item) == 8:  # type == self.appbase.shared.DataType.MNG:
-                cats = {y: x for x, y in self.parent.cats.values()}
-                stats = {y: x for x, y in self.parent.stats.values()}
-                self.parent.data[idx] = (item[0],
-                                         item[1],
-                                         '.'.join((item[2], cats[item[2]])),
-                                         '.'.join((item[3], stats[item[3]])),
-                                         item[4],
-                                         item[5],
-                                         item[6],
-                                         item[7])
+                cats = {y: x for x, y in self.book.cats.values()}
+                stats = {y: x for x, y in self.book.stats.values()}
+                self.book.data[idx] = (item[0],
+                                       item[1],
+                                       '.'.join((item[2], cats[item[2]])),
+                                       '.'.join((item[3], stats[item[3]])),
+                                       item[4],
+                                       item[5],
+                                       item[6],
+                                       item[7])
             elif len(item) == 10:  # type == self.appbase.shared.DataType.SQL:
-                self.parent.data[idx] = (item[0],
-                                         item[1],
-                                         ".".join((item[5], item[4])),
-                                         ".".join((str(item[3]), item[2])),
-                                         item[8],
-                                         item[6],
-                                         item[7],
-                                         item[9])
+                self.book.data[idx] = (item[0],
+                                       item[1],
+                                       ".".join((item[5], item[4])),
+                                       ".".join((str(item[3]), item[2])),
+                                       item[8],
+                                       item[6],
+                                       item[7],
+                                       item[9])
             else:
                 raise ValueError('ProgrammingError: Unexpected length of pagedata item')
-        # items = self.parent.data.items()
+        # items = self.book.data.items()
         # if items is None:
         #     self.appbase.set_statusmessage('Selection is None?')
         # for _, data in items:
-        for data in self.parent.data.values():
+        for data in self.book.data.values():
             new_item = self.gui.add_listitem(data[0])
             self.gui.set_listitem_values(new_item, [data[0]] + list(data[2:]))
         return f'{len(data)} items found'
@@ -502,12 +519,12 @@ class Page0(Page):
         """callback voor wijzigen geselecteerd item, o.a. door verplaatsen van de
         cursor of door klikken
         """
-        self.parent.current_item = item_n
+        self.book.current_item = item_n
         self.gui.set_selection()
-        if not self.parent.newitem:
+        if not self.book.newitem:
             selindx = self.gui.get_selected_action()
             self.readp(selindx)
-        hlp = "&Herleef" if self.parent.pagedata.arch else "&Archiveer"
+        hlp = "&Herleef" if self.book.pagedata.arch else "&Archiveer"
         self.gui.set_archive_button_text(hlp)
 
     def activate_item(self):
@@ -522,7 +539,7 @@ class Page0(Page):
         """
         args = self.sel_args, None
         if self.appbase.work_with_user:
-            data = dmls.SelectOptions(self.parent.fnaam, self.appbase.user)
+            data = dmls.SelectOptions(self.book.fnaam, self.appbase.user)
             args, sel_args = data.load_options(), {}
             for key, value in args.items():
                 if key == 'nummer':
@@ -534,21 +551,21 @@ class Page0(Page):
                         elif item[1] == 'LT':
                             sel_args['idlt'] = item[0]
                         else:
-                            raise('ProgrammingError: illegal value in select arguments')
+                            raise ValueError('ProgrammingError: illegal value in select arguments')
                 elif value:
                     sel_args[key] = value
                 else:
-                    raise('ProgrammingError: illegal value in select arguments')
+                    raise ValueError('ProgrammingError: illegal value in select arguments')
             args = sel_args, data
         while True:
             test = gui.show_dialog(self.gui, gui.SelectOptionsDialog, args)
             if not test:
                 break
-            self.parent.rereadlist = True
+            self.book.rereadlist = True
             try:
                 self.vulp()
             except shared.DataError[self.appbase.datatype] as msg:
-                self.parent.rereadlist = False
+                self.book.rereadlist = False
                 gui.show_message(self, str(msg))
             else:
                 break
@@ -569,9 +586,8 @@ class Page0(Page):
         else:
             gui.show_message(self.gui, 'Sorry, multi-column sorteren werkt nog niet')
             return
-        if not sortlist:  # kan dit? Nu dat deze in dmls geïmporteerd wordt niet meer denk ik
-                          # als de niet-django variant mogelijk wordt kan het wel
-            sortlist = list(self.parent.ctitels)  # [x for x in self.parent.ctitels]
+        if not sortlist:
+            sortlist = list(self.book.ctitels)  # [x for x in self.parent.ctitels]
             sortlist[1] = "Soort"
         sortlist.insert(0, "(geen)")
         args = sortopts, sortlist
@@ -580,12 +596,12 @@ class Page0(Page):
             return
         if self.sort_via_options:
             self.gui.enable_sorting(False)
-            self.parent.rereadlist = True
+            self.book.rereadlist = True
             try:
                 self.vulp()
             # moet hier soms nog het daadwerkelijke sorteren tussen (bij XML)?
             except shared.DataError[self.appbase.datatype] as msg:
-                self.parent.rereadlist = False
+                self.book.rereadlist = False
                 gui.show_message(self, str(msg))
         else:
             self.gui.enable_sorting(True)
@@ -593,22 +609,22 @@ class Page0(Page):
     def archiveer(self, *args):
         "archiveren of herleven van het geselecteerde item"
         self.readp(self.gui.get_selected_action())
-        self.parent.pagedata.arch = not self.parent.pagedata.arch
-        hlp = "gearchiveerd" if self.parent.pagedata.arch else "herleefd"
-        self.parent.pagedata.add_event(f"Actie {hlp}")
-        self.update_actie()  # self.parent.pagedata.write()
-        self.parent.rereadlist = True  # wordt uitgezet in vulp
+        self.book.pagedata.arch = not self.book.pagedata.arch
+        hlp = "gearchiveerd" if self.book.pagedata.arch else "herleefd"
+        self.book.pagedata.add_event(f"Actie {hlp}")
+        self.update_actie()  # self.book.pagedata.write()
+        self.book.rereadlist = True  # wordt uitgezet in vulp
         self.vulp()
         self.appbase.gui.set_tabfocus(0)
         if self.sel_args.get("arch", "") == "alles":
-            self.gui.ensure_visible(self.parent.current_item)
-            hlp = "&Herleef" if self.parent.pagedata.arch else "&Archiveer"
+            self.gui.ensure_visible(self.book.current_item)
+            hlp = "&Herleef" if self.book.pagedata.arch else "&Archiveer"
             self.gui.set_archive_button_text(hlp)
 
-    def enable_buttons(self, value=None):
+    def enable_buttons(self, state=None):
         "buttons wel of niet bruikbaar maken"
-        if value is not None:
-            self.gui.enable_buttons(value)
+        if state is not None:
+            self.gui.enable_buttons(state)
         else:
             self.gui.enable_buttons()
 
@@ -630,7 +646,7 @@ class Page0(Page):
 class Page1(Page):
     "pagina 1: startscherm actie"
     def __init__(self, parent):
-        self.parent = parent
+        self.book = parent
         super().__init__(parent, pageno=1, standard=False)
         self.gui = gui.Page1Gui(parent, self)
 
@@ -638,51 +654,57 @@ class Page1(Page):
         """te tonen gegevens invullen in velden e.a. initialisaties
 
         methode aan te roepen voorafgaand aan het tonen van de pagina"""
+        # breakpoint()
         super().vulp()
         self.initializing = True
         self.gui.init_fields()
         self.parch = False
-        # if self.parent.pagedata is not None:  # is altijd een Actie object
-        self.gui.set_text('id', str(self.parent.pagedata.id))
-        self.gui.set_text('date', self.parent.pagedata.datum)
-        if not self.parent.newitem:
-            self.parch = self.parent.pagedata.arch
+        # if self.book.pagedata is not None:  # is altijd een Actie object
+        self.gui.set_text('id', str(self.book.pagedata.id))
+        self.gui.set_text('date', self.book.pagedata.datum)
+        if self.book.newitem:
+            # navigatie naar andere pagina's dan 0 niet toegestaan
+            # klikken op de tab slaat de leavep over dus deze blijft hier uit staan
+            # self.appbase.gui.enable_book_navigation(True, tabfrom=0, tabto=1)
+            pass  # self.appbase.gui.enable_book_navigation(False, tabfrom=2)
+        else:
+            self.parch = self.book.pagedata.arch
             if self.appbase.use_separate_subject:
-                self.gui.set_text('proc', self.parent.pagedata.over)
-                self.gui.set_text('desc', self.parent.pagedata.titel)
-            elif self.parent.pagedata.titel:
-                if " - " in self.parent.pagedata.titel:
-                    hlp = self.parent.pagedata.titel.split(" - ", 1)
+                self.gui.set_text('proc', self.book.pagedata.over)
+                self.gui.set_text('desc', self.book.pagedata.titel)
+            elif self.book.pagedata.titel:
+                if " - " in self.book.pagedata.titel:
+                    hlp = self.book.pagedata.titel.split(" - ", 1)
+                elif ": " in self.book.pagedata.titel:
+                    hlp = self.book.pagedata.titel.split(": ", 1)
                 else:
-                    hlp = self.parent.pagedata.titel.split(": ", 1)
+                    hlp = self.book.pagedata.titel
                 self.gui.set_text('proc', hlp[0])
                 if len(hlp) > 1:
                     self.gui.set_text('desc', hlp[1])
-                else:
-                    raise ValueError('ProgrammmingError: subject should be splittable')
             else:
                 raise ValueError('ProgrammmingError: subject should not be empty')
-            self.gui.set_choice(self.parent.stats, self.gui.stat_choice, self.parent.pagedata.status)
-            self.gui.set_choice(self.parent.cats, self.gui.cat_choice, self.parent.pagedata.soort)
+            self.gui.set_choice(self.book.stats, self.gui.stat_choice, self.book.pagedata.status)
+            self.gui.set_choice(self.book.cats, self.gui.cat_choice, self.book.pagedata.soort)
             if not self.appbase.use_text_panels:
-                self.gui.set_text('summary', self.parent.pagedata.melding)
+                self.gui.set_text('summary', self.book.pagedata.melding)
 
         self.oldbuf = self.gui.set_oldbuf()
         if self.parch:
             aanuit = False
             # staat hierboven ook al - is dat hier dan nog een keer nodig?
             # if self.appbase.datatype == shared.DataType.XML:
-            #     if self.parent.pagedata.titel is not None:
-            #         if " - " in self.parent.pagedata.titel:
-            #             hlp = self.parent.pagedata.titel.split(" - ", 1)
+            #     if self.book.pagedata.titel is not None:
+            #         if " - " in self.book.pagedata.titel:
+            #             hlp = self.book.pagedata.titel.split(" - ", 1)
             #         else:
-            #             hlp = self.parent.pagedata.titel.split(": ", 1)
+            #             hlp = self.book.pagedata.titel.split(": ", 1)
             #         self.gui.set_text('proc', hlp[0])
             #         if len(hlp) > 1:
             #             self.gui.set_text('desc', hlp[1])
             # elif self.appbase.datatype == shared.DataType.SQL:
-            #     self.gui.set_text('proc', self.parent.pagedata.over)
-            #     self.gui.set_text('desc', self.parent.pagedata.titel)
+            #     self.gui.set_text('proc', self.book.pagedata.over)
+            #     self.gui.set_text('desc', self.book.pagedata.titel)
             self.gui.set_text('arch', "Deze actie is gearchiveerd")
             self.gui.set_archive_button_text("Herleven")
         else:
@@ -708,59 +730,59 @@ class Page1(Page):
             return False
         wijzig = False
         procdesc = f"{proc} - {desc}"
-        # if procdesc != self.parent.pagedata.titel:
+        # if procdesc != self.book.pagedata.titel:
         #     if self.appbase.use_separate_subject:
-        #         self.parent.pagedata.over = proc
-        #         self.parent.pagedata.add_event(f'Onderwerp gewijzigd in "{proc}"')
-        #         self.parent.pagedata.titel = procdesc = desc
+        #         self.book.pagedata.over = proc
+        #         self.book.pagedata.add_event(f'Onderwerp gewijzigd in "{proc}"')
+        #         self.book.pagedata.titel = procdesc = desc
         #     else:
-        #         self.parent.pagedata.titel = procdesc
-        #     self.parent.pagedata.add_event(f'Titel gewijzigd in "{procdesc}"')
+        #         self.book.pagedata.titel = procdesc
+        #     self.book.pagedata.add_event(f'Titel gewijzigd in "{procdesc}"')
         #     wijzig = True
-        if procdesc != self.parent.pagedata.titel and not self.appbase.use_separate_subject:
-            self.parent.pagedata.titel = procdesc
-            self.parent.pagedata.add_event(f'Titel gewijzigd in "{procdesc}"')
+        if procdesc != self.book.pagedata.titel and not self.appbase.use_separate_subject:
+            self.book.pagedata.titel = procdesc
+            self.book.pagedata.add_event(f'Titel gewijzigd in "{procdesc}"')
             wijzig = True
         elif self.appbase.use_separate_subject:
-            if proc != self.parent.pagedata.over:
-                self.parent.pagedata.over = proc
-                self.parent.pagedata.add_event(f'Onderwerp gewijzigd in "{proc}"')
+            if proc != self.book.pagedata.over:
+                self.book.pagedata.over = proc
+                self.book.pagedata.add_event(f'Onderwerp gewijzigd in "{proc}"')
                 wijzig = True
-            if desc != self.parent.pagedata.titel:
-                self.parent.pagedata.titel = desc
-                self.parent.pagedata.add_event(f'Titel gewijzigd in "{desc}"')
+            if desc != self.book.pagedata.titel:
+                self.book.pagedata.titel = desc
+                self.book.pagedata.add_event(f'Titel gewijzigd in "{desc}"')
                 wijzig = True
         newstat, sel = self.gui.get_choice_data(self.gui.stat_choice)
         verb = ''
-        if self.parent.newitem:
+        if self.book.newitem:
             verb = 'is'
-        elif newstat != self.parent.pagedata.status:
+        elif newstat != self.book.pagedata.status:
             verb = 'gewijzigd in'
         if verb:
-            self.parent.pagedata.status = newstat
-            self.parent.pagedata.add_event(f'Status {verb} "{sel}"')
+            self.book.pagedata.status = newstat
+            self.book.pagedata.add_event(f'Status {verb} "{sel}"')
             wijzig = True
         newcat, sel = self.gui.get_choice_data(self.gui.cat_choice)
         verb = ''
-        if self.parent.newitem:
+        if self.book.newitem:
             verb = 'is'
-        elif newcat != self.parent.pagedata.soort:
+        elif newcat != self.book.pagedata.soort:
             verb = 'gewijzigd in'
         if verb:
-            self.parent.pagedata.soort = newcat
-            self.parent.pagedata.add_event(f'Categorie {verb} "{sel}"')
+            self.book.pagedata.soort = newcat
+            self.book.pagedata.add_event(f'Categorie {verb} "{sel}"')
             wijzig = True
-        if self.parch != self.parent.pagedata.arch:
-            self.parent.pagedata.arch = self.parch
+        if self.parch != self.book.pagedata.arch:
+            self.book.pagedata.arch = self.parch
             hlp = "gearchiveerd" if self.parch else "herleefd"
-            self.parent.pagedata.add_event(f"Actie {hlp}")
+            self.book.pagedata.add_event(f"Actie {hlp}")
             wijzig = True
         if not self.appbase.use_text_panels:
             new_summary = self.gui.get_text('summary')
             # of text = self.gui.get_textarea_contents()
-            if new_summary != self.parent.pagedata.melding:
-                self.parent.pagedata.melding = new_summary
-                self.parent.pagedata.add_event("Meldingtekst aangepast")
+            if new_summary != self.book.pagedata.melding:
+                self.book.pagedata.melding = new_summary
+                self.book.pagedata.add_event("Meldingtekst aangepast")
                 wijzig = True
         if wijzig:
             self.update_actie()
@@ -771,7 +793,7 @@ class Page1(Page):
         "archiveren/herleven"
         self.parch = not self.parch
         self.savep()
-        self.parent.rereadlist = True  # wordt in vulp uitgezet
+        self.book.rereadlist = True  # wordt in vulp uitgezet
         self.vulp()
 
     def vul_combos(self):
@@ -779,17 +801,22 @@ class Page1(Page):
         self.initializing = True
         self.gui.clear_stats()
         self.gui.clear_cats()
-        for key in sorted(self.parent.stats.keys()):
-            text, value = self.parent.stats[key][:2]
+        for key in sorted(self.book.stats.keys()):
+            text, value = self.book.stats[key][:2]
             self.gui.add_stat_choice(text, value)
-        for key in sorted(self.parent.cats.keys()):
-            text, value = self.parent.cats[key][:2]
+        for key in sorted(self.book.cats.keys()):
+            text, value = self.book.cats[key][:2]
             self.gui.add_cat_choice(text, value)
         self.initializing = False
 
     def get_field_text(self, entry_type):
         "return a screen field's text"
         return self.gui.get_field_text(entry_type)
+
+    def breekaf(self):
+        "opvoeren nieuw item afbreken"
+        self.abort_add()
+        self.goto_page(0)
 
 
 class Page6(Page):
@@ -810,22 +837,21 @@ class Page6(Page):
         self.initializing = True
         self.gui.init_textfield()
 
-        if not self.parent.pagedata:
+        if not self.book.pagedata:
             raise ValueError('ProgrammingError: page data should not be empty')
+        self.event_list = [dbdate2listdate(x[0]) for x in self.book.pagedata.events]
+        self.event_list.reverse()
+        self.old_list = self.event_list[:]
+        self.event_data = [x[1] for x in self.book.pagedata.events]
+        self.event_data.reverse()
+        self.old_data = self.event_data[:]
+        if self.appbase.is_user:
+            text = '-- doubleclick or press Shift-Ctrl-N to add new item --'
         else:
-            self.event_list = [dbdate2listdate(x[0]) for x in self.parent.pagedata.events]
-            self.event_list.reverse()
-            self.old_list = self.event_list[:]
-            self.event_data = [x[1] for x in self.parent.pagedata.events]
-            self.event_data.reverse()
-            self.old_data = self.event_data[:]
-            if self.appbase.is_user:
-                text = '-- doubleclick or press Shift-Ctrl-N to add new item --'
-            else:
-                text = '-- adding new items is disabled --'
-            self.gui.init_list(text)
-            for idx, datum in enumerate(self.event_list):
-                self.gui.add_item_to_list(idx, datum)
+            text = '-- adding new items is disabled --'
+        self.gui.init_list(text)
+        for idx, datum in enumerate(self.event_list):
+            self.gui.add_item_to_list(idx, datum)
         if self.appbase.work_with_user:
             self.gui.set_list_callback()
         self.gui.clear_textfield()
@@ -855,22 +881,22 @@ class Page6(Page):
         if self.event_list != self.old_list or self.event_data != self.old_data:
             wijzig = True
             hlp = len(self.event_list) - 1
-            for idx, data in enumerate(self.parent.pagedata.events):
+            for idx, data in enumerate(self.book.pagedata.events):
                 datestring = listdate2dbdate(self.event_list[hlp - idx])
                 if data != (datestring, self.event_data[hlp - idx]):
-                    self.parent.pagedata.events[idx] = (datestring, self.event_data[hlp - idx])
-            for idx in range(len(self.parent.pagedata.events), hlp + 1):
+                    self.book.pagedata.events[idx] = (datestring, self.event_data[hlp - idx])
+            for idx in range(len(self.book.pagedata.events), hlp + 1):
                 if self.event_data[hlp - idx]:
-                    self.parent.pagedata.events.append((listdate2dbdate(self.event_list[hlp - idx]),
-                                                        self.event_data[hlp - idx]))
+                    self.book.pagedata.events.append((listdate2dbdate(self.event_list[hlp - idx]),
+                                                      self.event_data[hlp - idx]))
         if wijzig:
             self.update_actie()
             # waar is deze voor (self.book.current_item.setText) ?
-            # self.parent.current_item = self.parent.page0.p0list.topLevelItem(x)
-            # self.parent.current_item.setText(4, self.parent.pagedata.updated)
-            self.parent.pages[0].gui.set_item_text(self.parent.current_item, 3,
-                                                   self.parent.pagedata.updated)
-            # dit was self.parent.page0.p0list.currentItem().setText( -- is dat niet hetzelfde?
+            # self.book.current_item = self.book.page0.p0list.topLevelItem(x)
+            # self.book.current_item.setText(4, self.book.pagedata.updated)
+            self.book.pages[0].gui.set_item_text(self.book.current_item, 3,
+                                                 self.book.pagedata.updated)
+            # dit was self.book.page0.p0list.currentItem().setText( -- is dat niet hetzelfde?
             self.old_list = self.event_list[:]
             self.old_data = self.event_data[:]
             self.oldbuf = (self.old_list, self.old_data)
@@ -925,12 +951,12 @@ class Page6(Page):
         "set up entering new event in GUI"
         if not self.appbase.is_user:
             return
-        if (self.parent.pagedata.status == '0' and (
-                (self.appbase.use_text_panels and self.parent.current_tab >= 3)
-                or (not self.appbase.use_text_panels and self.parent.current_tab == 2))):
-            self.parent.pagedata.status = '1'
+        if (self.book.pagedata.status == '0' and (
+                (self.appbase.use_text_panels and self.book.current_tab >= 3)
+                or (not self.appbase.use_text_panels and self.book.current_tab == 2))):
+            self.book.pagedata.status = '1'
             self.status_auto_changed = True
-            sel = [y for x, y in self.parent.stats.items() if y[1] == '1'][0]
+            sel = [y for x, y in self.book.stats.items() if y[1] == '1'][0]
             datum, oldtext = shared.get_dts(), f'Status gewijzigd in "{sel[0]}"'
             self.gui.add_new_item_to_list(datum, oldtext)
             self.event_list.insert(0, datum)
@@ -1135,7 +1161,7 @@ class MainWindow:
                 ("&Help", (("&About", self.about_help, 'F1', " Information about this program"),
                            ("&Keys", self.hotkey_help, 'Ctrl+H', " List of shortcut keys")))]
         for tabnum, tabtitle in self.book.tabs.items():
-            data[3][1].append((f'&{tabtitle}', functools.partial(self.gui.go_to, int(tabnum)),
+            data[3][1].append((f'&{tabtitle}', functools.partial(self.goto_page, int(tabnum)),
                                f'Alt+{tabnum}', "switch to tab"))
         if not self.work_with_user:
             data.pop(1)     # remove login menu
@@ -1169,7 +1195,7 @@ class MainWindow:
         self.book.current_tab = -1
         self.book.pages = []
         self.book.newitem = False
-        self.book.changed_item = True
+        self.book.changed_item = False  # waarom True?
         self.book.pagedata = None
 
     def create_book_pages(self):
@@ -1364,7 +1390,7 @@ class MainWindow:
         self.exiting = True
         ok_to_leave = True
         if self.book.current_tab >= 0:
-            ok_to_leave = self.book.pages[self.book.current_tab].leavep()
+            ok_to_leave = self.book.pages[self.book.current_tab].leavep(-1)
         if ok_to_leave:
             self.gui.exit()
 
@@ -1487,7 +1513,7 @@ class MainWindow:
             self.book.pages[0].vulp()
         else:
             self.gui.select_first_tab()
-        self.book.changed_item = True
+        self.book.changed_item = False  # waarom True?
         return ''
 
     def lees_settings(self):
@@ -1608,7 +1634,7 @@ class MainWindow:
 
     def enable_all_book_tabs(self, state):
         "make all tabs (in)accessible"
-        self.gui.enable_book_tabs(state, tabfrom=1)
+        self.gui.enable_book_navigation(state, tabfrom=1)
 
 
 def main(arg=None):

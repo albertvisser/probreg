@@ -26,7 +26,8 @@ class MockPage:
     """
     def __init__(self):
         print('called Page.__init__')
-        self.parent = MockBook()
+        self.book = MockBook()
+        self.appbase = self.book.parent
     def sort_items(self):
         "dummy"
     def select_items(self):
@@ -48,6 +49,8 @@ class MockPage:
     def savepgo(self):
         "dummy"
     def restorep(self):
+        "dummy"
+    def breekaf(self):
         "dummy"
 
 
@@ -175,15 +178,34 @@ def test_get_choice_item(monkeypatch, capsys):
             " {'current': 1, 'editable': False}\n")
 
 
+def test_ask_question(monkeypatch, capsys):
+    """unittest for gui_qt.ask_cancel_question
+    """
+    def mock_ask(parent, caption, message, buttons):
+        print(f'called MessageBox.question with args `{parent}` `{caption}` `{message}` `{buttons}`')
+        return mockqtw.MockMessageBox.StandardButton.Yes
+    monkeypatch.setattr(testee.qtw, 'QMessageBox', mockqtw.MockMessageBox)
+    win = MockGui()
+    assert capsys.readouterr().out == "called Gui.__init__ with args ()\n"
+    testee.shared.app_title = 'xxx'
+    assert not testee.ask_question(win, 'question')
+    assert capsys.readouterr().out == ("called MessageBox.question with args"
+                                       f" `{win}` `xxx` `question` `12`\n")
+    monkeypatch.setattr(testee.qtw.QMessageBox, 'question', mock_ask)
+    assert testee.ask_question(win, 'question')
+    assert capsys.readouterr().out == ("called MessageBox.question with args"
+                                       f" `{win}` `xxx` `question` `12`\n")
+
+
 def test_ask_cancel_question(monkeypatch, capsys):
     """unittest for gui_qt.ask_cancel_question
     """
     def mock_ask(parent, caption, message, buttons):
         print(f'called MessageBox.question with args `{parent}` `{caption}` `{message}` `{buttons}`')
-        return mockqtw.MockMessageBox.Yes
+        return mockqtw.MockMessageBox.StandardButton.Yes
     def mock_ask_2(parent, caption, message, buttons):
         print(f'called MessageBox.question with args `{parent}` `{caption}` `{message}` `{buttons}`')
-        return mockqtw.MockMessageBox.Cancel
+        return mockqtw.MockMessageBox.StandardButton.Cancel
     monkeypatch.setattr(testee.qtw, 'QMessageBox', mockqtw.MockMessageBox)
     win = MockGui()
     assert capsys.readouterr().out == "called Gui.__init__ with args ()\n"
@@ -237,7 +259,7 @@ class TestEditorPanel:
         parent = MockPage()
         testobj = testee.EditorPanel(parent)
         testobj.parent = parent
-        testobj.appbase = parent.parent.parent
+        testobj.appbase = parent.book.parent
         assert capsys.readouterr().out == ('called Page.__init__\n'
                                            f'called EditorPanel.__init__ with args ({parent},)\n')
         return testobj
@@ -266,14 +288,14 @@ class TestEditorPanel:
         assert capsys.readouterr().out == 'called Page.__init__\n'
         testobj = testee.EditorPanel(parent)
         assert testobj.parent == parent
-        assert testobj.appbase == parent.parent.parent
+        assert testobj.appbase == parent.book.parent
         assert testobj.defaultfamily == 'fontfamily'
         assert testobj.defaultsize == 'fontsize'
         assert capsys.readouterr().out == expected_output['editor'].format(testobj=testobj)
-        parent.parent.parent.use_rt = True
+        testobj.appbase.use_rt = True
         testobj = testee.EditorPanel(parent)
         assert testobj.parent == parent
-        assert testobj.appbase == parent.parent.parent
+        assert testobj.appbase == parent.book.parent
         assert testobj.defaultfamily == 'fontfamily'
         assert testobj.defaultsize == 'fontsize'
         assert capsys.readouterr().out == expected_output['editor2'].format(testobj=testobj,
@@ -1008,11 +1030,10 @@ class TestPageGui:
             print('called PageGui.__init__ with args', args)
         monkeypatch.setattr(testee.PageGui, '__init__', mock_init)
         testobj = testee.PageGui()
-        testobj.parent = MockGui()
+        testobj.book = MockBook()
         testobj.master = MockPage()
-        testobj.appbase = testobj.master.parent.parent
+        testobj.appbase = testobj.book.parent
         assert capsys.readouterr().out == ('called PageGui.__init__ with args ()\n'
-                                           'called Gui.__init__ with args ()\n'
                                            'called Page.__init__\n')
         return testobj
 
@@ -1029,10 +1050,9 @@ class TestPageGui:
         monkeypatch.setattr(testee.PageGui, 'create_toolbar', mock_create_tb)
         monkeypatch.setattr(testee.gui, 'QShortcut', mockqtw.MockShortcut)
         monkeypatch.setattr(testee.qtw, 'QPushButton', mockqtw.MockPushButton)
-        parent = MockGui()
+        parent = MockBook()
         master = MockPage()
-        assert capsys.readouterr().out == ("called Gui.__init__ with args ()\n"
-                                           'called Page.__init__\n')
+        assert capsys.readouterr().out == 'called Page.__init__\n'
         master.is_text_page = False
         master.savep = lambda: 'save'
         master.savepgo = lambda: 'save&go'
@@ -1041,11 +1061,11 @@ class TestPageGui:
         testobj = testee.PageGui(parent, master)
         assert capsys.readouterr().out == "called Frame.__init__\n"
         master.is_text_page = True
-        master.parent.parent.use_rt = False
+        parent.parent.use_rt = False
         testobj = testee.PageGui(parent, master)
         assert capsys.readouterr().out == expected_output['page_init'].format(testobj=testobj)
 
-        master.parent.parent.use_rt = True
+        parent.parent.use_rt = True
         testobj = testee.PageGui(parent, master)
         assert capsys.readouterr().out == expected_output['page_init_2'].format(testobj=testobj)
 
@@ -1157,7 +1177,7 @@ class TestPageGui:
         testobj.text1 = mockqtw.MockEditorWidget('text')
         assert capsys.readouterr().out == ("called Editor.__init__ with args ('progress',)\n"
                                            "called Editor.__init__ with args ('text',)\n")
-        testobj.master.parent.current_tab = 2
+        testobj.book.current_tab = 2
         testobj.reset_font()
         # hoe toon ik aan welke waarde win heeft?
         assert capsys.readouterr().out == (
@@ -1166,7 +1186,7 @@ class TestPageGui:
                 "called Editor.setFontUnderline with arg False\n"
                 "called Editor.setFontFamily with arg 'font family'\n"
                 "called Editor.setFontPointSize with arg '12pt'\n")
-        testobj.master.parent.current_tab = 6
+        testobj.book.current_tab = 6
         testobj.reset_font()
         assert capsys.readouterr().out == (
                 f"called Editor.setFontWeight with arg {testee.gui.QFont.Weight.Normal}\n"
@@ -1188,8 +1208,8 @@ class TestPageGui:
         assert not testobj.save_button.isEnabled()
         assert not testobj.saveandgo_button.isEnabled()
         assert not testobj.cancel_button.isEnabled()
-        testobj.parent.count = lambda: 3
-        testobj.parent.current_tab = 1
+        testobj.book.count = lambda: 3
+        testobj.book.current_tab = 1
         testobj.enable_buttons()
         assert capsys.readouterr().out == ("called PushButton.setEnabled with arg `True`\n"
                                            "called PushButton.setEnabled with arg `True`\n"
@@ -1197,7 +1217,7 @@ class TestPageGui:
         assert testobj.save_button.isEnabled()
         assert testobj.saveandgo_button.isEnabled()
         assert testobj.cancel_button.isEnabled()
-        testobj.parent.current_tab = 2
+        testobj.book.current_tab = 2
         testobj.enable_buttons(False)
         assert capsys.readouterr().out == ("called PushButton.setEnabled with arg `False`\n"
                                            "called PushButton.setEnabled with arg `False`\n")
@@ -1305,12 +1325,13 @@ class TestPage0Gui:
             """stub
             """
             print('called Page0Gui.__init__ with args', args)
-        parent = MockGui()
+            self.book = args[0]
+            self.master = args[1]
+        parent = MockBook()
         master = MockPage()
         monkeypatch.setattr(testee.Page0Gui, '__init__', mock_init)
         testobj = testee.Page0Gui(parent, master, [])
         assert capsys.readouterr().out == (
-                "called Gui.__init__ with args ()\n"
                 'called Page.__init__\n'
                 f'called Page0Gui.__init__ with args ({parent}, {master}, [])\n')
         return testobj
@@ -1322,17 +1343,16 @@ class TestPage0Gui:
             """stub
             """
             print(f'called PageGui.__init__ with args ({parent}, {master})')
-            self.parent = parent
+            self.book = parent
             self.master = master
-        parent = MockGui()
+        parent = MockBook()
         master = MockPage()
         monkeypatch.setattr(testee.PageGui, '__init__', mock_init)
         monkeypatch.setattr(testee.Page0Gui, 'on_activate_item', lambda: 'dummy')
         monkeypatch.setattr(testee.Page0Gui, 'on_change_selected', lambda: 'dummy')
         monkeypatch.setattr(testee.qtw, 'QTreeWidget', mockqtw.MockTreeWidget)
         monkeypatch.setattr(testee.qtw, 'QPushButton', mockqtw.MockPushButton)
-        assert capsys.readouterr().out == ("called Gui.__init__ with args ()\n"
-                                           'called Page.__init__\n')
+        assert capsys.readouterr().out == 'called Page.__init__\n'
         parent.ctitels = ['xxx', 'yyy']
         testobj = testee.Page0Gui(parent, master, [10, 20])
         assert capsys.readouterr().out == expected_output['page0_init'].format(testobj=testobj)
@@ -1569,12 +1589,12 @@ class TestPage0Gui:
         """unittest for Page0Gui.set_selection
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.parent = types.SimpleNamespace(current_item=None)
+        testobj.book = types.SimpleNamespace(current_item=None)
         testobj.p0list = mockqtw.MockTreeWidget()
         assert capsys.readouterr().out == "called Tree.__init__\n"
         testobj.set_selection()
         assert capsys.readouterr().out == ""
-        testobj.parent.current_item = 'not None'
+        testobj.book.current_item = 'not None'
         testobj.set_selection()
         assert capsys.readouterr().out == "called Tree.setCurrentItem with arg `not None`\n"
 
@@ -1661,12 +1681,14 @@ class TestPage1Gui:
             """stub
             """
             print('called Page1Gui.__init__ with args', args)
-        parent = MockGui()
+            self.book = parent
+            self.master = master
+            self.appbase = self.book.parent
+        parent = MockBook()
         master = MockPage()
         monkeypatch.setattr(testee.Page1Gui, '__init__', mock_init)
         testobj = testee.Page1Gui(parent, master)
         assert capsys.readouterr().out == (
-                "called Gui.__init__ with args ()\n"
                 'called Page.__init__\n'
                 f'called Page1Gui.__init__ with args ({parent}, {master})\n')
         return testobj
@@ -1678,20 +1700,21 @@ class TestPage1Gui:
             """stub
             """
             print(f'called PageGui.__init__ with args ({parent}, {master})')
-            self.parent = parent
+            self.book = parent
             self.master = master
+            # self.appbase = self.book.parent
             self.appbase = types.SimpleNamespace(use_text_panels=False)
         def mock_init_2(self, parent, master):
             """stub
             """
             print(f'called PageGui.__init__ with args ({parent}, {master})')
-            self.parent = parent
+            self.book = parent
             self.master = master
+            # self.appbase = self.book.parent
             self.appbase = types.SimpleNamespace(use_text_panels=True)
-        parent = MockGui()
+        parent = MockBook()
         master = MockPage()
-        assert capsys.readouterr().out == ("called Gui.__init__ with args ()\n"
-                                           'called Page.__init__\n')
+        assert capsys.readouterr().out == 'called Page.__init__\n'
         monkeypatch.setattr(testee.PageGui, '__init__', mock_init)
         monkeypatch.setattr(testee.qtw, 'QLineEdit', mockqtw.MockLineEdit)
         monkeypatch.setattr(testee.qtw, 'QComboBox', mockqtw.MockComboBox)
@@ -1746,6 +1769,7 @@ class TestPage1Gui:
         testobj.archive_text = mockqtw.MockLabel()
         testobj.archive_button = mockqtw.MockPushButton()
         testobj.summary_entry = mockqtw.MockEditorWidget()
+        testobj.abort_button = mockqtw.MockPushButton()
         testobj.save_button = mockqtw.MockPushButton()
         testobj.saveandgo_button = mockqtw.MockPushButton()
         testobj.cancel_button = mockqtw.MockPushButton()
@@ -1755,6 +1779,7 @@ class TestPage1Gui:
                                            "called Label.__init__\n"
                                            "called PushButton.__init__ with args () {}\n"
                                            "called Editor.__init__\n"
+                                           "called PushButton.__init__ with args () {}\n"
                                            "called PushButton.__init__ with args () {}\n"
                                            "called PushButton.__init__ with args () {}\n"
                                            "called PushButton.__init__ with args () {}\n")
@@ -1777,24 +1802,28 @@ class TestPage1Gui:
         testobj.stat_choice = mockqtw.MockComboBox()
         testobj.archive_text = mockqtw.MockLabel()
         testobj.summary_entry = mockqtw.MockEditorWidget()
+        testobj.abort_button = mockqtw.MockPushButton()
         assert capsys.readouterr().out == ("called LineEdit.__init__\ncalled LineEdit.__init__\n"
                                            "called LineEdit.__init__\ncalled LineEdit.__init__\n"
                                            "called ComboBox.__init__\ncalled ComboBox.__init__\n"
-                                           "called Label.__init__\ncalled Editor.__init__\n")
+                                           "called Label.__init__\ncalled Editor.__init__\n"
+                                           "called PushButton.__init__ with args () {}\n")
         testobj.appbase = types.SimpleNamespace(use_text_panels=False)
         testobj.init_fields()
         assert capsys.readouterr().out == ("called LineEdit.clear\ncalled LineEdit.clear\n"
                                            "called LineEdit.clear\ncalled LineEdit.clear\n"
                                            "called Label.setText with arg ``\ncalled Editor.clear\n"
                                            "called ComboBox.setCurrentIndex with arg `0`\n"
-                                           "called ComboBox.setCurrentIndex with arg `0`\n")
+                                           "called ComboBox.setCurrentIndex with arg `0`\n"
+                                           "called PushButton.hide\n")
         testobj.appbase.use_text_panels = True
         testobj.init_fields()
         assert capsys.readouterr().out == ("called LineEdit.clear\ncalled LineEdit.clear\n"
                                            "called LineEdit.clear\ncalled LineEdit.clear\n"
                                            "called Label.setText with arg ``\n"
                                            "called ComboBox.setCurrentIndex with arg `0`\n"
-                                           "called ComboBox.setCurrentIndex with arg `0`\n")
+                                           "called ComboBox.setCurrentIndex with arg `0`\n"
+                                           "called PushButton.hide\n")
 
     def test_set_text(self, monkeypatch, capsys):
         """unittest for Page1Gui.set_text
@@ -1933,13 +1962,18 @@ class TestPage1Gui:
         testobj.stat_choice = mockqtw.MockComboBox()
         testobj.archive_button = mockqtw.MockPushButton()
         testobj.summary_entry = mockqtw.MockEditorWidget()
+        testobj.abort_button = mockqtw.MockPushButton()
+        # testobj.master = types.SimpleNamespace(parent=types.SimpleNamespace(newitem=False))
+        # testobj.appbase = types.SimpleNamespace(is_user=True, use_text_panels=False)
+        testobj.book.newitem = False
+        testobj.appbase.is_user = False
+        testobj.appbase.use_text_panels = False
         assert capsys.readouterr().out == ("called LineEdit.__init__\ncalled LineEdit.__init__\n"
                                            "called LineEdit.__init__\ncalled LineEdit.__init__\n"
                                            "called ComboBox.__init__\ncalled ComboBox.__init__\n"
                                            "called PushButton.__init__ with args () {}\n"
-                                           "called Editor.__init__\n")
-        testobj.master = types.SimpleNamespace(parent=types.SimpleNamespace(newitem=False))
-        testobj.appbase = types.SimpleNamespace(is_user=True, use_text_panels=False)
+                                           "called Editor.__init__\n"
+                                           "called PushButton.__init__ with args () {}\n")
         testobj.enable_fields('state')
         assert capsys.readouterr().out == ("called LineEdit.setEnabled with arg False\n"
                                            "called LineEdit.setEnabled with arg False\n"
@@ -1947,9 +1981,9 @@ class TestPage1Gui:
                                            "called LineEdit.setEnabled with arg state\n"
                                            "called ComboBox.setEnabled with arg state\n"
                                            "called ComboBox.setEnabled with arg state\n"
-                                           "called PushButton.setEnabled with arg `True`\n"
+                                           "called PushButton.setEnabled with arg `False`\n"
                                            "called Editor.setEnabled with arg state\n")
-        testobj.master.parent.newitem = True
+        testobj.book.newitem = True
         testobj.appbase.use_text_panels = True
         testobj.enable_fields('state')
         assert capsys.readouterr().out == ("called LineEdit.setEnabled with arg False\n"
@@ -1958,8 +1992,10 @@ class TestPage1Gui:
                                            "called LineEdit.setEnabled with arg state\n"
                                            "called ComboBox.setEnabled with arg state\n"
                                            "called ComboBox.setEnabled with arg state\n"
-                                           "called PushButton.setEnabled with arg `False`\n")
-        testobj.appbase.is_user = False
+                                           "called PushButton.setEnabled with arg `False`\n"
+                                           "called PushButton.show\n")
+        testobj.book.newitem = False
+        testobj.appbase.is_user = True
         testobj.enable_fields('state')
         assert capsys.readouterr().out == ("called LineEdit.setEnabled with arg False\n"
                                            "called LineEdit.setEnabled with arg False\n"
@@ -1967,7 +2003,17 @@ class TestPage1Gui:
                                            "called LineEdit.setEnabled with arg state\n"
                                            "called ComboBox.setEnabled with arg state\n"
                                            "called ComboBox.setEnabled with arg state\n"
-                                           "called PushButton.setEnabled with arg `False`\n")
+                                           "called PushButton.setEnabled with arg `True`\n")
+        testobj.book.newitem = True
+        testobj.enable_fields('state')
+        assert capsys.readouterr().out == ("called LineEdit.setEnabled with arg False\n"
+                                           "called LineEdit.setEnabled with arg False\n"
+                                           "called LineEdit.setEnabled with arg state\n"
+                                           "called LineEdit.setEnabled with arg state\n"
+                                           "called ComboBox.setEnabled with arg state\n"
+                                           "called ComboBox.setEnabled with arg state\n"
+                                           "called PushButton.setEnabled with arg `False`\n"
+                                           "called PushButton.show\n")
 
     def test_clear_stats(self, monkeypatch, capsys):
         """unittest for Page1Gui.clear_stats
@@ -2068,12 +2114,14 @@ class TestPage6Gui:
             """stub
             """
             print('called Page6Gui.__init__ with args', args)
-        parent = MockGui()
+            self.book = parent
+            self.master = master
+            self.appbase = self.book.parent
+        parent = MockBook()
         master = MockPage()
         monkeypatch.setattr(testee.Page6Gui, '__init__', mock_init)
         testobj = testee.Page6Gui(parent, master)
         assert capsys.readouterr().out == (
-                "called Gui.__init__ with args ()\n"
                 'called Page.__init__\n'
                 f'called Page6Gui.__init__ with args ({parent}, {master})\n')
         return testobj
@@ -2085,14 +2133,14 @@ class TestPage6Gui:
             """stub
             """
             print(f'called PageGui.__init__ with args ({parent}, {master})')
-            self.parent = parent
+            self.book = parent
             self.master = master
             self.appbase = types.SimpleNamespace(use_rt=False, work_with_user=True)
         def mock_init_2(self, parent, master):
             """stub
             """
             print(f'called PageGui.__init__ with args ({parent}, {master})')
-            self.parent = parent
+            self.book = parent
             self.master = master
             self.appbase = types.SimpleNamespace(use_rt=True, work_with_user=False)
         def mock_text(self, *args, **kwargs):
@@ -2103,7 +2151,7 @@ class TestPage6Gui:
         def mock_toolbar(self, *args, **kwargs):
             print('called PageGui.create_toolbar with args', args, kwargs)
             self.toolbar = mockqtw.MockToolBar()
-        parent = MockGui()
+        parent = MockBook()
         master = MockPage()
         monkeypatch.setattr(testee.PageGui, '__init__', mock_init)
         monkeypatch.setattr(testee.PageGui, 'create_text_field', mock_text)
@@ -2115,8 +2163,7 @@ class TestPage6Gui:
         monkeypatch.setattr(testee.qtw, 'QHBoxLayout', mockqtw.MockHBoxLayout)
         monkeypatch.setattr(testee.qtw, 'QVBoxLayout', mockqtw.MockVBoxLayout)
         monkeypatch.setattr(testee.qtw, 'QPushButton', mockqtw.MockPushButton)
-        assert capsys.readouterr().out == ("called Gui.__init__ with args ()\n"
-                                           'called Page.__init__\n')
+        assert capsys.readouterr().out == 'called Page.__init__\n'
         monkeypatch.setattr(testee, 'LIN', True)
         testobj = testee.Page6Gui(parent, master)
         assert isinstance(testobj.pnl, testee.qtw.QSplitter)
@@ -2245,9 +2292,9 @@ class TestPage6Gui:
         def mock_set_focus():
             print('called Page6Gui.set_focus_to_textfield')
         testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.master = types.SimpleNamespace(event_data=['xxx'])
-        testobj.parent = types.SimpleNamespace(pagedata=types.SimpleNamespace(arch=False))
-        testobj.appbase = types.SimpleNamespace(is_user=False)
+        testobj.master.event_data = ['xxx']
+        testobj.book.pagedata = types.SimpleNamespace(arch=False)
+        testobj.appbase.is_user = False
         testobj.protect_textfield = mock_protect
         testobj.get_list_row = mock_get_row
         testobj.convert_text = mock_convert
@@ -2280,7 +2327,7 @@ class TestPage6Gui:
                 "called Page6Gui.move_cursor_to_end\n"
                 "called Page6Gui.set_focus_to_textfield\n")
 
-        testobj.parent.pagedata.arch = True
+        testobj.book.pagedata.arch = True
         testobj.get_list_row = mock_get_row
         testobj.on_select_item('item_n', 'item_o')
         assert testobj.current_item == 0
@@ -4235,6 +4282,10 @@ class TestMainGui:
                                   ('sub menu', [('zz', callback3, ['x', 'y'], 'bladibla'),
                                                 (),
                                                 ('&Data', [])])])]
+        def mock_menudata_3():
+            print('called AppBase.get_menu_data')
+            return [('&View', [('xx', callback1, [], ''),
+                               ('yy', callback2, [], '')])]
         def callback1():
             return 1
         def callback2():
@@ -4243,13 +4294,30 @@ class TestMainGui:
             return 3
         testobj = self.setup_testobj(monkeypatch, capsys)
         testobj.menuBar = mock_menubar
-        testobj.master = types.SimpleNamespace(get_menu_data=mock_menudata)
+        testobj.master = types.SimpleNamespace(get_menu_data=mock_menudata, tabmenus=[])
         testobj.create_menu()
+        assert not testobj.master.tabmenus
         assert capsys.readouterr().out == expected_output['mainmenu']
-        testobj.master = types.SimpleNamespace(get_menu_data=mock_menudata_2)
+        testobj.master = types.SimpleNamespace(get_menu_data=mock_menudata_2, tabmenus=[])
         testobj.create_menu()
+        assert not testobj.master.tabmenus
         assert capsys.readouterr().out == expected_output['mainmenu2'].format(
                 callbacks=[callback1, callback2, callback3])
+        testobj.master = types.SimpleNamespace(get_menu_data=mock_menudata_3, tabmenus=[])
+        testobj.create_menu()
+        assert len(testobj.master.tabmenus) == 2
+        assert isinstance(testobj.master.tabmenus[0], mockqtw.MockAction)
+        assert isinstance(testobj.master.tabmenus[1], mockqtw.MockAction)
+        assert capsys.readouterr().out == (
+                "called MainGui.menuBar\ncalled MenuBar.__init__\ncalled AppBase.get_menu_data\n"
+                "called MenuBar.addMenu with arg  &View\n"
+                "called Menu.__init__ with args ('&View',)\n"
+                "called Menu.addAction with args `xx` None\n"
+                "called Action.__init__ with args ('xx', None)\n"
+                f"called Signal.connect with args ({callback1},)\n"
+                "called Menu.addAction with args `yy` None\n"
+                "called Action.__init__ with args ('yy', None)\n"
+                f"called Signal.connect with args ({callback2},)\n")
 
     def test_create_actions(self, monkeypatch, capsys):
         """unittest for MainGui.create_actions
@@ -4393,14 +4461,16 @@ class TestMainGui:
                                            "called Page.set_list_row with arg item\n"
                                            "called MainGui.set_tabfocus with arg 6\n")
 
-    def test_enable_book_tabs(self, monkeypatch, capsys):
+    def test_enable_book_navigation(self, monkeypatch, capsys):
         """unittest for MainGui.enable_book_tabs
         """
         testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.master = types.SimpleNamespace(book=types.SimpleNamespace(count=lambda: 6))
+        testobj.master = types.SimpleNamespace()
         testobj.bookwidget = mockqtw.MockTabWidget()
+        testobj.master.book = testobj.bookwidget
+        testobj.master.book.count = lambda: 6
         assert capsys.readouterr().out == "called TabWidget.__init__\n"
-        testobj.enable_book_tabs('state')
+        testobj.enable_book_navigation('state')
         assert capsys.readouterr().out == (
                 "called TabWidget.setTabEnabled with args (0, 'state')\n"
                 "called TabWidget.setTabEnabled with args (1, 'state')\n"
@@ -4408,11 +4478,26 @@ class TestMainGui:
                 "called TabWidget.setTabEnabled with args (3, 'state')\n"
                 "called TabWidget.setTabEnabled with args (4, 'state')\n"
                 "called TabWidget.setTabEnabled with args (5, 'state')\n")
-        testobj.enable_book_tabs('state', tabfrom=1, tabto=4)
+        testobj.enable_book_navigation('state', tabfrom=1, tabto=4)
         assert capsys.readouterr().out == (
                 "called TabWidget.setTabEnabled with args (1, 'state')\n"
                 "called TabWidget.setTabEnabled with args (2, 'state')\n"
                 "called TabWidget.setTabEnabled with args (3, 'state')\n")
+
+    def test_enable_navigation_via_menu(self, monkeypatch, capsys):
+        """unittest for MainGui.enable_navigation_via_menu
+        """
+        testobj = self.setup_testobj(monkeypatch, capsys)
+        testobj.master = types.SimpleNamespace()
+        action1 = mockqtw.MockAction()
+        action2 = mockqtw.MockAction()
+        testobj.master.tabmenus = [action1, action2]
+        assert capsys.readouterr().out == ("called Action.__init__ with args ()\n"
+                                           "called Action.__init__ with args ()\n")
+        testobj.enable_navigation_via_menu(0, True)
+        assert capsys.readouterr().out == "called Action.setEnabled with arg `True`\n"
+        testobj.enable_navigation_via_menu(1, False)
+        assert capsys.readouterr().out == "called Action.setEnabled with arg `False`\n"
 
     def test_enable_all_other_tabs(self, monkeypatch, capsys):
         """unittest for MainGui.enable_all_other_tabs
@@ -4521,36 +4606,6 @@ class TestMainGui:
         testobj.master.book.pages = [Page0, Page1, Page6]
         testobj.set_tabfocus(1)
         assert capsys.readouterr().out == ("called LineEdit.setFocus\n")
-
-    def test_go_next(self, monkeypatch, capsys):
-        """unittest for MainGui.go_next
-        """
-        def mock_goto():
-            print('called Main.goto_next')
-        testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.master = types.SimpleNamespace(goto_next=mock_goto)
-        testobj.go_next()
-        assert capsys.readouterr().out == ("called Main.goto_next\n")
-
-    def test_go_prev(self, monkeypatch, capsys):
-        """unittest for MainGui.go_prev
-        """
-        def mock_goto():
-            print('called Main.goto_prev')
-        testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.master = types.SimpleNamespace(goto_prev=mock_goto)
-        testobj.go_prev()
-        assert capsys.readouterr().out == ("called Main.goto_prev\n")
-
-    def test_go_to(self, monkeypatch, capsys):
-        """unittest for MainGui.go_to
-        """
-        def mock_goto(page):
-            print(f'called Main.goto_page with arg {page}')
-        testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.master = types.SimpleNamespace(goto_page=mock_goto)
-        testobj.go_to('page')
-        assert capsys.readouterr().out == ("called Main.goto_page with arg page\n")
 
     def test_print_(self, monkeypatch, capsys):
         """unittest for MainGui.print_

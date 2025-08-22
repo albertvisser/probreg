@@ -966,7 +966,7 @@ class Page6Gui(PageGui):
         self.pnl = wx.SplitterWindow(self, size=(500, 400), style=wx.SP_LIVE_UPDATE)
 
         self.progress_list = MyListCtrl(self.pnl, size=(250, -1),  # high),
-                                style=wx.LC_REPORT | wx.LC_VRULES | wx.LC_SINGLE_SEL)
+                                        style=wx.LC_REPORT | wx.LC_VRULES | wx.LC_SINGLE_SEL)
         accel_data = []
         if not self.appbase.work_with_user:
             self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.on_activate_item, self.progress_list)
@@ -1884,7 +1884,7 @@ class MainGui(wx.Frame):
         if event:
             event.Skip()
 
-    def enable_book_tabs(self, state, tabfrom=0, tabto=-1):
+    def enable_book_navigation(self, state, tabfrom=0, tabto=-1):
         "make specified tabs (in)accessible"
         # don't know if we need this
         # if tabto == -1:
