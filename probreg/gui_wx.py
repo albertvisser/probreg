@@ -51,6 +51,13 @@ def get_choice_item(win, caption, choices, current=0):
     return text
 
 
+def ask_question(win, message):
+    "ask the user a question with an option to cancel the process"
+    with wx.MessageDialog(win, message, shared.app_title, wx.YES_NO | wx.ICON_QUESTION) as dlg:
+        ok = dlg.ShowModal()
+    return ok == wx.ID_YES
+
+
 def ask_cancel_question(win, message):
     "ask the user a question with an option to cancel the process"
     with wx.MessageDialog(win, message, shared.app_title,
@@ -367,7 +374,7 @@ class PageGui(wx.Panel):
     def __init__(self, parent, master):
         self.parent = parent
         self.master = master
-        self.appbase = master.parent.parent
+        self.appbase = self.parent.parent
         super().__init__(parent)
         if not self.master.is_text_page:
             return
@@ -732,7 +739,8 @@ class Page0Gui(PageGui, listmix.ColumnSorterMixin):
     def set_selection(self):
         "set selected item if any"
         print('in Page0Gui.set selection; current_item is', self.parent.current_item)
-        if self.parent.current_item != -1:   # of komt hier kennelijk toch een item binnen?
+        # if self.parent.current_item != -1:   # of komt hier kennelijk toch een item binnen?
+        if self.parent.current_item:
             self.p0list.Select(self.parent.current_item)
 
     def get_selection(self):
