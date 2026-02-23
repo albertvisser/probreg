@@ -16,6 +16,6 @@ xml = probreg/dml_xml.py
 django = probreg/dml_django.py
 mongo = probreg/dml_mongo.py
 shared = probreg/shared.py
-qtgui = probreg/gui_qt.py
-wxgui = probreg/gui_wx.py
+qtgui = probreg/qtgui.py
+wxgui = probreg/wxgui.py
 
