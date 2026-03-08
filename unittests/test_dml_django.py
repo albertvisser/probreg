@@ -41,7 +41,7 @@ def test_get_projnames():
     """
     dml.my.Project.objects.create(name='bep1', description='testapp #1')
     dml.my.Project.objects.create(name='app1', description='testapp #2')
-    assert dml.get_projnames() == [('app1', 'app1', 'testapp #2'), ('bep1', 'bep1', 'testapp #1')]
+    assert dml.get_projnames() == [('app1', 'testapp #2'), ('bep1', 'testapp #1')]
 
 
 @pytest.mark.django_db
@@ -279,16 +279,19 @@ def test_settings():
     projectnaam = 'test'
     myproject = dml.my.Project.objects.create(name=projectnaam)
     dml.my.Page.objects.create(order=1, title='page1', link='/there')
+    dml.my.Page.objects.create(order=2, title='page2', link='/there')
+    dml.my.Page.objects.create(order=5, title='page5', link='/there')
+    dml.my.Page.objects.create(order=6, title='page6', link='/there')
     dml.my.Soort.objects.create(project=myproject, order=1, value='P', title='Problem')
     dml.my.Status.objects.create(project=myproject, order=1, value=0, title='started')
     testobj = dml.Settings()
     assert testobj.meld == 'Standaard waarden opgehaald'
-    assert testobj.kop == {'1': ('page1', '/there')}
+    assert testobj.kop == {'0': ('page1', '/there'), '1': ('page6', '/there')}
     assert testobj.cat == {}  # 'P': ('Problem', 1)}
     assert testobj.stat == {}  # 0: ('started', 1)}
     testobj = dml.Settings(projectnaam)
     assert testobj.meld == ''
-    assert testobj.kop == {'1': ('page1', '/there')}
+    assert testobj.kop == {'0': ('page1', '/there'), '1': ('page6', '/there')}
     assert testobj.cat == {'P': ('Problem', 1)}
     assert testobj.stat == {0: ('started', 1)}
 

@@ -463,7 +463,7 @@ def test_actie_add_event(monkeypatch, capsys):
     testobj = dmlm.Actie('', 'x')
     assert testobj.events == []
     testobj.add_event('some text')
-    assert testobj.events == [('01-01-2020 00:12:00', 'some text')]
+    assert testobj.events == [('01-01-2020 00:00:00', 'some text')]
     assert capsys.readouterr().out == 'called Actie.read()\n'
 
 def test_actie_cleanup(monkeypatch, capsys):

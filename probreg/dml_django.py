@@ -281,8 +281,12 @@ class Settings:
             # met defaults en dan pas dit object aan te maken
             self.project = None
             self.meld = "Standaard waarden opgehaald"
+        seq = 0
         for page in my.Page.objects.all().order_by('order'):
-            self.kop[str(page.order)] = (page.title, page.link)
+            if 2 <= page.order <= 5:
+                continue
+            self.kop[str(seq)] = (page.title, page.link)
+            seq += 1
         if not self.project:
             return
             # zie opmerking hierboven; alleen voor de veiligheid
@@ -382,7 +386,8 @@ class Actie:
         if self.id in (0, "0"):
             self.nieuw(user)
         else:
-            self._actie = my.Actie.objects.get(nummer=f'{self.id}')
+            # self._actie = my.Actie.objects.get(nummer=f'{self.id}')
+            self._actie = my.Actie.objects.get(project=self.project, nummer=self.id)
         self.read()
 
     def nieuw(self, user):

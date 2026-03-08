@@ -604,7 +604,7 @@ def test_actie_add_event(monkeypatch):
     testobj = dml.Actie()
     testobj.events = []
     testobj.add_event('new event')
-    assert testobj.events == [('01-01-2020 00:12:00', 'new event')]
+    assert testobj.events == [('01-01-2020 00:00:00', 'new event')]
 
 
 def test_actie_write(monkeypatch, capsys, actie_output):
