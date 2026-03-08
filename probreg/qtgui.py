@@ -111,12 +111,12 @@ class MainGui(qtw.QMainWindow):
             action = None
             if len(menuitem) == 1:
                 menu.addSeparator()
-            elif len(menuitem) == len(['caption', 'callback', 'keys', 'tip']):
-                caption, callback, keys, tip = menuitem
+            elif len(menuitem) == len(['caption', 'callback', 'key', 'tip']):
+                caption, callback, key, tip = menuitem
                 action = menu.addAction(caption)
                 action.triggered.connect(callback)
-                if keys:
-                    action.setShortcut(keys)
+                if key:
+                    action.setShortcut(key)
                 if tip:
                     action.setToolTip(tip)
             elif len(menuitem) == len(['title', 'items']):
@@ -730,7 +730,6 @@ class Page0Gui(PageGui):
         # self.master = master
         super().__init__(parent, master)
         self.sizer = qtw.QVBoxLayout()
-        self.setLayout(self.sizer)
 
     def add_list(self, titles, widths):
         "add the selection list to the display"
@@ -763,6 +762,10 @@ class Page0Gui(PageGui):
     #     sizer.addStretch()
     #     self.sizer.addLayout(sizer)
     #     return buttons
+
+    def finish_display(self):
+        "final actions to show the screen"
+        self.setLayout(self.sizer)
 
     def enable_sorting(self, p0list, value):
         "stel in of sorteren mogelijk is"
@@ -911,7 +914,7 @@ class Page1Gui(PageGui):
         "add a line with a combobox to the display"
         self.row += 1
         self.gsizer.addWidget(qtw.QLabel(labeltext, self), self.row, 0)
-        fld =  qtw.QComboBox(self)
+        fld = qtw.QComboBox(self)
         fld.setEditable(False)
         fld.setMaximumWidth(width)
         if callback:
@@ -974,9 +977,9 @@ class Page1Gui(PageGui):
         "get textfield value"
         return field.text()
 
-    def get_label_value(self, field):
-        "get textfield value"
-        return field.text()
+    # def get_label_value(self, field):
+    #     "get textfield value"
+    #     return field.text()
 
     def get_textbox_value(self, field):
         "get textfield value"
@@ -1107,17 +1110,6 @@ class Page6Gui(PageGui):
         if item is None or item == self.progress_list.item(0):
             self.master.initialize_new_event()
 
-    def create_new_listitem(self, listbox, textfield, datum, oldtext):
-        """update widgets with new event
-        """
-        newitem = qtw.QListWidgetItem(f'{datum} - {oldtext}')
-        newitem.setData(core.Qt.ItemDataRole.UserRole, 0)
-        listbox.insertItem(1, newitem)
-        listbox.setCurrentRow(1)
-        textfield.setText(oldtext)
-        textfield.setReadOnly(False)
-        textfield.setFocus()
-
     def on_select_item(self, item_n, item_o):
         """callback voor het selecteren van een item
 
@@ -1128,7 +1120,7 @@ class Page6Gui(PageGui):
         de knoppen onderaan doen de hele lijst bijwerken in self.parent.book.p
         item_n en item_o worden door de event meegegeven
         """
-        self.protect_textfield(self.master.progress_text)
+        self.set_text_readonly(self.master.progress_text, True)
         if item_n is None:
             # als ik al eens eerder op page 6 geweest ben en er terugkom of bij reset
             return
@@ -1156,6 +1148,17 @@ class Page6Gui(PageGui):
     #     self.clear_textfield()
     #     self.protect_textfield()
 
+    def create_new_listitem(self, listbox, textfield, datum, oldtext):
+        """update widgets with new event
+        """
+        newitem = qtw.QListWidgetItem(f'{datum} - {oldtext}')
+        newitem.setData(core.Qt.ItemDataRole.UserRole, 0)
+        listbox.insertItem(1, newitem)
+        listbox.setCurrentRow(1)
+        textfield.setText(oldtext)
+        textfield.setReadOnly(False)
+        textfield.setFocus()
+
     def clear_list(self, listbox):
         "clear out events list widget"
         listbox.clear()
@@ -1166,13 +1169,13 @@ class Page6Gui(PageGui):
         first_item.setData(core.Qt.ItemDataRole.UserRole, -1)
         listbox.addItem(first_item)
 
-    def add_item_to_list(self, listbox, idx, datum):
+    def add_item_to_list(self, listbox, textfield, idx, datum):
         """add an entry to the events list widget (when initializing)
         first convert to HTML (if needed, see set_contents method) and back
         """
         maxlen = 80
-        self.master.progress_text.set_contents(self.master.event_data[idx])
-        tekst_plat = self.master.progress_text.toPlainText()
+        textfield.set_contents(self.master.event_data[idx])
+        tekst_plat = textfield.toPlainText()
         text = tekst_plat.split("\n")[0].strip()
         text = text if len(text) < maxlen else text[:maxlen] + "..."
         newitem = qtw.QListWidgetItem(f'{datum} - {text}')
@@ -1209,7 +1212,7 @@ class Page6Gui(PageGui):
         "return the event list's selected row index"
         return listbox.currentRow()
 
-    def set_list_row(self, listbox,  num):
+    def set_list_row(self, listbox, num):
         "set the event list's row selection"
         listbox.setCurrentRow(num)
 
@@ -1295,7 +1298,7 @@ class SortOptionsDialogGui(qtw.QDialog):
         col = 1
         for text, direction_id, checked in buttondefs:
             rb = qtw.QRadioButton(text, self)
-            rb.setChecked(True)
+            rb.setChecked(checked)
             rbg.addButton(rb, direction_id)
             col += 1
             self.grid.addWidget(rb, self.row, col)
@@ -1312,7 +1315,7 @@ class SortOptionsDialogGui(qtw.QDialog):
 
     def enable_fields(self, state):
         "enable/disable widgets"
-        for lbl, cmb, rbg in self.widgets:
+        for lbl, cmb, rbg in self.master.widgets:
             # lbl.setEnabled(state)
             cmb.setEnabled(state)
             for btn in rbg.buttons():
@@ -1364,12 +1367,9 @@ class SelectOptionsDialogGui(qtw.QDialog):
         self.grid.addLayout(vbox, row, col)
         return cb
 
-    def start_optionsblock(self, row, col):
+    def start_optionsblock(self):
         "set up space on the right hand size to specify search criteria"
-        vbox = qtw.QVBoxLayout()
         hgrid = qtw.QGridLayout()
-        vbox.addLayout(hgrid)
-        self.grid.addLayout(vbox, row, col)  #  0, 2)
         self.blockrow = -1
         return hgrid
 
@@ -1414,8 +1414,9 @@ class SelectOptionsDialogGui(qtw.QDialog):
         block.addLayout(hbox, self.blockrow, 0)
         return cbg.buttons()
 
-    def finish_block(self, block):
+    def finish_block(self, block, row, col):
         "finish the block layout"
+        self.grid.addLayout(block, row, col)  # 0, 2)
 
     def add_okcancel_buttonbar(self):
         "add action buttons to the dialog"
@@ -1695,7 +1696,6 @@ class SettOptionsDialogGui(qtw.QDialog):
         ## item = self.elb.currentItem()
         row = self.elb.currentRow()
         self.elb.takeItem(row)
-        return row   # return value is t.b.v. unittest
 
     def move_item_up(self):
         "inhoud omwisselen met de regel erboven"
@@ -1732,7 +1732,7 @@ class SettOptionsDialogGui(qtw.QDialog):
         # force checking in the latest change
         # (this is a workaround as it's not needed in the original version)
         self.elb.closePersistentEditor(self.elb.currentItem())
-        self.parent.confirm()
+        self.master.confirm()
         super().accept()
 
     def read_listbox_data(self, elb):

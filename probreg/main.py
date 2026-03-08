@@ -289,7 +289,7 @@ class MainWindow:
                     self.printdict['melding'] = page.gui.get_textbox_value(page.summary_entry)
                 # self.hdr = f"Informatie over actie {data['actie']}: samenvatting"
                 self.hdr = f"Informatie over actie {self.printdict['actie']}: samenvatting"
-            elif self.book.current_tab == len(self.book.pages) -1:
+            elif self.book.current_tab == len(self.book.pages) - 1:
                 events = []
                 for idx, data in enumerate(self.book.pages[-1].event_list):
                     # if self.datatype == shared.DataType.SQL:
@@ -300,7 +300,7 @@ class MainWindow:
             else:   # 2 <= self.book.current_tab <= 5 and self.use_text_panels - enige alternatief
                 title = self.book.tabs[self.book.current_tab].split(None, 1)[1]
                 text = self.book.pages[self.book.current_tab].gui.get_textarea_contents(
-                        self.book.pages[self.book.current_tab].text1)
+                    self.book.pages[self.book.current_tab].text1)
                 self.printdict['sections'] = [(title, text)]
             # else:  # if self.book.current_tab == 6: - geen andere mogelijkheid
         self.gui.preview()
@@ -756,6 +756,10 @@ class Page:
     def nieuwp(self, *args):
         """voorbereiden opvoeren nieuwe actie"""
         shared.log('opvoeren nieuwe actie')
+        if not self.appbase.is_user:
+            msg = 'Opvoeren niet toegestaan, u bent niet ingelogd'
+            gui.show_message(self.book, msg, "Navigatie niet toegestaan")
+            return
         if self.leavep(1):
             self.book.oldselection = self.book.current_item
             self.book.newitem = True
@@ -1005,7 +1009,9 @@ class Page0(Page):
             # extra = 310 if LIN else 220
             # widths.append(extra)
             # widths[4:] = [90, 310] if LIN else [72, 220]
-            widths.append(90 if LIN else 72)
+            # widths.append(90 if LIN else 72)
+            extra = [140, 140, 210] if LIN else [100, 110, 220]
+            widths = widths[:3] + extra
 
         self.gui = gui.Page0Gui(parent, self)
         self.p0list = self.gui.add_list(self.book.ctitels, widths)
@@ -1014,6 +1020,7 @@ class Page0(Page):
                                                 ('&Ga naar melding', self.goto_actie),
                                                 ('&Archiveer', self.archiveer),
                                                 ('Voer &Nieuwe melding op', self.nieuwp)])
+        self.gui.finish_display()
         self.p0list.has_selection = False
         self.enable_buttons()
 
@@ -1022,6 +1029,7 @@ class Page0(Page):
         # dit werkt hier alleen als ik met een user heb kunnen aanloggen vóór start van de GUI
         # if self.appbase.work_with_user and self.appbase.is_user:
         #     self.saved_sortopts = dmls.SortOptions(self.appbase.filename)
+        # self.gui.add_keybind('Alt-N', self.nieuwp, last=True) -- zit al in buttons
 
     def enable_buttons(self):
         "buttons wel of niet bruikbaar maken"
@@ -1130,7 +1138,7 @@ class Page0(Page):
                 pos = value.index(".") + 1
                 value = value[pos:]
             if col < len(data) - 1:
-                self.gui.set_item_text(item, col, value)
+                self.gui.set_item_text(p0list, item, col, value)
         p0list.has_selection = bool(data)  # True
 
     def change_selected(self, item_n):
@@ -1175,7 +1183,7 @@ class Page0(Page):
                 else:
                     raise ValueError('ProgrammingError: illegal value in select arguments')
             args = sel_args, data
-        dialog = SelectOptionsDialog(self, *args)
+        dialog = SelectOptionsDialog(self.book.parent, *args)
         while True:
             test = gui.show_dialog(dialog.gui)
             if not test:
@@ -1210,7 +1218,7 @@ class Page0(Page):
             sortlist = list(self.book.ctitels)  # [x for x in self.parent.ctitels]
             sortlist[1] = "Soort"
         sortlist.insert(0, "(geen)")
-        test = gui.show_dialog(SortOptionsDialog(self, sortopts, sortlist).gui)
+        test = gui.show_dialog(SortOptionsDialog(self.book.parent, sortopts, sortlist).gui)
         if not test:
             return
         if self.sort_via_options:
@@ -1266,9 +1274,9 @@ class Page1(Page):
         self.abort_button = self.gui.create_buttons([('&Breek opvoeren nieuwe actie af (Alt-0)',
                                                       self.breekaf)])[0]
         self.save_button, self.saveandgo_button, self.cancel_button = self.gui.create_buttons(
-                [('Sla wijzigingen op (Ctrl-S)', self.savep),
-                 ('Sla op en ga verder (Ctrl-G)', self.savepgo),
-                 ('Zet originele tekst terug (Alt-Ctrl-Z)', self.restorep)])
+            [('Sla wijzigingen op (Ctrl-S)', self.savep),
+             ('Sla op en ga verder (Ctrl-G)', self.savepgo),
+             ('Zet originele tekst terug (Alt-Ctrl-Z)', self.restorep)])
         self.gui.add_keybind('Alt-N', self.nieuwp, last=True)
 
     def vulp(self):
@@ -1468,8 +1476,8 @@ class Page6(Page):
         self.progress_list = self.gui.create_list()
         self.progress_text = self.gui.create_textfield(490, 330 if LIN else 430, self.on_text)
         self.save_button, self.cancel_button = self.gui.create_buttons(
-                [('Sla wijzigingen op (Ctrl-S)', self.savep),
-                 ('Zet originele tekst terug (Alt-Ctrl-Z)', self.restorep)])
+            [('Sla wijzigingen op (Ctrl-S)', self.savep),
+             ('Zet originele tekst terug (Alt-Ctrl-Z)', self.restorep)])
         self.gui.finish_display()
         self.status_auto_changed = False   # t.b.v. ongedaan maken automatische statuswijziging 0->1
 
@@ -1497,13 +1505,13 @@ class Page6(Page):
             text = '-- adding new items is disabled --'
         self.gui.add_first_listitem(self.progress_list, text)
         for idx, datum in enumerate(self.event_list):
-            self.gui.add_item_to_list(self.progress_list, idx, datum)
+            self.gui.add_item_to_list(self.progress_list, self.progress_text, idx, datum)
         if self.appbase.work_with_user:
             callback0 = self.gui.on_activate_item
             callback1 = functools.partial(callback0, self.progress_list.item(0))
             self.gui.set_list_callbacks(self.progress_list, callback0, callback1)
         self.gui.clear_textfield(self.progress_text)
-        self.gui.protect_textfield(self.progress_text)
+        self.gui.set_text_readonly(self.progress_text, True)
         self.oldbuf = (self.old_list, self.old_data)
         self.oldtext = ''
         self.initializing = False
@@ -1515,7 +1523,7 @@ class Page6(Page):
         # voor het geval er na het aanpassen van een tekst direkt "sla op" gekozen is
         # nog even kijken of de tekst al in self.event_data is aangepast.
         idx = self.current_item
-        hlp = self.gui.get_textfield_contents()
+        hlp = self.gui.get_textfield_contents(self.progress_text)
         if idx > 0:
             idx -= 1
         if self.event_data[idx] != hlp:
@@ -1570,7 +1578,7 @@ class Page6(Page):
         if self.initializing:
             return
         # lees de inhoud van het tekstveld en vergelijk deze met de buffer
-        tekst = self.gui.get_textfield_contents()
+        tekst = self.gui.get_textfield_contents(self.progress_text)
         # str(self.progress_text.get_contents())  # self.progress_list.GetItemText(ix)
         if tekst != self.oldtext:
             # stel de buffer in op de nieuwe tekst
@@ -1765,57 +1773,56 @@ class SelectOptionsDialog:
     """
     def __init__(self, parent, sel_args, sel_data):
         self.parent = parent
-        appbase = parent.appbase
-        appbook = appbase.book
+        appbook = parent.book
         # self.datatype = self.parent.parent.parent.datatype
         self._data = sel_data
         self.gui = gui.SelectOptionsDialogGui(self, parent, "Selecteren")
 
         self.row = 0
         self.cb_actie = self.gui.add_checkbox_to_grid(appbook.ctitels[0] + '   -', self.row, 0)
-        block = self.gui.start_optionsblock(self.row, 1)
+        block = self.gui.start_optionsblock()
         self.action_gt = self.gui.add_textentry_line_to_block(block, 'groter dan:',
                                                               self.gui.on_text)
         self.action_andor = self.gui.add_radiobuttonrow_to_block(block, ['and', 'or'])
         self.action_lt = self.gui.add_textentry_line_to_block(block, 'kleiner dan:',
                                                               self.gui.on_text)
-        self.gui.finish_block(block)
+        self.gui.finish_block(block, self.row, 1)
 
         self.row += 1
         self.cb_soort = self.gui.add_checkbox_to_grid("soort   -", self.row, 0)
-        block = self.gui.start_optionsblock(self.row, 1)
+        block = self.gui.start_optionsblock()
         namelist = [x[0] for x in [appbook.cats[y] for y in sorted(appbook.cats.keys())]]
         self.check_cats = self.gui.add_checkboxlist_to_block(block, namelist,
                                                              self.gui.on_cb_checked)
-        self.gui.finish_block(block)
+        self.gui.finish_block(block, self.row, 1)
 
         self.row += 1
         self.cb_status = self.gui.add_checkbox_to_grid(appbook.ctitels[2] + '   -', self.row, 0)
-        block = self.gui.start_optionsblock(self.row, 1)
-        namelist=[x[0] for x in [appbook.stats[y] for y in sorted(appbook.stats.keys())]]
+        block = self.gui.start_optionsblock()
+        namelist = [x[0] for x in [appbook.stats[y] for y in sorted(appbook.stats.keys())]]
         self.check_stats = self.gui.add_checkboxlist_to_block(block, namelist,
                                                               self.gui.on_cb_checked)
-        self.gui.finish_block(block)
+        self.gui.finish_block(block, self.row, 1)
 
         self.row += 1
-        caption = ('zoek in   -' if appbase.use_separate_subject else appbook.ctitels[4] + '   -')
+        caption = ('zoek in   -' if parent.use_separate_subject else appbook.ctitels[4] + '   -')
         self.cb_zoek = self.gui.add_checkbox_to_grid(caption, self.row, 0)
-        block = self.gui.start_optionsblock(self.row, 1)
-        caption = (appbook.ctitels[4] if appbase.use_separate_subject else  'zoek naar:')
+        block = self.gui.start_optionsblock()
+        caption = (appbook.ctitels[4] if parent.use_separate_subject else 'zoek naar:')
         self.text_zoek = self.gui.add_textentry_line_to_block(block, caption, self.gui.on_text)
-        if appbase.use_separate_subject:
+        if parent.use_separate_subject:
             self.zoek_andor = self.gui.add_radiobuttonrow_to_block(block, ['and', 'or'])
             self.text_zoek2 = self.gui.add_textentry_line_to_block(block, appbook.ctitels[5],
                                                                    self.gui.on_text)
-        self.gui.finish_block(block)
+        self.gui.finish_block(block, self.row, 1)
 
         self.row += 1
         self.cb_arch = self.gui.add_checkbox_to_grid("Archief    -", self.row, 0)
-        block = self.gui.start_optionsblock(self.row, 1)
+        block = self.gui.start_optionsblock()
         self.radio_arch = self.gui.add_radiobuttonrow_to_block(
-                block, ["Alleen gearchiveerd", "gearchiveerd en lopend"], self.gui.on_rb_checked,
-                alignleft=False)
-        self.gui.finish_block(block)
+            block, ["Alleen gearchiveerd", "gearchiveerd en lopend"], self.gui.on_rb_checked,
+            alignleft=False)
+        self.gui.finish_block(block, self.row, 1)
 
         self.gui.add_okcancel_buttonbar()
         self.gui.finalize_display()
@@ -1868,7 +1875,7 @@ class SelectOptionsDialog:
                     else:
                         self.gui.set_radiobutton_value(self.zoek_andor[1], True)
             else:
-                self.gui.set_textentry_value(self.text_zoek,sel_args["titel"])
+                self.gui.set_textentry_value(self.text_zoek, sel_args["titel"])
                 set_checkbox = True
         self.gui.set_checkbox_value(self.cb_zoek, set_checkbox)
 
@@ -1994,7 +2001,7 @@ class SettOptionsDialog:
         self.parent = parent
         self.settingtype = settingtype()
         self.gui = gui.SettOptionsDialogGui(self, parent, title)
-        titel, data, actions, infotext = self.settingtype.initstuff(self, parent)
+        titel, data, actions, infotext = self.settingtype.initstuff(parent)
         self.elb = self.gui.add_listbox_with_buttons(titel, data, actions)
         self.gui.add_label(infotext)
         self.gui.add_okcancel_buttonbox()
@@ -2005,7 +2012,7 @@ class SettOptionsDialog:
         # or in this case: update the settings type
         # qt version
         new_items = self.gui.read_listbox_data(self.elb)
-        self.settingtype.leesuit(self, self.parent, new_items)
+        self.settingtype.leesuit(self.parent, new_items)
 
 
 class LoginBox:

@@ -6,7 +6,7 @@ import pathlib
 import tempfile
 # import functools
 import wx
-from wx import html
+import wx.html
 import wx.lib.mixins.listctrl as listmix
 import wx.adv
 import wx.richtext as wxrt
@@ -97,11 +97,11 @@ def show_dialog(dlg):
     return ok == wx.ID_OK
 
 
-def setup_accels(win, accel_data, accel_list=None):
+def setup_accels(win, accel_data):  # , accel_list=None):
     "define keyboard shortcuts for a gui class"
     menuitemlist = []
-    if accel_list is None:
-        accel_list = []
+    # if accel_list is None:
+    accel_list = []
     for text, callback, keyseq in accel_data:
         menuitem = wx.MenuItem(None, -1, text)
         menuitemlist.append(menuitem)
@@ -124,7 +124,7 @@ class MainGui(wx.Frame):
         self.printer = EasyPrinter()
 
         if LIN:
-            wide, high, left, top = 764, 720, 2, 2
+            wide, high, left, top = 1000, 1000, 2, 2  # 764, 720, 2, 2
         else:
             wide, high, left, top = 588, 594, 20, 32
         wx.Frame.__init__(self, parent=None, title=self.master.title, pos=(left, top),
@@ -146,10 +146,10 @@ class MainGui(wx.Frame):
             "parse line and create menu item"
             if len(menuitem) == 1:
                 menu.AppendSeparator()
-            elif len(menuitem) == len(['caption', 'callback', 'keys', 'tip']):
-                caption, callback, keys, tip = menuitem
-                if keys:  # altijd maar eén
-                    caption = f'{caption}\t{keys}'
+            elif len(menuitem) == len(['caption', 'callback', 'key', 'tip']):
+                caption, callback, key, tip = menuitem
+                if key:
+                    caption = f'{caption}\t{key}'
                 action = menu.Append(-1, caption, tip)
                 # self.Connect(action.GetId(), -1, wx.wxEVT_COMMAND_MENU_SELECTED, callback)
                 self.Bind(wx.EVT_MENU, callback, action)
@@ -159,11 +159,11 @@ class MainGui(wx.Frame):
                 if title == '&Data':
                     subid = wx.NewId()
                     self.settingsmenu = (menu, subid)
-                else:
-                    subid = -1
+                # else:
+                #     subid = -1
                 for subitem in items:
                     add_to_menu(sub, subitem)
-                menu.Append(subid, title, sub)
+                menu.AppendSubMenu(sub, title)
         menu_bar = wx.MenuBar()
         for title, items in self.master.get_menu_data():
             menu = wx.Menu()
@@ -178,7 +178,7 @@ class MainGui(wx.Frame):
         # accel_data = (('print', self.master.print_something, 'Ctrl+P'),
         #               ('prev', self.master.goto_prev, 'Alt+Left'),
         #               ('next', self.master.goto_next, 'Alt+Right'))
-        accel_list = []
+        # accel_list = []
         accel_data = []
         for text, callback in actiondefs:
             accel_data.append((text, callback, text))
@@ -189,7 +189,7 @@ class MainGui(wx.Frame):
         #     ok = accel.FromString('Alt+{}'.format(char))
         #     if ok:
         #         accel_list.append(accel)
-        setup_accels(self, accel_data, accel_list)
+        setup_accels(self, accel_data)  # , accel_list)
 
     def get_bookwidget(self):
         "build the tabbed widget"
@@ -230,13 +230,13 @@ class MainGui(wx.Frame):
         te controleren of dat wel mogelijk is en zo niet, te melden waarom
         en de paginawissel tegen te houden.
         """
-        if self.initializing:
+        if self.master.initializing:
             return
         old = event.GetOldSelection()
         # new = event.GetSelection() # unused
         # sel = self.book.GetSelection() # unused
         mag_weg = True
-        msg = ""
+        # msg = ""
         if old == -1:
             pass
         # in de qt variant zitten de volgende controles in leavep
@@ -256,7 +256,7 @@ class MainGui(wx.Frame):
         #     msg = "Selecteer eerst een actie"
         #     mag_weg = False
         else:
-            mag_weg = self.master.book.pages[self.master.book.current_tab].leavep()
+            mag_weg = self.master.book.pages[self.master.book.current_tab].leavep(old)
         if not mag_weg:
             # if msg != "":
             #     wx.MessageBox(msg, "Navigatie niet toegestaan", wx.ICON_ERROR)
@@ -391,6 +391,7 @@ class PageGui(wx.Panel):
         self.parent = parent
         self.master = master
         self.appbase = self.parent.parent
+        self.accel_data = []
         super().__init__(parent)
 
     def start_display(self):
@@ -403,51 +404,36 @@ class PageGui(wx.Panel):
         vsizer.SetSizeHints(self)
         return vsizer
 
-    def create_text_field(self, sizer, width, height, callback):
+    def create_text_field(self, sizer, width, height, callback, parent=None):
         """build rich text area with style changing properties
         """
+        parent = parent or self
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        if not parent:
-            parent = self
         # high = 330 if LIN else 430
         cls = EditorPanelRt if self.appbase.use_rt else EditorPanel
-        textfield = cls(parent, size=size)
-        self.Bind(wx.EVT_TEXT, self.master.on_text, textfield)
+        textfield = cls(parent, size=wx.Size(width, height))
+        self.Bind(wx.EVT_TEXT, callback, textfield)
         # textfield.Bind(wx.EVT_KEY_DOWN, self.on_key)
         # textfield.font_changed(textfield.font())
-        hsizer.Add(textfield, 1, wx.ALL | wx.EXPAND, 4)
-        self.vsizer.Add(hsizer, 1, wx.EXPAND)
+        hsizer.Add(textfield, 1, wx.ALL | wx.EXPAND, 10)  # 4)
+        sizer.Add(hsizer, 1, wx.EXPAND)
         return textfield
 
-    def create_toolbar(self, parent=None, textfield=None):
+    def create_toolbar(self, sizer, textfield, toolbardata, parent=None):
         """build toolbar with buttons for changing text style
         """
+        parent = parent or self
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        if not parent:
-            parent = self
-        if textfield is not None:
-            data = self.master.get_toolbar_data(textfield)
-        self.toolbar = wx.ToolBar(parent)
-        self.toolbar.SetToolBitmapSize((16, 16))
-        # self.combo_font = qtw.QFontComboBox(toolbar)
-        fontbutton = wx.Button(self.toolbar, label="Font")
+        toolbar = wx.ToolBar(parent)
+        toolbar.SetToolBitmapSize((16, 16))
+        fontbutton = wx.Button(toolbar, label="Font")
         fontbutton.Bind(wx.EVT_BUTTON, self.choose_font)
-        # toolbar.addWidget(self.combo_font)
-        self.toolbar.AddControl(fontbutton)
-        # self.combo_size = qtw.QComboBox(toolbar)
-        # toolbar.addWidget(self.combo_size)
-        # self.combo_size.setEditable(True)
-        # db = gui.QFontDatabase()
-        # self.fontsizes = []
-        # for size in db.standardSizes():
-        #     self.combo_size.addItem(str(size))
-        #     self.fontsizes.append(str(size))
-        # toolbar.addSeparator()
+        toolbar.AddControl(fontbutton)
 
-        accel_data = []
-        for menudef in data:
+        # accel_data = []
+        for menudef in toolbardata:
             if not menudef:
-                self.toolbar.AddSeparator()
+                toolbar.AddSeparator()
                 continue
             label, shortcut, icon, info, *methods = menudef
             if icon:
@@ -456,26 +442,27 @@ class PageGui(wx.Panel):
                 bmp = wx.NullBitmap
             toolid = wx.NewId()
             if info.startswith("Toggle"):
-                self.toolbar.AddCheckTool(toolid, label, bmp, shortHelp=info)
+                toolbar.AddCheckTool(toolid, label, bmp, shortHelp=info)
             else:
-                self.toolbar.AddTool(toolid, label, bmp, shortHelp=info)
+                toolbar.AddTool(toolid, label, bmp, shortHelp=info)
             try:
                 callback, update_ui = methods
             except ValueError:
                 callback, update_ui = methods[0], None
             self.Bind(wx.EVT_TOOL, callback, id=toolid)
             if shortcut:
-                accel_data.append((label, callback, shortcut))
+                # accel_data.append((label, callback, shortcut))
+                self.add_keybind(shortcut, callback, label)
             if update_ui:
                 self.Bind(wx.EVT_UPDATE_UI, update_ui, id=toolid)
-        if accel_data:
-            setup_accels(self, accel_data)
+        # if accel_data:
+        #     setup_accels(self, accel_data)
 
         # self.combo_font.activated[str].connect(textfield.text_family)
         # self.combo_size.activated[str].connect(textfield.text_size)
         toolbar.Realize()
         hsizer.Add(toolbar, 1, wx.ALL | wx.EXPAND, 4)
-        self.vsizer.Insert(0, hsizer, 0, wx.EXPAND)
+        sizer.Insert(0, hsizer, 0, wx.EXPAND)
         return toolbar
 
     def create_buttons(self, buttondefs, sizer=None):
@@ -487,9 +474,10 @@ class PageGui(wx.Panel):
             btn = wx.Button(self, label=text)
             self.Bind(wx.EVT_BUTTON, callback, btn)
             if '(' in text:
-                keydef = text.split('(')[1].split(')')[0].replace('-', '+')
-                #self.actiondict.append((text, callback, keydef))
-                self.add_keybind(keydef, callback)
+                text, keydef = text.split('(', 1)
+                keydef = keydef.split(')')[0].replace('-', '+')
+                # self.actiondict.append((text, callback, keydef))
+                self.add_keybind(keydef, callback, text.strip())
             hsizer.Add(btn)
             buttons.append(btn)
         if sizer:
@@ -498,10 +486,14 @@ class PageGui(wx.Panel):
             self.vsizer.Add(hsizer, 0, wx.ALIGN_CENTER_HORIZONTAL, 0)
         return buttons
 
-    def add_keybind(self, keydef, callback, last=False):
-        self.actiondict.append((text, callback, keydef))
+    def add_keybind(self, keydef, callback, text='', last=False):
+        """set up additional keybindings (i.e. not embedded in buttonlabels, menuoptions etc.)
+        """
+        if not text:
+            text = keydef
+        self.accel_data.append((text, callback, keydef))
         if last:
-            setup_accels(self, accel_data)
+            setup_accels(self, self.accel_data)
 
     def choose_font(self, event):
         """show font dialog
@@ -549,9 +541,9 @@ class PageGui(wx.Panel):
 
 class EditorPanel(wx.TextCtrl):
     "Temporary (?) replacement for RichTextCtrl"
-    # def __init__(self, parent=None, size=(400, 200)):
-    def __init__(self, parent):
-        super().__init__(parent, size=size,
+    # def __init__(self, parent=None, size=):
+    def __init__(self, parent, **kwargs):
+        super().__init__(parent, size=(400, 200),
                          style=wx.TE_MULTILINE | wx.TE_PROCESS_TAB | wx.TE_RICH2 | wx.TE_WORDWRAP)
 
     def set_contents(self, data):
@@ -578,20 +570,18 @@ class EditorPanel(wx.TextCtrl):
 class EditorPanelRt(wxrt.RichTextCtrl):
     "Rich text editor displaying the selected comment"
     # def __init__(self, parent=None, size=(400, 200)):  # , _id):
-    def __init__(self, parent):
-        super().__init__(parent, size=size, style=wx.VSCROLL | wx.HSCROLL | wx.NO_BORDER)
+    def __init__(self, parent, **kwargs):
+        super().__init__(parent, size=(400, 200), style=wx.VSCROLL | wx.HSCROLL | wx.NO_BORDER)
         self.textAttr = wxrt.RichTextAttr()
 
     def set_contents(self, data):
         "load contents into editor"
-        print('in Editorpanel.set_contents, data is', data)
         # if data.startswith('<'):  # only load as html if it looks like html
         #     self.setHtml(data)
         # else:
         #     self.setText(data)
         self.Clear()
         if data.startswith('<?xml'):
-            print('  writing xml')
             handler = wxrt.RichTextXMLHandler()
             _buffer = self.GetBuffer()
             _buffer.AddHandler(handler)
@@ -601,29 +591,26 @@ class EditorPanelRt(wxrt.RichTextCtrl):
                 handler.LoadFile(_buffer, out.name)
                 # handler.LoadFile(_buffer, stream)
         else:
-            print('  writing plaintext')
             self.SetValue(data)
         self.Refresh()
         # self.oldtext = data
+        if data.startswith('<?xml'):
+            return handler, _buffer, out.name  # just for test method
 
     def get_contents(self):
         "return contents from editor"
-        print('in Editorpanel.get_contents')
         handler = wxrt.RichTextXMLHandler()
-        print('  defined handler')
         _buffer = self.GetBuffer()
-        print('  defined buffer')
         _buffer.AddHandler(handler)
         with tempfile.NamedTemporaryFile(mode='w+') as out:
         # with io.BytesIO() as stream:
             handler.SaveFile(_buffer, out.name)
             # handler.SaveFile(_buffer, stream)
-            print('saved buffer into temp file')
             content = out.read()
             # content = stream.getvalue()
-        print('content is', content)
-        return content
         # return self.GetValue()
+        self.teststuff = handler, _buffer, out.name  # just for test method
+        return content
 
     def text_bold(self, event):
         "selectie vet maken"
@@ -715,7 +702,7 @@ class EditorPanelRt(wxrt.RichTextCtrl):
 
     def set_linespacing(self, amount):
         "regelafstand instellen"
-        if not self.hasFocus():
+        if not self.HasFocus():
             return
         attr = wxrt.RichTextAttr()
         attr.SetFlags(wx.TEXT_ATTR_LINE_SPACING)
@@ -730,13 +717,13 @@ class EditorPanelRt(wxrt.RichTextCtrl):
 
     def increase_paragraph_spacing(self, event):
         "ruimte tussen alinea's vergroten"
-        if not self.hasFocus():
+        if not self.HasFocus():
             return
         self.set_paragraph_spacing(more=True)
 
     def decrease_paragraph_spacing(self, event):
         "ruimte tussen alinea's verkleinen"
-        if not self.hasFocus():
+        if not self.HasFocus():
             return
         self.set_paragraph_spacing(less=True)
 
@@ -807,25 +794,21 @@ class Page0Gui(PageGui, listmix.ColumnSorterMixin):
                                                             wx.BITMAP_TYPE_PNG)))
         self.down_arrow = self.imglist.Add(wx.Bitmap(wx.Image(os.path.join(HERE, 'icons/down.png'),
                                                               wx.BITMAP_TYPE_PNG)))
-        # mogelijk moet dit in een aparte methode aan het eind
-        self.SetAutoLayout(True)
-        self.SetSizer(self.sizer)
-        self.sizer.Fit(self)
-        self.sizer.SetSizeHints(self)
+        self.vsizer = wx.BoxSizer(wx.VERTICAL)
 
     def add_list(self, titles, widths):
         "add the selection list to the display"
-        self.sizer = wx.BoxSizer(wx.VERTICAL)
         sizer = wx.BoxSizer(wx.HORIZONTAL)
         p0list = MyListCtrl(self, style=wx.LC_REPORT | wx.BORDER_SUNKEN | wx.LC_SINGLE_SEL)
         p0list.SetImageList(self.imglist, wx.IMAGE_LIST_SMALL)
 
         self.itemDataMap = self.parent.data
+        self.p0list = p0list  # referentie nodig voor GetListCtrl methodei die de mixin aanroept
         listmix.ColumnSorterMixin.__init__(self, len(titles))
         for indx, wid in enumerate(widths):
-            p0list.InsertColumn(indx, self.parent.ctitels[indx])
+            p0list.InsertColumn(indx, titles[indx])
             p0list.SetColumnWidth(indx, wid)
-        SortListItems(0)  # , True)
+        self.SortListItems(0)  # , True)
 
         self.Bind(wx.EVT_LIST_ITEM_SELECTED, self.on_change_selected, p0list)
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.on_activate_item, p0list)
@@ -833,8 +816,8 @@ class Page0Gui(PageGui, listmix.ColumnSorterMixin):
         p0list.Bind(wx.EVT_LEFT_DCLICK, self.on_doubleclick)
         # self.p0list.Bind(wx.EVT_KEY_DOWN, self.on_key)
         # self.Bind(wx.EVT_KEY_DOWN, self.on_key)
-        sizer.Add(self.p0list, 1, wx.EXPAND, 0)
-        self.sizer.Add(sizer, 1, wx.EXPAND, 0)
+        sizer.Add(p0list, 1, wx.EXPAND | wx.ALL, 2)
+        self.vsizer.Add(sizer, 1, wx.EXPAND | wx.ALL, 5)
         return p0list
 
     # def add_buttons(self, buttondefs):
@@ -846,6 +829,14 @@ class Page0Gui(PageGui, listmix.ColumnSorterMixin):
     #         sizer.Add(button, 0, wx.ALL, 3)
     #     self.sizer.Add(sizer, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALIGN_CENTER_HORIZONTAL, 0)
 
+    def finish_display(self):
+        "final actions to show the screen"
+        # setup_accels(self, self.accel_data)
+        self.SetAutoLayout(True)
+        self.SetSizer(self.vsizer)
+        self.vsizer.Fit(self)
+        self.vsizer.SetSizeHints(self)
+
     def enable_sorting(self, p0list, value):
         "stel in of sorteren mogelijk is"
         # is afhankelijk van MainWindow.sort_via_options instelling
@@ -853,6 +844,7 @@ class Page0Gui(PageGui, listmix.ColumnSorterMixin):
 
     def GetListCtrl(self):
         "reimplemented methode tbv correcte werking sorteer mixin"
+        # referentie is al in
         return self.p0list
 
     def GetSortImages(self):
@@ -886,8 +878,8 @@ class Page0Gui(PageGui, listmix.ColumnSorterMixin):
 
     def add_listitem(self, p0list, data):
         "add an item to the list"
-        itemindex = self.p0list.InsertItem(self.p0list.GetItemCount(), data)
-        self.p0list.SetItemData(itemindex, int(''.join(data.split('-'))))
+        itemindex = p0list.InsertItem(p0list.GetItemCount(), data)
+        p0list.SetItemData(itemindex, int(''.join(data.split('-'))))
         return itemindex
 
     # def set_listitem_values(self, itemindex, data):
@@ -907,7 +899,7 @@ class Page0Gui(PageGui, listmix.ColumnSorterMixin):
 
     def get_items(self, p0list):
         "retrieve all listitems"
-        return [p0list.GetItem(i) for i in range(self.p0list.GetItemCount())]
+        return [p0list.GetItem(i) for i in range(p0list.GetItemCount())]
 
     # itemindicator is bij Qt een item, bij Wx een itemindex
     def get_item_text(self, p0list, itemindicator, column):
@@ -932,46 +924,46 @@ class Page0Gui(PageGui, listmix.ColumnSorterMixin):
 
     def get_item_by_id(self, p0list, item_id):
         "select the item with the id requested"
-        for i in range(self.p0list.GetItemCount()):
-            if self.p0list.GetItemText(i, 0) == item_id:
-                return i  # self.p0list.GetItem(i)
+        for i in range(p0list.GetItemCount()):
+            if p0list.GetItemText(i, 0) == item_id:
+                return i  # p0list.GetItem(i)
         return None
 
     # def has_selection(self):
     #     "return if list contains selection of data"
     #     return self.p0list.has_selection
 
-    def set_selection(self, p0ist):
+    def set_selection(self, p0list):
         "set selected item if any"
         # if self.parent.current_item != -1:   # of komt hier kennelijk toch een item binnen?
         if self.parent.current_item:
-            self.p0list.Select(self.parent.current_item)
+            p0list.Select(self.parent.current_item)
 
     def get_selection(self, p0list):
         "get selected item"
-        return self.p0list.GetFirstSelected()
+        return p0list.GetFirstSelected()
 
     def ensure_visible(self, p0list, item):
         "make sure listitem is visible"
         if item:    # hier komt kennelijk toch een item binnen?
-            self.p0list.EnsureVisible(item)
+            p0list.EnsureVisible(item)
 
     def set_button_text(self, button, txt):
         "set button text according to archive status"
         button.SetLabel(txt)
 
-    def get_selected_action(self, listbox):
+    def get_selected_action(self, p0list):
         "return the key of the selected action"
-        data = str(listbox.GetItemData(self.p0list.GetFirstSelected()))
+        data = str(p0list.GetItemData(p0list.GetFirstSelected()))
         return '-'.join((data[:4], data[4:]))
 
-    def get_list_row(self, listbox):
+    def get_list_row(self, p0list):
         "return the event list's selected row index"
-        return self.p0list.GetFirstSelected()  # currentRow()
+        return p0list.GetFirstSelected()  # currentRow()
 
-    def set_list_row(self, listbox, num):
+    def set_list_row(self, p0list, num):
         "set the event list's row selection"
-        self.p0list.Select(num)  # setCurrentRow(num)
+        p0list.Select(num)  # setCurrentRow(num)
 
 
 class MyListCtrl(wx.ListCtrl, listmix.ListCtrlAutoWidthMixin):
@@ -989,32 +981,33 @@ class Page1Gui(PageGui):
         self.master = master
         super().__init__(parent, master)
         # self.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_BTNFACE))
-        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.vsizer = wx.BoxSizer(wx.VERTICAL)
         self.gsizer = wx.GridBagSizer(3, 12)  # rows, cols, hgap, vgap
-        self.sizer.Add(self.gsizer)
+        self.vsizer.Add(self.gsizer)
         self.row = 0
+        self.accel_data = []
         # dit moet mogelijk pas bij het afmaken van de display
         self.SetAutoLayout(True)
-        self.SetSizer(self.sizer)
-        self.sizer.Fit(self)
-        self.sizer.SetSizeHints(self)
+        self.SetSizer(self.vsizer)
+        self.vsizer.Fit(self)
+        self.vsizer.SetSizeHints(self)
 
     def add_textentry_line(self, labeltext, width, callback=None):
         "add a line with a text entry field to the display"
         self.row += 1
         self.gsizer.Add(wx.StaticText(self, label=labeltext), (self.row, 0),
-                   flag=wx.ALL | wx.ALIGN_TOP, border=10)
+                        flag=wx.ALL | wx.ALIGN_TOP, border=10)
         field = wx.TextCtrl(self, size=(width, -1))
         self.gsizer.Add(field, (self.row, 1), flag=wx.ALIGN_CENTER_VERTICAL)
         if callback:
             self.Bind(wx.EVT_TEXT, callback, field)
         return field
 
-    def add_combobox_line(self, width, callback):
+    def add_combobox_line(self, labeltext, width, callback):
         "add a line with a combobox to the display"
         self.row += 1
         self.gsizer.Add(wx.StaticText(self, label=labeltext), (self.row, 0),
-                   flag=wx.ALL | wx.ALIGN_TOP, border=10)
+                        flag=wx.ALL | wx.ALIGN_TOP, border=10)
         field = wx.ComboBox(self, size=(width, -1), style=wx.CB_DROPDOWN | wx.CB_READONLY)
         if callback:
             self.Bind(wx.EVT_TEXT, callback, field)
@@ -1026,7 +1019,7 @@ class Page1Gui(PageGui):
         self.row += 1
         lbl = wx.StaticText(self, label="")
         self.gsizer.Add(lbl, (self.row, 1), flag=wx.ALIGN_CENTER_VERTICAL | wx.TOP | wx.BOTTOM,
-                   border=10)
+                        border=10)
         self.row += 1
         btn = wx.Button(self, label=buttontext)
         self.Bind(wx.EVT_BUTTON, callback, btn)
@@ -1036,13 +1029,14 @@ class Page1Gui(PageGui):
     def add_textbox_line(self, labeltext, callback):
         "add a line with a large text entry field to the display"
         self.row += 1
-        self.gsizer.Add(wx.StaticText(self, label=labeltext), (self.row, 0), 0)
-        self.row += 1
+        self.gsizer.Add(wx.StaticText(self, label=labeltext), (self.row, 0),
+                        flag=wx.TOP | wx.BOTTOM, border=10)
         sizer = wx.BoxSizer(wx.HORIZONTAL)
-        fld = wx.TextCtrl(self)   #  qtw.QTextEdit(self)
-        self.Bind(wx.EVT_TEXT, self.master.on_text, fld)
+        fld = wx.TextCtrl(self, size=(800, 200),
+                          style=wx.TE_MULTILINE | wx.TE_PROCESS_TAB | wx.TE_RICH2 | wx.TE_WORDWRAP)
+        self.Bind(wx.EVT_TEXT, callback, fld)
         sizer.Add(fld)
-        self.gsizer.Add(sizer, (self.row, 0)),
+        self.gsizer.Add(sizer, (self.row, 1), span=(1, 2), flag=wx.TOP | wx.BOTTOM, border=10)
         return fld
 
     # moet dit nog?
@@ -1060,34 +1054,35 @@ class Page1Gui(PageGui):
 
     def set_textfield_value(self, field, value):
         "set textfield value"
-        self.field.SetValue(value)
+        field.SetValue(value)
 
     def set_label_value(self, field, value):
         "set textfield value"
-        self.field.SetValue(value)
+        # field.SetValue(value)
+        field.SetLabel(value)
 
     def set_textbox_value(self, field, value):
         "set textfield value"
-        self.field.SetValue(value)
+        field.SetValue(value)
 
-    def get_textfield_value(self, fieldi):  # , value):
+    def get_textfield_value(self, field):  # , value):
         "get textfield value"
-        return field.GetValue(value)
+        return field.GetValue()
 
-    def get_label_value(self, field):  # , value):
-        "get textfield value"
-        return field.GetValue(value)
+    # def get_label_value(self, field):  # , value):
+    #     "get textfield value"
+    #     return field.GetLabel()
 
     def get_textbox_value(self, field):  # , value):
         "get textfield value"
-        return field.GetValue(value)
+        return field.GetValue()
 
-    def set_choice(self, domain, field, value):
+    def set_choice(self, field, domain, value):
         "set selected entry in a combobox"
         for x in range(len(domain)):
             code = field.GetClientData(x)
             if code == value:
-                field.Select(x)
+                field.SetSelection(x)
                 break
 
     def get_choice_index(self, field):
@@ -1138,11 +1133,11 @@ class Page6Gui(PageGui):
         super().__init__(parent, master)
         # self.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_BTNFACE))
         # high = 200 if LIN else 280
-        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.vsizer = wx.BoxSizer(wx.VERTICAL)
         self.pnl = wx.SplitterWindow(self, size=(500, 400), style=wx.SP_LIVE_UPDATE)
         hsizer = wx.BoxSizer(wx.VERTICAL)
-        hsizer.Add(self.pnl, 1, wx.EXPAND)  # | wx.ALL, 4)
-        self.sizer.Add(hsizer, 1, wx.EXPAND)  # | wx.ALL, 8)
+        hsizer.Add(self.pnl, 1, wx.EXPAND | wx.ALL, 4)
+        self.vsizer.Add(hsizer, 1, wx.EXPAND | wx.ALL, 8)
         self.accel_data = []
 
     def create_list(self):
@@ -1164,18 +1159,21 @@ class Page6Gui(PageGui):
     def create_textfield(self, width, height, callback):
         "maak het textarea gedeelte van de display"
         # high = 100 if LIN else 110
-        textpanel = wx.Panel(self.pnl)
+        self.textpanel = wx.Panel(self.pnl)
         vbox = wx.BoxSizer(wx.VERTICAL)
-        ptext = super().create_text_field(parent=textpanel, size=(200, -1))
+        # ptext = super().create_text_field(vbox, width, height, callback)
+        ptext = self.create_text_field(vbox, width, height, callback, parent=self.textpanel)
         if self.appbase.use_rt:
-            self.toolbar = super().create_toolbar(parent=textpanel, textfield=ptext)
-            vbox.Add(self.toolbar, 0, wx.EXPAND)
-            vbox.Add(self.progress_text, 1, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
-        else:
-            vbox.Add(self.progress_text, 1, wx.EXPAND | wx.ALL, 8)
-        textpanel.SetAutoLayout(True)
-        textpanel.SetSizer(vbox)
-        vbox.Fit(textpanel)
+            data = self.master.get_toolbar_data(ptext)
+            # self.toolbar = super().create_toolbar(vbox, ptext, data)
+            self.toolbar = self.create_toolbar(vbox, ptext, data, parent=self.textpanel)
+            # vbox.Add(self.toolbar, 0, wx.EXPAND)
+            # vbox.Add(ptext, 1, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+        # else:
+        #     vbox.Add(ptext, 1, wx.EXPAND | wx.ALL, 8)
+        self.textpanel.SetAutoLayout(True)
+        self.textpanel.SetSizer(vbox)
+        vbox.Fit(self.textpanel)
         return ptext
 
     # def add_buttons(self):
@@ -1195,12 +1193,12 @@ class Page6Gui(PageGui):
     def finish_display(self):
         "final actions to show the screen"
         setup_accels(self, self.accel_data)
-        self.pnl.SplitHorizontally(self.progress_list, self.textpanel)
+        self.pnl.SplitHorizontally(self.master.progress_list, self.textpanel)
         self.pnl.SetSashPosition(250)
         self.SetAutoLayout(True)
-        self.SetSizer(self.sizer)
-        self.sizer.Fit(self)
-        self.sizer.SetSizeHints(self)
+        self.SetSizer(self.vsizer)
+        self.vsizer.Fit(self)
+        self.vsizer.SetSizeHints(self)
 
     def on_activate_item(self, event):
         """callback voor activeren van een item
@@ -1210,15 +1208,6 @@ class Page6Gui(PageGui):
         if event.Index == 0:
             # self.add_item()
             self.master.initialize_new_event()
-
-    def create_new_listitem(self, listbox, textfield, datum, oldtext):
-        """update widgets with new event
-        """
-        listbox.InsertItem(1, f'{datum} - {oldtext}')
-        listbox.select(1)
-        textfield.set_contents(oldtext)
-        textfield.Enable(True)
-        textfield.SetFocus()
 
     def on_deselect_item(self, evt):
         """callback voor het niet meer geselecteerd zijn van een item
@@ -1230,18 +1219,18 @@ class Page6Gui(PageGui):
         de knoppen onderaan doen de hele lijst bijwerken in self.parent.book.p
         """
         idx = evt.Index
-        print('in Page6.on_deselect_item, index is', idx)
         if idx == 0:
             return
         maxlen = 80
-        tekst = self.get_textfield_contents()
-        print(tekst, self.master.oldtext)
+        tekst = self.get_textfield_contents(self.master.progress_text)
+        # tekst = self.master.progress_text.get_contents()
         if tekst != self.master.oldtext:
             self.master.event_data[idx - 1] = tekst
             self.master.oldtext = tekst
             short_text = tekst.split("\n")[0]
             short_text = short_text if len(short_text) < maxlen else short_text[:maxlen] + "..."
-            self.master.progress_list.SetItem(idx, 0, "{self.master.event_list[idx - 1]} - {short_text}")
+            self.master.progress_list.SetItem(
+                idx, 0, f"{self.master.event_list[idx - 1]} - {short_text}")
             self.master.progress_list.SetItemData(idx, idx - 1)
         evt.Skip()
 
@@ -1255,16 +1244,14 @@ class Page6Gui(PageGui):
         de knoppen onderaan doen de hele lijst bijwerken in self.parent.book.p
         """
         self.current_item = event.Index  # - 1
-        print('in Page6.on_select_item, current item is', self.current_item)
         if self.current_item == 0:
             return
-        # tekst = self.master.progress_list.GetItemText(self.current_item)  # niet gebruikt (tbv debuggen)
         self.master.progress_text.SetEditable(False)
         if not self.parent.pagedata.arch:
             self.master.progress_text.SetEditable(True)
         self.master.oldtext = self.master.event_data[self.current_item - 1]
         self.master.initializing = True
-        self.set_textfield_contents(self.master.oldtext)  # convert already?
+        self.set_textfield_contents(self.master.progress_text, self.master.oldtext)
         self.master.initializing = False
         self.master.progress_text.Enable(True)
         self.master.progress_text.SetFocus()
@@ -1274,6 +1261,16 @@ class Page6Gui(PageGui):
     #     "set up text field"
     #     self.clear_textfield()
     #     self.protect_textfield()
+
+    def create_new_listitem(self, listbox, textfield, datum, oldtext):
+        """update widgets with new event
+        """
+        listbox.InsertItem(1, f'{datum} - {oldtext}')
+        listbox.SetSelection(1)
+        textfield.set_contents(oldtext)
+        textfield.SetEditable(True)   # .Enable(True)
+
+        textfield.SetFocus()
 
     def clear_list(self, listbox):
         "clear out events list widget"
@@ -1285,13 +1282,12 @@ class Page6Gui(PageGui):
         listbox.SetItem(index, 0, text)
         listbox.SetItemData(index, -1)
 
-    def add_item_to_list(self, listbox, idx, datum):
+    def add_item_to_list(self, listbox, textfield, idx, datum):
         """add an entry to the events list widget (when initializing)
         first convert to HTML (if needed) and back
         """
         maxlen = 80
-        print('add item to list')
-        tekst_plat = self.convert_text(self.master.event_data[idx], to='plain')
+        tekst_plat = self.convert_text(textfield, self.master.event_data[idx], to='plain')
         try:
             text = tekst_plat.split("\n")[0].strip()
         except AttributeError:
@@ -1300,17 +1296,20 @@ class Page6Gui(PageGui):
         index = listbox.InsertItem(sys.maxsize, datum)
         if len(datum) > len('eejj-mm-dd hh:mm:ss'):  # 18:
             datum = datum[:19]
-        self.listbox.SetItem(index, 0, f"{datum} - {text}")
-        self.listbox.SetItemData(index, idx)
+        listbox.SetItem(index, 0, f"{datum} - {text}")
+        listbox.SetItemData(index, idx)
 
     def set_list_callbacks(self, listbox, callback0, callback1):
-        "bind or unbind depending on user's permissions"
+        """bind or unbind depending on user's permissions
+
+        callback1 geeft het geactiveerde item mee en kan hier niet gebruikt worden
+        """
         if self.appbase.is_user:
-            self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.on_activate_item, self.progress_list)
-            self.progress_list.Bind(wx.EVT_LEFT_UP, self.on_activate_item)
+            self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, callback0, listbox)
+            listbox.Bind(wx.EVT_LEFT_UP, callback0)
         else:
-            self.Unbind(wx.EVT_LIST_ITEM_ACTIVATED, self.master.progress_list)
-            self.master.progress_list.Unbind(wx.EVT_LEFT_UP)
+            self.Unbind(wx.EVT_LIST_ITEM_ACTIVATED, listbox)
+            listbox.Unbind(wx.EVT_LEFT_UP)
 
     def set_listitem_text(self, listbox, itemindex, text):
         "set text for the given listitem"
@@ -1359,17 +1358,17 @@ class Page6Gui(PageGui):
         """
         retval = ''
         if to == 'rich':
-            self.master.progress_text.set_contents(text)
-            retval = self.master.progress_text.get_contents()
+            textbox.set_contents(text)
+            retval = textbox.get_contents()
         elif to == 'plain':
-            retval = text  # self.master.progress_text.GetValue()
+            retval = text  # text.GetValue()
         return retval
 
 
-class EasyPrinter(html.HtmlEasyPrinting):
-    "class om printen via html layout mo`gelijk te maken"
+class EasyPrinter(wx.html.HtmlEasyPrinting):
+    "class om printen via html layout mogelijk te maken"
     def __init__(self):
-        html.HtmlEasyPrinting.__init__(self)
+        wx.html.HtmlEasyPrinting.__init__(self)
 
     def print(self, text, doc_name):
         "het daadwerkelijke printen"
@@ -1382,41 +1381,41 @@ class SortOptionsDialogGui(wx.Dialog):
     def __init__(self, master, parent, title):
         # self.parent = parent
         self.master = master
-        wx.Dialog.__init__(self, parent, title=title,
-                           pos=wx.DefaultPosition,
-                           style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        # wx.Dialog.__init__(self, parent.gui, title=title,
+        super().__init__(parent.gui, title=title, pos=wx.DefaultPosition,
+                         style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
         self.sizer = wx.BoxSizer(wx.VERTICAL)
         self.grid = wx.GridBagSizer(2, 2)
-        sizer.Add(grid, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        self.sizer.Add(self.grid, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
         self.row = 0
         # misschien moet dit pas aan het eind van het scherm opbouwen
-        self.SetSizer(sizer)
+        self.SetSizer(self.sizer)
         self.SetAutoLayout(True)
-        sizer.Fit(self)
+        self.sizer.Fit(self)
 
     def add_checkbox_line(self, tekst, checked, callback):
         "add a line with a checkbox to the grid (full width)"
         cb = wx.CheckBox(self, label=tekst)
         cb.Bind(wx.EVT_CHECKBOX, self.enable_fields)
-        grid.Add(cb, (self.row, 0), (1, 4))
+        self.grid.Add(cb, (self.row, 0), (1, 4))
         self.grid.AddGrowableCol(1)
         return cb
 
     def add_seqnumtext_to_list(self, label):
         "put a sequwnce number on the current line"
         self.row += 1
-        lbl = wx.StaticText(self, label=" {row}.")
-        grid.Add(lbl, (self.row, 0), flag=wx.ALIGN_CENTER_VERTICAL)
+        lbl = wx.StaticText(self, label=f" {self.row}.")
+        self.grid.Add(lbl, (self.row, 0), flag=wx.ALIGN_CENTER_VERTICAL)
         return lbl
 
     def add_colnameselector_to_list(self, name, lijst):
         "add a combobox to the current line"
         cmb = wx.ComboBox(self, size=(90, -1), choices=lijst, style=wx.CB_DROPDOWN)
         cmb.SetSelection(0)
-        grid.Add(cmb, (self.row, 1))
+        self.grid.Add(cmb, (self.row, 1))
         return cmb
 
-    def add_radiobuttons_to_line(buttondefs):
+    def add_radiobuttons_to_line(self, buttondefs):
         """add a radiobutton to the current line
 
         also add it to the buttongroup that is created with the first button
@@ -1424,36 +1423,41 @@ class SortOptionsDialogGui(wx.Dialog):
         col = 1
         buttons = []
         for text, direction_id, checked in buttondefs:
+            # direction_id wordt in de wx variant niet gebruikt
             if col == 1:
                 rb = wx.RadioButton(self, label=text, style=wx.RB_GROUP)
             else:
                 rb = wx.RadioButton(self, label=text)
+            rb.SetValue(checked)
             col += 1
-            grid.Add(rb, (self.row, col), flag=wx.ALIGN_CENTER_VERTICAL)
-            ibuttons.append(rb)
+            self.grid.Add(rb, (self.row, col), flag=wx.ALIGN_CENTER_VERTICAL)
+            buttons.append(rb)
         return buttons
 
     def add_okcancel_buttonbox(self):
         "add the action buttons to the bottom of the dialog"
-        btnsizer = wx.StdDialogButtonSizer()
-        btn = wx.Button(self, wx.ID_OK)
-        # hoe map je dit ook weer naar een eigen callback?
-        # of definieer je dat in de show_dialog caller?
-        btn.SetDefault()
-        btnsizer.AddButton(btn)
-        btn = wx.Button(self, wx.ID_CANCEL)
-        btnsizer.AddButton(btn)
-        btnsizer.Realize()
-        self.sizer.Add(btnsizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        # btnsizer = wx.StdDialogButtonSizer()
+        # btn = wx.Button(self, wx.ID_OK)
+        # # hoe map je dit ook weer naar een eigen callback?
+        # # dat hoeft niet omdat je het resultaat uitvraagt tijdens de showmodal afhandeling
+        # btn.SetDefault()
+        # btnsizer.AddButton(btn)
+        # btn = wx.Button(self, wx.ID_CANCEL)
+        # btnsizer.AddButton(btn)
+        # btnsizer.Realize()
+        # self.sizer.Add(btnsizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        self.sizer.Add(self.CreateButtonSizer(wx.OK | wx.CANCEL),
+                       0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
 
     def enable_fields(self, event):
         "enable/disable widgets"
-        state = self.on_off.GetValue()
-        for lbl, cmb, rba, rbd in self._widgets:
+        # state = self.on_off.GetValue()
+        state = event.GetEventWidget().GetValue()
+        for lbl, cmb, rbg in self.parent.widgets:
             lbl.Enable(state)
             cmb.Enable(state)
-            rba.Enable(state)
-            rbd.Enable(state)
+            rbg[0].Enable(state)
+            rbg[1].Enable(state)
 
     def accept(self):
         """sorteerkolommen en -volgordes teruggeven aan hoofdscherm
@@ -1478,24 +1482,26 @@ class SortOptionsDialogGui(wx.Dialog):
 class SelectOptionsDialogGui(wx.Dialog):
     """dialoog om de selectie op te geven
     """
-    def __init__(self, parent, args):
-        self.parent = parent
+    def __init__(self, master, parent, title):
+        self.master = master
         # self.datatype = self.parent.parent.parent.datatype
-        sel_args, self._data = args
-        wx.Dialog.__init__(self, parent, -1, title="Selecteren",
-                           ## size=(250,  250),  pos=wx.DefaultPosition,
-                           style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        # wx.Dialog.__init__(self, parent.gui, -1, title="Selecteren",
+        super().__init__(parent.gui, title="Selecteren",
+                         ## size=(250,  250),  pos=wx.DefaultPosition,
+                         style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
         self.sizer = wx.BoxSizer(wx.VERTICAL)
-        self.grid = wx.FlexGridSizer(5, 2, 2, 2)  # rows, cols, hgap, vgap
+        self.grid = wx.FlexGridSizer(2, 2, 2)  # cols, hgap, vgap
+        self.sizer.Add(self.grid)
 
     def add_checkbox_to_grid(self, title, row, col):
         "set up a checkbox on the left hand side, for a search option"
         cb = wx.CheckBox(self, label=title)
-        grid.Add(cb, 0, wx.TOP, 10)
+        self.grid.Add(cb, 0, wx.TOP, 10)
+        return cb
 
-    def start_optionsblock(self, row, col):
+    def start_optionsblock(self):
         "set up space on the right hand size to specify search criteria"
-        box = wx.FlexGridSizer(3, 2, 2, 2)
+        box = wx.FlexGridSizer(2, 2, 2)
         return box
 
     def add_textentry_line_to_block(self, block, labeltext, callback, first=False):
@@ -1513,29 +1519,31 @@ class SelectOptionsDialogGui(wx.Dialog):
         rb1 = wx.RadioButton(self, label=buttondefs[0], style=wx.RB_GROUP)
         if callback:
             self.Bind(wx.EVT_RADIOBUTTON, callback, rb1)
-        hbox.Add(rb1, 0, wx.ALIGN_CENTER_HORIZONTAL)
+        hbox.Add(rb1, 0, wx.ALIGN_CENTER_VERTICAL)
         rb2 = wx.RadioButton(self, label=buttondefs[1])
         if callback:
             self.Bind(wx.EVT_RADIOBUTTON, callback, rb2)
-        hbox.Add(rb2, 0, wx.ALIGN_CENTER_HORIZONTAL)
+        hbox.Add(rb2, 0, wx.ALIGN_CENTER_VERTICAL)
         if alignleft:
             spacer = wx.StaticText(self, label="", size=(70, -1))
             block.AddMany([(hbox, 0), (spacer, 0)])
+            self.lbl = spacer  # alleen voor unittest
         else:
-            block.Add((hbox, 0))
+            block.Add(hbox, 0, wx.TOP, 10)
         return rb1, rb2
 
-    def add_checkboxlist_to_grid(self, block, namelist, callback):
+    def add_checkboxlist_to_block(self, block, namelist, callback):
         "add a caption and a list of checkboxes to the block"
         clb = wx.CheckListBox(self, size=(-1, 120), choices=namelist)
         self.Bind(wx.EVT_CHECKLISTBOX, callback, clb)
-        block.Add(wx.StaticText(self, label="selecteer\neen of meer:", size=(70, -1)), 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 5)
+        lbl = wx.StaticText(self, label="selecteer\neen of meer:", size=(70, -1))
+        block.Add(lbl, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 5)
         block.Add(clb, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP | wx.BOTTOM, 5)
         return clb
 
-    def finish_block(self, block):
+    def finish_block(self, block, row, col):
         "finish the block layout"
-        self.grid.Add(block)
+        self.grid.Add(block, row, col)
 
     # def add_oms_stuff(self):
     #     boxv_text = wx.BoxSizer(wx.VERTICAL)
@@ -1589,14 +1597,16 @@ class SelectOptionsDialogGui(wx.Dialog):
 
     def add_okcancel_buttonbar(self):
         "add action buttons to the dialog"
-        btnsizer = wx.StdDialogButtonSizer()
-        btn = wx.Button(self, wx.ID_OK)
-        btn.SetDefault()
-        btnsizer.AddButton(btn)
-        btn = wx.Button(self, wx.ID_CANCEL)
-        btnsizer.AddButton(btn)
-        btnsizer.Realize()
-        sizer.Add(btnsizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        # btnsizer = wx.StdDialogButtonSizer()
+        # btn = wx.Button(self, wx.ID_OK)
+        # btn.SetDefault()
+        # btnsizer.AddButton(btn)
+        # btn = wx.Button(self, wx.ID_CANCEL)
+        # btnsizer.AddButton(btn)
+        # btnsizer.Realize()
+        # sizer.Add(btnsizer, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        self.sizer.Add(self.CreateButtonSizer(wx.OK | wx.CANCEL),
+                       0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
 
     def finalize_display(self):
         "final actions to realize the screen"
@@ -1614,33 +1624,34 @@ class SelectOptionsDialogGui(wx.Dialog):
 
     def set_checkbox_value(self, checkbox, value):
         "check or ncheck a checkbox"
-        radiobutton.SetValue(value)
+        checkbox.SetValue(value)
 
     # def set_default_values(self, sel_args):
     #     """get search settings and present them in the dialog
     #     """
 
-    def on_text(self, evt=None):
+    def on_text(self, evt):
         "callback voor EVT_TEXT"
         obj = evt.GetEventObject()
-        if obj in (self.text_gt, self.text_lt):
-            target = self.cb_actie
-        elif obj == self.t_text:
-            target = self.cb_text
+        if obj in (self.master.text_gt, self.master.text_lt):
+            target = self.master.cb_actie
+        elif obj in (self.master.text_zoek, self.master.text_zoek2):
+            target = self.master.cb_text
         if evt.GetString() == "":
             target.SetValue(False)
         else:
             target.SetValue(True)
+        return target   # alleen t.b.v. unittest
 
-    def on_cb_checked(self, evt=None):
+    def on_cb_checked(self, evt):
         "callback voor EVT_CHECK / EVT_RADIO"
         index = evt.GetSelection()
         obj = evt.GetEventObject()
         obj.SetSelection(index)    # so that (un)checking also selects (moves the highlight)
-        if obj == self.clb_soort:
-            target = self.parent.cb_soort
-        elif obj == self.clb_stat:
-            target = self.parent.cb_status
+        if obj == self.master.clb_soort:
+            target = self.master.cb_soort
+        elif obj == self.master.clb_stat:
+            target = self.master.cb_status
         oneormore = False
         for i in range(obj.GetCount()):
             if obj.IsChecked(i):
@@ -1650,11 +1661,12 @@ class SelectOptionsDialogGui(wx.Dialog):
             target.SetValue(True)
         else:
             target.SetValue(False)
+        return target  # alleen t.b.v. unittest
 
     def on_rb_checked(self, evt=None):
-        "callback voor EVT_RADIO"
+        "callback voor EVT_RADIO - alleen bij archiefselectie"
         # obj = evt.GetEventObject()
-        self.parent.cb_arch.SetValue(True)
+        self.master.cb_arch.SetValue(True)
 
     def accept(self):  # set_options(self, evt=None):
         "aangegeven opties verwerken in sel_args dictionary"
@@ -1682,9 +1694,9 @@ class SettOptionsDialogGui(wx.Dialog):
 
     the specific type of option(s) is passed in via the cls argument
     """
-    def __init__(self, parent, title):  # args):
-        self.parent = parent
-        super().__init__(parent, title=shared.app_title, size=(300, 300))
+    def __init__(self, master, parent, title):  # args):
+        self.master = master
+        super().__init__(parent.gui, title=title, size=(300, 300))
         self.sizer = wx.BoxSizer(wx.VERTICAL)
 
     def add_listbox_with_buttons(self, titel, data, actions):
@@ -1693,36 +1705,37 @@ class SettOptionsDialogGui(wx.Dialog):
         wx heeft hiervoor een dedicated widget
         """
         options = wx.adv.EL_ALLOW_EDIT
-        if actions['can_add_remove']:
+        if actions.get('can_add_remove', False):
             options |= wx.adv.EL_ALLOW_NEW | wx.adv.EL_ALLOW_DELETE
         # setup_accels(self, (('edit', self.edit, 'F2'),), [])
-        elb = wx.adv.EditableListBox(self, label=self.titel, pos=(50, 50),
-                                     size=(250, 250), style=options)
-        self.elb.SetStrings(self.data)
+        elb = wx.adv.EditableListBox(self, label=titel, pos=(50, 50), size=(250, 250),
+                                     style=options)
+        elb.SetStrings(data)
         box = wx.BoxSizer(wx.HORIZONTAL)
         box.Add(elb, 0, wx.ALIGN_CENTRE | wx.ALL, 5)
-        sizer.Add(box, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        self.sizer.Add(box, 0, wx.ALL, 5)
         return elb
 
     def add_label(self, infotext):
         "add some explanatory text to the display"
         box = wx.BoxSizer(wx.HORIZONTAL)
-        label = wx.StaticText(self, -1, "\n".join(self.tekst))
+        label = wx.StaticText(self, -1, "\n".join(infotext))
         box.Add(label, 0, wx.ALL, 5)
-        sizer.Add(box, 0, wx.ALIGN_CENTER_VERTICAL | wx.GROW | wx.ALL, 5)
+        self.sizer.Add(box, 0, wx.GROW | wx.ALL, 5)
         line = wx.StaticLine(self, -1, size=(20, -1), style=wx.LI_HORIZONTAL)
-        sizer.Add(line, 0, wx.ALIGN_CENTER_VERTICAL | wx.GROW | wx.RIGHT | wx.TOP, 5)
+        self.sizer.Add(line, 0, wx.GROW | wx.RIGHT | wx.TOP, 5)
 
     def add_okcancel_buttonbox(self):
         "add action buttons to confirm or discard the dialog"
-        btnsizer = wx.StdDialogButtonSizer()
-        btn = wx.Button(self, wx.ID_OK)
-        btn.SetDefault()
-        btnsizer.AddButton(btn)
-        btn = wx.Button(self, wx.ID_CANCEL)
-        btnsizer.AddButton(btn)
-        btnsizer.Realize()
-        sizer.Add(btnsizer, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        # btnsizer = wx.StdDialogButtonSizer()
+        # btn = wx.Button(self, wx.ID_OK)
+        # btn.SetDefault()
+        # btnsizer.AddButton(btn)
+        # btn = wx.Button(self, wx.ID_CANCEL)
+        # btnsizer.AddButton(btn)
+        # btnsizer.Realize()
+        # self.sizer.Add(btnsizer, 0, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+        self.sizer.Add(self.CreateButtonSizer(wx.OK | wx.CANCEL), 0, wx.ALL, 5)
 
     def finish_display(self):
         "final actions before displaying the screen"
@@ -1740,7 +1753,7 @@ class SettOptionsDialogGui(wx.Dialog):
     def accept(self):
         """Confirm changes to parent window
         """
-        self.parent.confirm()
+        self.master.confirm()
 
     def read_listbox_data(self, elb):
         "return the updated listbox items"
@@ -1750,37 +1763,40 @@ class SettOptionsDialogGui(wx.Dialog):
 class LoginBoxGui(wx.Dialog):
     """Sign in with userid & password
     """
-    def __init__(self, parent):
+    def __init__(self, master, parent):
         self.master = master
-        super().__init__(parent)
+        super().__init__(parent.gui)
         self.vbox = wx.BoxSizer(wx.VERTICAL)
         self.grid = wx.GridBagSizer()
         self.vbox.Add(self.grid, 0, wx.ALL, 4)
         self.row = -1
 
-    def add_textinput_line(text, hide=False):
+    def add_textinput_line(self, text, hide=False):
         "add a line with some text and an input field to the display"
         self.row += 1
-        self.grid.Add(wx.StaticText(self, label='Userid'), (self.row, 0), flag=wx.ALIGN_CENTER_VERTICAL)
+        lbl = wx.StaticText(self, label='Userid')
+        self.grid.Add(lbl, (self.row, 0), flag=wx.ALIGN_CENTER_VERTICAL)
         if hide:
             textfield = wx.TextCtrl(self, size=(120, -1), style=wx.TE_PASSWORD)
         else:
             textfield = wx.TextCtrl(self, size=(120, -1))
         self.grid.Add(textfield, (self.row, 1), flag=wx.LEFT, border=2)
+        return textfield
 
     def add_okcancel_buttonbox(self):
         "add action buttons to confirm or dismiss the dialog"
-        bbox = wx.BoxSizer(wx.HORIZONTAL)
-        b_ok = wx.Button(self, id=wx.ID_OK)
-        b_cancel = wx.Button(self, id=wx.ID_CANCEL)
-        bbox.AddMany((b_ok, b_cancel))
-        self.vbox.Add(bbox, 0, wx.ALIGN_CENTER_HORIZONTAL)
+        # bbox = wx.BoxSizer(wx.HORIZONTAL)
+        # b_ok = wx.Button(self, id=wx.ID_OK)
+        # b_cancel = wx.Button(self, id=wx.ID_CANCEL)
+        # bbox.AddMany((b_ok, b_cancel))
+        # self.vbox.Add(bbox, 0, wx.ALIGN_CENTER_HORIZONTAL)
+        self.vbox.Add(self.CreateButtonSizer(wx.OK | wx.CANCEL), 0, wx.ALIGN_CENTER_HORIZONTAL)
 
     def finish_display(self):
         "final actions before showing"
-        self.SetSizer(vbox)
+        self.SetSizer(self.vbox)
         self.SetAutoLayout(True)
-        vbox.Fit(self)
+        self.vbox.Fit(self)
         # vbox.SetSizeHints(self)
 
     def accept(self):
@@ -1789,3 +1805,4 @@ class LoginBoxGui(wx.Dialog):
 
     def get_textinput_value(self, field):
         "return the value of a text input field"
+        return field.GetValue()
