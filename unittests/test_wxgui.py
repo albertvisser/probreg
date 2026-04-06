@@ -297,7 +297,7 @@ class TestMainGui:
                 "called frame.__init__ with args () {'parent': None, 'title': 'title',"
                 " 'pos': (2, 2), 'size': (1000, 1000), 'style': 541072960}\n"
                 "called Frame.CreateStatusBar\n"
-                "called StatusBar.__init__\n"
+                "called StatusBar.__init__ with args ()\n"
                 "called statusbar.SetFieldsCount with args (2,)\n"
                 "called Icon.__init__ with args ('/here/icons/task.png', 15)\n"
                 "called Frame.SetIcon with args (Icon created from '/here/icons/task.png',)\n"
@@ -314,7 +314,7 @@ class TestMainGui:
                 "called frame.__init__ with args () {'parent': None, 'title': 'title',"
                 " 'pos': (20, 32), 'size': (588, 594), 'style': 541072960}\n"
                 "called Frame.CreateStatusBar\n"
-                "called StatusBar.__init__\n"
+                "called StatusBar.__init__ with args ()\n"
                 "called statusbar.SetFieldsCount with args (2,)\n"
                 "called Icon.__init__ with args ('/here/icons/task.png', 15)\n"
                 "called Frame.SetIcon with args (Icon created from '/here/icons/task.png',)\n"
@@ -674,11 +674,11 @@ class TestMainGui:
         monkeypatch.setattr(testee.wx.Frame, 'GetStatusBar', mockwx.MockFrame.GetStatusBar)
         testobj.set_statusmessage()
         assert capsys.readouterr().out == ("called Frame.GetStatusBar\n"
-                                           "called StatusBar.__init__\n"
+                                           "called StatusBar.__init__ with args ()\n"
                                            "called statusbar.SetStatusText with args ('',)\n")
         testobj.set_statusmessage('message')
         assert capsys.readouterr().out == ("called Frame.GetStatusBar\n"
-                                           "called StatusBar.__init__\n"
+                                           "called StatusBar.__init__ with args ()\n"
                                            "called statusbar.SetStatusText with args ('message',)\n")
 
     def test_set_window_title(self, monkeypatch, capsys):
@@ -696,7 +696,7 @@ class TestMainGui:
         monkeypatch.setattr(testee.wx.Frame, 'GetStatusBar', mockwx.MockFrame.GetStatusBar)
         testobj.show_username('msg')
         assert capsys.readouterr().out == ("called Frame.GetStatusBar\n"
-                                           "called StatusBar.__init__\n"
+                                           "called StatusBar.__init__ with args ()\n"
                                            "called statusbar.SetStatusText with args ('msg', 1)\n")
 
     def test_on_left_release(self, monkeypatch, capsys):

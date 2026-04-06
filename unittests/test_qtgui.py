@@ -1859,7 +1859,7 @@ class TestPage0Gui:
                 "called Tree.setAlternatingRowColors with arg True\n"
                 "called Tree.header\n"
                 "called Header.__init__\n"
-                "called Header.setSectionsClickable with value True\n"
+                "called Header.setSectionsClickable with arg True\n"
                 "called Header.resizeSection with args (0, 10)\n"
                 "called Header.resizeSection with args (1, 20)\n"
                 "called Header.setStretchLastSection with arg True\n"
