@@ -1079,14 +1079,11 @@ class TestEditorPanelRt:
     def test_set_contents(self, monkeypatch, capsys):
         """unittest for EditorPanelRt.set_contents
         """
-        def mock_get(self):
-            print('called text.GetBuffer')
-            return mockwx.MockBuffer()
         monkeypatch.setattr(testee.wxrt, 'RichTextXMLHandler', mockwx.MockHandler)
         monkeypatch.setattr(testee.wxrt.RichTextCtrl, 'Clear', mockwx.MockTextCtrl.Clear)
         monkeypatch.setattr(testee.wxrt.RichTextCtrl, 'SetValue', mockwx.MockTextCtrl.SetValue)
         monkeypatch.setattr(testee.wxrt.RichTextCtrl, 'Refresh', mockwx.MockTextCtrl.Refresh)
-        monkeypatch.setattr(testee.wxrt.RichTextCtrl, 'GetBuffer', mock_get)
+        monkeypatch.setattr(testee.wxrt.RichTextCtrl, 'GetBuffer', mockwx.MockTextCtrl.GetBuffer)
         testobj = self.setup_testobj(monkeypatch, capsys)
         testobj.set_contents('data')
         assert capsys.readouterr().out == ("called text.Clear\n"
@@ -1105,16 +1102,12 @@ class TestEditorPanelRt:
     def test_get_contents(self, monkeypatch, capsys):
         """unittest for EditorPanelRt.get_contents
         """
-        def mock_get(self):
-            print('called text.GetBuffer')
-            return mockwx.MockBuffer()
         def mock_save(self, *args):
             print('called RichTextXMLHandler.SaveFile with args', args)
             with open(args[1], 'w') as out:
                 out.write('value from textctrl')
         monkeypatch.setattr(testee.wxrt, 'RichTextXMLHandler', mockwx.MockHandler)
-        # monkeypatch.setattr(testee.wxrt.RichTextCtrl, 'GetValue', mockwx.MockTextCtrl.GetValue)
-        monkeypatch.setattr(testee.wxrt.RichTextCtrl, 'GetBuffer', mock_get)
+        monkeypatch.setattr(testee.wxrt.RichTextCtrl, 'GetBuffer', mockwx.MockTextCtrl.GetBuffer)
         monkeypatch.setattr(mockwx.MockHandler, 'SaveFile', mock_save)
         testobj = self.setup_testobj(monkeypatch, capsys)
         assert testobj.get_contents() == "value from textctrl"
@@ -1637,7 +1630,7 @@ class TestEditorPanelRt:
                 "called text.GetStyle with args ('Point', richtextattr)\n"
                 "called RichTextRange.__init__ with args ('Point', 'Point')\n"
                 "called text.HasSelection\n"
-                "called RichT/extAttr.SetParagraphSpacingAfter with args (120,)\n"
+                "called RichTextAttr.SetParagraphSpacingAfter with args (120,)\n"
                 "called RichTextAttr.SetFlags with args (2048,)\n"
                 "called text.SetStyle with args (richtextrange, richtextattr)\n")
         testobj.set_paragraph_spacing(less=True)
@@ -1650,7 +1643,7 @@ class TestEditorPanelRt:
                 "called text.GetStyle with args ('Point', richtextattr)\n"
                 "called RichTextRange.__init__ with args ('Point', 'Point')\n"
                 "called text.HasSelection\n"
-                "called RichT/extAttr.SetParagraphSpacingAfter with args (80,)\n"
+                "called RichTextAttr.SetParagraphSpacingAfter with args (80,)\n"
                 "called RichTextAttr.SetFlags with args (2048,)\n"
                 "called text.SetStyle with args (richtextrange, richtextattr)\n")
         testobj.HasSelection = mock_has_sel_2
@@ -1665,7 +1658,7 @@ class TestEditorPanelRt:
                 "called RichTextRange.__init__ with args ('Point', 'Point')\n"
                 "called text.HasSelection\n"
                 "called text.GetSelectionRange\n"
-                "called RichT/extAttr.SetParagraphSpacingAfter with args (80,)\n"
+                "called RichTextAttr.SetParagraphSpacingAfter with args (80,)\n"
                 "called RichTextAttr.SetFlags with args (2048,)\n"
                 "called text.SetStyle with args ('Range', richtextattr)\n")
         monkeypatch.setattr(testee.wxrt.RichTextAttr, 'GetParagraphSpacingAfter', mock_getspacing)
@@ -1680,7 +1673,7 @@ class TestEditorPanelRt:
                 "called RichTextRange.__init__ with args ('Point', 'Point')\n"
                 "called text.HasSelection\n"
                 "called text.GetSelectionRange\n"
-                "called RichT/extAttr.SetParagraphSpacingAfter with args (0,)\n"
+                "called RichTextAttr.SetParagraphSpacingAfter with args (0,)\n"
                 "called RichTextAttr.SetFlags with args (2048,)\n"
                 "called text.SetStyle with args ('Range', richtextattr)\n")
         monkeypatch.setattr(testee.wxrt.RichTextAttr, 'GetParagraphSpacingAfter', mock_getspacing_2)
