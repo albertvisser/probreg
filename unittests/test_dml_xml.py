@@ -167,6 +167,14 @@ def test_get_nieuwetitel(monkeypatch, capsys):
         dml.SubElement(root, 'actie', id='2021-0001')
         dml.SubElement(root, 'actie', id='2022-0001')
         return root
+    def mock_getroot_4(*args):
+        """stub
+        """
+        root = dml.Element('acties')
+        dml.SubElement(root, 'actie', id='2020-0001')
+        dml.SubElement(root, 'actie', id='2021-0001')
+        dml.SubElement(root, 'actie', id='2022-0000')   # onbestaanbaar
+        return root
     monkeypatch.setattr(dml.dt, 'date', MockDate)
     monkeypatch.setattr(pathlib.Path, 'exists', lambda x: False)
     with pytest.raises(dml.DataError) as exc:
@@ -187,6 +195,11 @@ def test_get_nieuwetitel(monkeypatch, capsys):
     assert capsys.readouterr().out == "called ElementTree.__init__() with kwargs {'file': '.'}\n"
     monkeypatch.setattr(dml.ElementTree, 'getroot', mock_getroot_3)
     assert dml.get_nieuwetitel(pathlib.Path('')) == '2022-0002'
+    assert capsys.readouterr().out == "called ElementTree.__init__() with kwargs {'file': '.'}\n"
+    assert dml.get_nieuwetitel(pathlib.Path(''), 2020) == '2020-0002'
+    assert capsys.readouterr().out == "called ElementTree.__init__() with kwargs {'file': '.'}\n"
+    monkeypatch.setattr(dml.ElementTree, 'getroot', mock_getroot_4)
+    assert dml.get_nieuwetitel(pathlib.Path('')) == '2022-0001'
     assert capsys.readouterr().out == "called ElementTree.__init__() with kwargs {'file': '.'}\n"
     assert dml.get_nieuwetitel(pathlib.Path(''), 2020) == '2020-0002'
     assert capsys.readouterr().out == "called ElementTree.__init__() with kwargs {'file': '.'}\n"
@@ -226,25 +239,25 @@ def test_get_acties(monkeypatch, get_acties_fixture):
                               " (moet leeg, 'arch' of 'alles' zijn)")
     testfile = get_acties_fixture
     lijst = dml.get_acties(testfile)    # niet geachiveerde
-    assert [x[0] for x in lijst] == ['1', '3', '4', '6']
+    assert [x[0] for x in lijst] == ['1', '0', '3', '4', '6']
     lijst = dml.get_acties(testfile, arch='arch')
     assert [x[0] for x in lijst] == ['2', '5']
     lijst = dml.get_acties(testfile, arch='alles')
-    assert [x[0] for x in lijst] == ['1', '2', '3', '4', '5', '6']
+    assert [x[0] for x in lijst] == ['1', '0', '2', '3', '4', '5', '6']
     lijst = dml.get_acties(testfile, select={'idlt': '4'}, arch='alles')
-    assert [x[0] for x in lijst] == ['1', '2', '3']
+    assert [x[0] for x in lijst] == ['1', '0', '2', '3']
     lijst = dml.get_acties(testfile, select={'idgt': '4'}, arch='alles')
     assert [x[0] for x in lijst] == ['5', '6']
     lijst = dml.get_acties(testfile, select={'idlt': '5', 'id': 'and', 'idgt': '2'}, arch='alles')
     assert [x[0] for x in lijst] == ['3', '4']
     lijst = dml.get_acties(testfile, select={'idlt': '3', 'id': 'or', 'idgt': '4'}, arch='alles')
-    assert [x[0] for x in lijst] == ['1', '2', '5', '6']
+    assert [x[0] for x in lijst] == ['1', '0', '2', '5', '6']
     lijst = dml.get_acties(testfile, select={'soort': 'P'}, arch='alles')
     assert [x[0] for x in lijst] == ['1', '2', '4']
     lijst = dml.get_acties(testfile, select={'status': '1'}, arch='alles')
     assert [x[0] for x in lijst] == ['2', '4', '6']
     lijst = dml.get_acties(testfile, select={'titel': 'een act'}, arch='alles')
-    assert [x[0] for x in lijst] == ['1', '2', '4', '5']
+    assert [x[0] for x in lijst] == ['1', '0', '2', '4', '5']
 
 
 def test_settings_init(monkeypatch, capsys):
@@ -607,25 +620,28 @@ def test_actie_add_event(monkeypatch):
     assert testobj.events == [('01-01-2020 00:00:00', 'new event')]
 
 
-def test_actie_write(monkeypatch, capsys, actie_output):
+def test_actie_write(monkeypatch, capsys, tmp_path, actie_output):
     """unittest for dml_xml.Actie.write
     """
     def mock_getroot(self):
         """stub
         """
         print('called ElementTree.getroot()')
-        return MockElement()
+        return mock_root
     def mock_write(self, *args, **kwargs):
         """stub
         """
         print('called ElementTree.write() with args', args, kwargs)
-    def mock_subelement(*args, **kwargs):
+    # def mock_subelement(*args, **kwargs):
+    def mock_subelement(self, *args, **kwargs):
         """stub
         """
-        args_ = list(args)
-        args_[0] = 'parent'
-        print('called SubElement() with args ', args_, kwargs)
-        return MockElement(args[1])
+        # args_ = list(args)
+        # args_[0] = 'parent'
+        # print('called SubElement() with args ', args_, kwargs)
+        print('called SubElement() with args', args, kwargs)
+        # return MockElement(args[1])
+        return MockElement(args[0])
     def mock_copyfile(*args):
         """stub
         """
@@ -634,7 +650,7 @@ def test_actie_write(monkeypatch, capsys, actie_output):
         """stub
         """
         print('called Element.findall() with args', args)
-        return [MockElement('actie', id='1'), MockElement('actie', id='2')]
+        return [mock_first, mock_next]
     def mock_get(self, *args):
         """stub
         """
@@ -649,6 +665,14 @@ def test_actie_write(monkeypatch, capsys, actie_output):
         """
         print('called Element.find() with args', args)
         return MockElement(args[0])
+    def mock_init(self, *args):
+        """stub
+        """
+        self.fn = pathlib.Path(testfilename)
+    def mock_encode(*args):
+        print('called base64.b64encode with args', args)
+        return args[0]
+    monkeypatch.setattr(dml.Actie, '__init__', mock_init)
     monkeypatch.setattr(MockElement, 'findall', mock_findall)
     monkeypatch.setattr(MockElement, 'get', mock_get)
     monkeypatch.setattr(dml, 'Element', MockElement)
@@ -657,13 +681,20 @@ def test_actie_write(monkeypatch, capsys, actie_output):
     monkeypatch.setattr(dml, 'ElementTree', MockTree)
     monkeypatch.setattr(dml, 'SubElement', mock_subelement)
     monkeypatch.setattr(dml, 'copyfile', mock_copyfile)
+    mock_root = MockElement()
+    mock_first = MockElement('actie', id='1')
+    mock_next = MockElement('actie', id='2')
+    assert capsys.readouterr().out == ("called Element() with args ()\n"
+                                       "called Element.__setattr__() with args ('tag', '')\n"
+                                       "called Element.__setattr__() with args ('attrs', {})\n"
+                                       "called Element() with args ('actie',)\n"
+                                       "called Element.__setattr__() with args ('tag', 'actie')\n"
+                                       "called Element.__setattr__() with args ('attrs', {})\n"
+                                       "called Element() with args ('actie',)\n"
+                                       "called Element.__setattr__() with args ('tag', 'actie')\n"
+                                       "called Element.__setattr__() with args ('attrs', {})\n")
 
     testfilename = '/tmp/testactie.xml'
-    def mock_init(self, *args):
-        """stub
-        """
-        self.fn = pathlib.Path(testfilename)
-    monkeypatch.setattr(dml.Actie, '__init__', mock_init)
     testobj = dml.Actie()
     testobj.file_exists = False
     testobj.exists = False
@@ -695,15 +726,15 @@ def test_actie_write(monkeypatch, capsys, actie_output):
     # testobj.datum='now'
     # testobj.write()
 
-    monkeypatch.setattr(MockElement, 'findall', mock_findall)
+    # monkeypatch.setattr(MockElement, 'findall', mock_findall)
     monkeypatch.setattr(MockElement, 'find', mock_find)
     monkeypatch.setattr(MockElement, 'get', mock_get_2)
-    monkeypatch.setattr(dml, 'Element', MockElement)
-    monkeypatch.setattr(dml.ElementTree, 'getroot', mock_getroot)
-    monkeypatch.setattr(dml.ElementTree, 'write', mock_write)
-    monkeypatch.setattr(dml, 'ElementTree', MockTree)
-    monkeypatch.setattr(dml, 'SubElement', mock_subelement)
-    monkeypatch.setattr(dml, 'copyfile', mock_copyfile)
+    # monkeypatch.setattr(dml, 'Element', MockElement)
+    # monkeypatch.setattr(dml.ElementTree, 'getroot', mock_getroot)
+    # monkeypatch.setattr(dml.ElementTree, 'write', mock_write)
+    # monkeypatch.setattr(dml, 'ElementTree', MockTree)
+    # monkeypatch.setattr(dml, 'SubElement', mock_subelement)
+    # monkeypatch.setattr(dml, 'copyfile', mock_copyfile)
     testobj.file_exists = True
     testobj.exists = True
     testobj.id = '1'
@@ -720,6 +751,21 @@ def test_actie_write(monkeypatch, capsys, actie_output):
     testobj.imagelist = []
     assert testobj.write()
     assert capsys.readouterr().out == actie_output['old']
+
+    monkeypatch.setattr(MockElement, 'get', mock_get_2)
+    monkeypatch.setattr(dml.base64, 'b64encode', mock_encode)
+    testobj.arch = False
+    image1 = tmp_path / 'image1.png'
+    image1.touch()
+    image2 = tmp_path / 'image2.png'
+    image2.touch()
+    testobj.imagelist = [str(image1), str(image2)]
+    assert testobj.write()
+    assert capsys.readouterr().out == actie_output['old2'].replace('tmp_path', str(tmp_path))
+
+    testobj.id = '3'
+    assert not testobj.write()
+    assert capsys.readouterr().out == actie_output['notfound']
 
 
 def test_actie_cleanup(monkeypatch, capsys):

@@ -521,12 +521,91 @@ class TestMainGui:
                                            "called Page.leavep with arg 1\n"
                                            "called event.Skip\n")
 
-    def _test_on_page_changed(self, monkeypatch, capsys):
+    def test_on_page_changed(self, monkeypatch, capsys):
         """unittest for MainGui.on_page_changed
         """
+        class MockEvent:
+            def GetOldSelection(self):
+                print('called event.GetOldSelection')
+                return 1
+            def GetSelection(self):
+                print('called event.GetSelection')
+                return 2
+            def Skip(self):
+                print('called event.Skip')
+        class MockEvent2:
+            def GetOldSelection(self):
+                print('called event.GetOldSelection')
+                return 1
+            def GetSelection(self):
+                print('called event.GetSelection')
+                return 0
+            def Skip(self):
+                print('called event.Skip')
+        class MockPage:
+            def __init__(self, arg):
+                self._vlgnr = arg
+                self.gui = MockPageGui(arg)
+            def vulp(self):
+                print(f'called Page{self._vlgnr}.vulp')
+        class MockPageGui:
+            def __init__(self, arg):
+                self._vlgnr = arg
+            def get_list_row(self):
+                print(f'called Page{self._vlgnr}Gui.get_list_row')
+                return 'row'
+            def set_list_row(self, row):
+                print(f'called Page{self._vlgnr}Gui.set_list_row with arg {row}')
+        def mock_set(*args):
+            print('called MainGui.set_tabfocus with args', args)
+        event = MockEvent()
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.on_page_changed(event=None, newtabnum=None) == "expected_result"
+        testobj.master.book.pages = [MockPage(i) for i in range(7)]
+        testobj.set_tabfocus = mock_set
+        testobj.on_page_changed()
+        assert capsys.readouterr().out == ""
+        monkeypatch.setattr(testee, 'LIN', False)
+        testobj.on_page_changed(event)
+        assert testobj.master.book.current_tab == 2
+        assert capsys.readouterr().out == ("called event.GetOldSelection\n"
+                                           "called event.GetSelection\n"
+                                           "called Page2.vulp\n"
+                                           "called MainGui.set_tabfocus with args (2,)\n"
+                                           "called event.Skip\n")
+        monkeypatch.setattr(testee, 'LIN', True)
+        testobj.on_page_changed(newtabnum=1)
+        assert testobj.master.book.current_tab == 1
+        assert capsys.readouterr().out == ("called Page1.vulp\n"
+                                           "called MainGui.set_tabfocus with args (1,)\n")
+        testobj.on_page_changed(newtabnum=-1)
+        assert testobj.master.book.current_tab == 1
         assert capsys.readouterr().out == ("")
+        testobj.on_page_changed(newtabnum=0)
+        assert testobj.master.book.current_tab == 0
+        assert capsys.readouterr().out == ("called Page0Gui.get_list_row\n"
+                                           "called Page0.vulp\n"
+                                           "called Page0Gui.set_list_row with arg row\n"
+                                           "called MainGui.set_tabfocus with args (0,)\n")
+        testobj.on_page_changed(newtabnum=6)
+        assert testobj.master.book.current_tab == 6
+        assert capsys.readouterr().out == ("called Page6Gui.get_list_row\n"
+                                           "called Page6.vulp\n"
+                                           "called Page6Gui.set_list_row with arg row\n"
+                                           "called MainGui.set_tabfocus with args (6,)\n")
+        testobj.on_page_changed(newtabnum=6)
+        assert testobj.master.book.current_tab == 6
+        assert capsys.readouterr().out == ("called Page6Gui.get_list_row\n"
+                                           "called Page6.vulp\n"
+                                           "called Page6Gui.set_list_row with arg row\n"
+                                           "called MainGui.set_tabfocus with args (6,)\n")
+        event = MockEvent2()
+        testobj.on_page_changed(event)
+        assert testobj.master.book.current_tab == 0
+        assert capsys.readouterr().out == ("called event.GetOldSelection\n"
+                                           "called event.GetSelection\n"
+                                           "called Page0.vulp\n"
+                                           "called MainGui.set_tabfocus with args (0,)\n"
+                                           "called event.Skip\n")
 
     def test_add_book_tab(self, monkeypatch, capsys):
         """unittest for MainGui.add_book_tab
@@ -799,12 +878,74 @@ class TestPageGui:
                 "called hori sizer.Add with args MockControl (1, 8432, 10)\n"
                 "called  sizer.Add with args MockBoxSizer (1, 8192)\n")
 
-    def _test_create_toolbar(self, monkeypatch, capsys):
+    def test_create_toolbar(self, monkeypatch, capsys):
         """unittest for PageGui.create_toolbar
         """
+        class MockImage:
+            def __init__(self, *args):
+                print('called image.__init__ with args', args)
+            def __repr__(self):
+                return 'Image'
+        def mock_add(*args):
+            print('called PageGui.add_keybind with args', args)
+        def mock_bind(*args, **kwargs):
+            print('called Panel.Bind with args', args, kwargs)
+        monkeypatch.setattr(testee, 'HERE', 'path/to')
+        monkeypatch.setattr(testee.wx, 'BoxSizer', mockwx.MockBoxSizer)
+        monkeypatch.setattr(testee.wx, 'ToolBar', mockwx.MockToolBar)
+        monkeypatch.setattr(testee.wx, 'Button', mockwx.MockButton)
+        monkeypatch.setattr(testee.wx, 'Bitmap', mockwx.MockBitmap)
+        monkeypatch.setattr(testee.wx, 'Image', MockImage)
+        monkeypatch.setattr(testee.wx.Panel, 'Bind', mock_bind)
+        sizer = mockwx.MockBoxSizer()
+        assert capsys.readouterr().out == "called BoxSizer.__init__ with args ()\n"
+        textfield = 'textfield'
+        toolbardata = []
+        parent = 'parent'
         testobj = self.setup_testobj(monkeypatch, capsys)
-        assert testobj.create_toolbar(parent=None, textfield=None) == "expected_result"
-        assert capsys.readouterr().out == ("")
+        testobj.add_keybind = mock_add
+        result = testobj.create_toolbar(sizer, textfield, toolbardata)
+        assert isinstance(result, testee.wx.ToolBar)
+        assert capsys.readouterr().out == (
+                "called BoxSizer.__init__ with args (4,)\n"
+                f"called ToolBar.__init__ with args ({testobj},)\n"
+                "called Toolbar.SetToolBitmapSize with args ((16, 16),)\n"
+                "called Button.__init__ with args (A ToolBar,) {'label': 'Font'}\n"
+                "called Button.Bind with args"
+                f" ({testee.wx.EVT_BUTTON}, {testobj.choose_font}) {{}}\n"
+                f"called Toolbar.AddControl with args ({testobj.fontbutton},)\n"
+                "called Toolbar.Realize with args ()\n"
+                "called hori sizer.Add with args MockToolBar (1, 8432, 4)\n"
+                "called BoxSizer.Insert with args (0, hori sizer, 0, 8192)\n")
+        toolbardata = [None, ('title', 'keydef', '', 'helptext', 'callback', 'updater'),
+                       ('xxx', '', 'iconame', 'Toggle checkbutton', 'callback')]
+        # breakpoint()
+        result = testobj.create_toolbar(sizer, textfield, toolbardata, parent)
+        assert capsys.readouterr().out == (
+                "called BoxSizer.__init__ with args (4,)\n"
+                f"called ToolBar.__init__ with args ('parent',)\n"
+                "called Toolbar.SetToolBitmapSize with args ((16, 16),)\n"
+                "called Button.__init__ with args (A ToolBar,) {'label': 'Font'}\n"
+                "called Button.Bind with args"
+                f" ({testee.wx.EVT_BUTTON}, {testobj.choose_font}) {{}}\n"
+                f"called Toolbar.AddControl with args ({testobj.fontbutton},)\n"
+                "called Toolbar.AddSeparator with args ()\n"
+                f"called Toolbar.AddTool with args"
+                f" (-1, 'title', {testee.wx.NullBitmap}) {{'shortHelp': 'helptext'}}\n"
+                "called Panel.Bind with args"
+                f" ({testobj}, {testee.wx.EVT_TOOL}, 'callback') {{'id': -1}}\n"
+                "called PageGui.add_keybind with args ('keydef', 'callback', 'title')\n"
+                "called Panel.Bind with args"
+                f" ({testobj}, {testee.wx.EVT_UPDATE_UI}, 'updater') {{'id': -1}}\n"
+                "called image.__init__ with args ('path/to/iconame.png', 15)\n"
+                "called Bitmap.__init__ with args (Image,)\n"
+                "called Toolbar.AddCheckTool with args"
+                " (-1, 'xxx', Bitmap created from 'Image') {'shortHelp': 'Toggle checkbutton'}\n"
+                "called Panel.Bind with args"
+                f" ({testobj}, {testee.wx.EVT_TOOL}, 'callback') {{'id': -1}}\n"
+                "called Toolbar.Realize with args ()\n"
+                "called hori sizer.Add with args MockToolBar (1, 8432, 4)\n"
+                "called BoxSizer.Insert with args (0, hori sizer, 0, 8192)\n")
 
     def test_create_buttons(self, monkeypatch, capsys):
         """unittest for PageGui.create_buttons

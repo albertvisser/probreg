@@ -274,19 +274,21 @@ class MainGui(wx.Frame):
         """
         if event:
             old = event.GetOldSelection()
-            new = self.master.book.current_tab = event.GetSelection()
+            new = event.GetSelection()
         elif newtabnum is not None:
             old = new = newtabnum
         else:
             return
-        notab, firsttab, lasttab = -1, 0, 6
+        notab, firsttab = -1, 0
+        lasttab = len(self.master.book.pages) - 1
         # sel = self.master.book.GetSelection() # unused
         # print('  old selection is', old)
         if LIN and old == notab:  # bij initialisatie en bij afsluiten - op Windows is old altijd -1?
             return
+        self.master.book.current_tab = new
         if firsttab < new < lasttab:
             self.master.book.pages[new].vulp()
-        elif new in (firsttab, lasttab):
+        else:  # if new in (firsttab, lasttab):  -- iets anders is niet mogelijk
             if old == new:
                 item = self.master.book.pages[new].gui.get_list_row()  # remember current item
             self.master.book.pages[new].vulp()
@@ -422,13 +424,16 @@ class PageGui(wx.Panel):
     def create_toolbar(self, sizer, textfield, toolbardata, parent=None):
         """build toolbar with buttons for changing text style
         """
+        # textfield is intended to be connected to the font selector
+        # here the choose_font method takes care of that
         parent = parent or self
         hsizer = wx.BoxSizer(wx.HORIZONTAL)
         toolbar = wx.ToolBar(parent)
         toolbar.SetToolBitmapSize((16, 16))
-        fontbutton = wx.Button(toolbar, label="Font")
-        fontbutton.Bind(wx.EVT_BUTTON, self.choose_font)
-        toolbar.AddControl(fontbutton)
+        button = wx.Button(toolbar, label="Font")
+        button.Bind(wx.EVT_BUTTON, self.choose_font)
+        toolbar.AddControl(button)
+        self.fontbutton = button   # alleen t.b.v. unittest
 
         # accel_data = []
         for menudef in toolbardata:
@@ -440,7 +445,8 @@ class PageGui(wx.Panel):
                 bmp = wx.Bitmap(wx.Image(os.path.join(HERE, icon + '.png'), wx.BITMAP_TYPE_PNG))
             else:
                 bmp = wx.NullBitmap
-            toolid = wx.NewId()
+            self.bmp = bmp  # alleen t.b.v. unittest
+            toolid = wx.ID_ANY
             if info.startswith("Toggle"):
                 toolbar.AddCheckTool(toolid, label, bmp, shortHelp=info)
             else:

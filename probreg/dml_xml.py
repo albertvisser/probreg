@@ -93,10 +93,6 @@ def get_nieuwetitel(fnaam, jaar=None):
     if fnaam.exists():
         dnaam = str(fnaam)
     else:
-        # test = pathlib.Path('') / str(fnaam)
-        # if test.exists():
-        #     dnaam = str(test)
-        # else:
         raise DataError("Datafile bestaat niet")
     if jaar is None:
         jaar = dt.date.today().year
@@ -107,8 +103,7 @@ def get_nieuwetitel(fnaam, jaar=None):
         t = x.get("id").split("-")
         if int(t[0]) != jaar:
             continue
-        if int(t[1]) > nummer:
-            nummer = int(t[1])
+        nummer = max(nummer, int(t[1]))
     nummer += 1
     return f"{jaar}-{nummer:04}"
 
@@ -136,7 +131,6 @@ def get_acties(fnaam, select=None, arch="", user=None):
         select = {}     # geen selectie
         # if not arch:    # toegestane waarde, dus waarom afbreken?
         #     return []
-    lijst = []
     if select:
         keyfout = False
         for x in list(select.keys()):
@@ -146,15 +140,17 @@ def get_acties(fnaam, select=None, arch="", user=None):
         if keyfout:
             raise DataError("Foutief selectie-argument opgegeven")
         if "id" in select and ("idlt" not in select or "idgt" not in select):
-                raise DataError("Foutieve combinatie van selectie-argumenten opgegeven")
+            raise DataError("Foutieve combinatie van selectie-argumenten opgegeven")
     if arch not in ("", "arch", "alles"):
         raise DataError("Foutieve waarde voor archief opgegeven "
                         "(moet leeg, 'arch' of 'alles' zijn)")
     sett = Settings(fnaam)
     if not fnaam.exists():
         raise DataError("Datafile bestaat niet")
+
     tree = ElementTree(file=str(fnaam))
     rt = tree.getroot()
+    result = []
     for x in rt.findall("actie"):
         a = x.get("arch")
         if a is None:
@@ -166,8 +162,8 @@ def get_acties(fnaam, select=None, arch="", user=None):
         if "id" in select and select["id"] == "or":
             if select["idlt"] <= nr <= select["idgt"]:
                 continue
-        elif (("idgt" in select and nr <= select["idgt"]) or
-                  ("idlt" in select and nr >= select["idlt"])):
+        elif (("idgt" in select and nr <= select["idgt"])
+              or ("idlt" in select and nr >= select["idlt"])):
             continue
         ## alternatief en meer overeenkomend met de sql versie
         ## if 'id' in select:
@@ -180,21 +176,15 @@ def get_acties(fnaam, select=None, arch="", user=None):
                 ## continue
             ## if select['id'] == 'or' and select_gt == False and select_lt == False:
                 ## continue
-        dd = x.get("datum")
-        if dd is None:
-            dd = ''
-        lu = x.get("updated")
-        if lu is None:
-            lu = ""
-        h = x.get("status")
+        dd = x.get("datum", '')
+        lu = x.get("updated", '')
+        h = x.get("status", 'None')
         if "status" in select and h not in select["status"]:
             continue
         st = ''
         if h in list(sett.stat.keys()):
             st = sett.stat[h]
-        h = x.get("soort")
-        # if h is None:  # - kan niet voorkomen? (wordt bij status ook niet gecheckt)
-        #     h = ""
+        h = x.get("soort", 'None')
         if "soort" in select and h not in select["soort"]:
             continue
         ct = ''
@@ -205,8 +195,8 @@ def get_acties(fnaam, select=None, arch="", user=None):
             tl = ""
         if "titel" in select and select["titel"].upper() not in tl.upper():
             continue
-        lijst.append((nr, dd, st, ct, tl, lu, a))
-    return lijst
+        result.append((nr, dd, st, ct, tl, lu, a))
+    return result
 
 
 class Settings:
@@ -436,13 +426,13 @@ class Actie:
         #     sett.set('startitem', str(self.startitem))
         sett.set('startitem', self.id)
 
+        found = False
         if not self.exists:
             x = SubElement(rt, "actie")
             x.set("id", self.id)
             x.set("datum", self.datum)
             found = True
         else:
-            found = False
             for x in rt.findall("actie"):
                 if x.get("id") == self.id:
                     found = True

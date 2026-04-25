@@ -192,7 +192,6 @@ class MainGui(qtw.QMainWindow):
 
         newtabnum wordt door de event meegegeven maar niet door refresh_page
         """
-        firsttab, lasttab = 0, 6
         old = self.master.book.current_tab
         new = self.get_page(self.master.book) if newtabnum is None else newtabnum
         self.master.book.current_tab = new
@@ -200,6 +199,8 @@ class MainGui(qtw.QMainWindow):
             return
         self.master.enable_all_other_tabs(True)
         page = self.master.book.pages[new]
+        firsttab = 0
+        lasttab = len(self.master.book.pages) - 1
         if firsttab < new < lasttab:
             page.vulp()
         else:  # if new in (firsttab, lasttab): enig andere mogelijkheid
