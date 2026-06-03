@@ -116,11 +116,11 @@ def vergelijk(file1, file2, uit=sys.stdout):
                 h = x[1][y][0]
                 if h is None:
                     h = 'n/a'
-                uit.write(f"*** links: ***\n{h}\n")      #  h.encode('latin-1'))
+                uit.write(f"*** links: ***\n{h}\n")      # h.encode('latin-1'))
                 h = x[1][y][1]
                 if h is None:
                     h = 'n/a'
-                uit.write(f"*** rechts: ***\n{h}\n\n")   #  h.encode('latin-1'))
+                uit.write(f"*** rechts: ***\n{h}\n\n")   # h.encode('latin-1'))
         else:
             uit.write(f"{x[0]} {x[1]}\n")
 
