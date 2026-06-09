@@ -1428,8 +1428,7 @@ class SortOptionsDialogGui(wx.Dialog):
         """
         col = 1
         buttons = []
-        for text, direction_id, checked in buttondefs:
-            # direction_id wordt in de wx variant niet gebruikt
+        for text, _direction_id, checked in buttondefs:
             if col == 1:
                 rb = wx.RadioButton(self, label=text, style=wx.RB_GROUP)
             else:
@@ -1639,7 +1638,7 @@ class SelectOptionsDialogGui(wx.Dialog):
     def on_text(self, evt):
         "callback voor EVT_TEXT"
         obj = evt.GetEventObject()
-        if obj in (self.master.text_gt, self.master.text_lt):
+        if obj in (self.master.action_gt, self.master.action_lt):
             target = self.master.cb_actie
         elif obj in (self.master.text_zoek, self.master.text_zoek2):
             target = self.master.cb_text

@@ -133,7 +133,7 @@ class MainGui(qtw.QMainWindow):
         for title, items in self.master.get_menu_data():
             menu = menu_bar.addMenu(title)
             for menuitem in items:
-                action = add_to_menu(menu, menuitem)
+                add_to_menu(menu, menuitem)
                 # if title == '&View':
                 #     self.master.tabmenus.append(action)
 
@@ -1316,7 +1316,7 @@ class SortOptionsDialogGui(qtw.QDialog):
 
     def enable_fields(self, state):
         "enable/disable widgets"
-        for lbl, cmb, rbg in self.master.widgets:
+        for _lbl, cmb, rbg in self.master.widgets:
             # lbl.setEnabled(state)
             cmb.setEnabled(state)
             for btn in rbg.buttons():
@@ -1522,12 +1522,12 @@ class SelectOptionsDialogGui(qtw.QDialog):
 
     def on_text(self, arg, text):
         "callback voor activiteitnummer checkboxes"
-        if arg in ('gt', 'lt'):
+        if arg in (self.master.action_gt, self.master.action_lt):
             obj = self._cbg.buttons()[0]  # check_options.buttons()[0]
-            other = self.master.text_lt if arg == 'gt' else self.master.text_gt
-        else:  # if arg.startswith('zoek'):  iets anders niet mogelijk
+            other = self.master.action_lt if arg == self.master.action_gt else self.master.action_gt
+        else:  # if arg in (self.master.text_zoek self.master.text_zoek2):  iets anders niet mogelijk
             obj = self._cbg.buttons()[3]  # check_options.buttons()[3]
-            other = self.master.text_zoek2 if arg == 'zoek' else self.master.text_zoek
+            other = self.master.text_zoek2 if arg == self.master.text_zoek else self.master.text_zoek
         if text == "" and other.text() == "":
             obj.setChecked(False)
         else:

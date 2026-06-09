@@ -3481,6 +3481,7 @@ class TestPage0:
         testobj.appbase.work_with_user = False
         testobj.sort_via_options = False
         testobj.book.rereadlist = False
+        testobj.appbase.selection = ''
         testobj.vulp()
         assert testobj.selection == ''
         assert testobj.seltitel == 'alle meldingen '
@@ -3490,6 +3491,17 @@ class TestPage0:
                 'call MainWindow.enable_all_book_tabs(False)\n'
                 'called Page0.enable_buttons\n'
                 'call MainWindow.set_statusmessage()\n')
+        testobj.appbase.selection = '(xxx)'
+        testobj.vulp()
+        assert testobj.selection == '(xxx)'
+        assert testobj.seltitel == 'alle meldingen (xxx)'
+        assert capsys.readouterr().out == (
+                f'called PageGui.enable_sorting with args ({testobj.p0list}, True)\n'
+                'called Page.vulp()\n'
+                'call MainWindow.enable_all_book_tabs(False)\n'
+                'called Page0.enable_buttons\n'
+                'call MainWindow.set_statusmessage()\n')
+        testobj.appbase.selection = ''
 
         testobj.appbase.work_with_user = True
         testobj.book.rereadlist = True
@@ -3583,7 +3595,7 @@ class TestPage0:
         testobj.book.cats = {0: ('start', '1'), 1: ('next', '2')}
         testobj.appbase.user = 'me'
 
-        testobj.sel_args = {}
+        testobj.appbase.sel_args = {}
         testobj.appbase.datatype = '7'
         testobj.populate_list()
         assert testobj.book.data == {0: ('x0', 'y', 'stat0.0', 'cat0.0', 'r', 'q', True),
@@ -3598,7 +3610,7 @@ class TestPage0:
                 "called Page0.set_listitem_values with args"
                 " ('p0list', None, ['x1', 'stat0.0', 'cat0.0', 'r', 'q', False])\n")
 
-        testobj.sel_args = {'arch': 'yes'}
+        testobj.appbase.sel_args = {'arch': 'yes'}
         testobj.appbase.datatype = '8'
         testobj.populate_list()
         assert testobj.book.data == {0: ('x0', 'y', '1.start', '1.first', 'q', 'r', 's', True),
@@ -3613,7 +3625,7 @@ class TestPage0:
                 "called Page0.set_listitem_values with args"
                 " ('p0list', None, ['x1', '1.start', '1.first', 'q', 'r', 's', False])\n")
 
-        testobj.sel_args = {'sel': 'args'}
+        testobj.appbase.sel_args = {'sel': 'args'}
         testobj.appbase.datatype = '10'
         testobj.populate_list()
         assert testobj.book.data == {0: ('x0', 'y', 'b.a', '0.0', 's', 'q', 'r', True),
@@ -5657,9 +5669,9 @@ class TestSelectOptionsDialog:
             stats={'0': ('a', 'x'), '1': ('b', 'y'), '2': ('c', 'z')}))
         testobj.gui = MockGui()
         testobj.cb_actie = 'actie'
-        testobj.text_gt = 'text_gt'
-        testobj.action_andor = ['text_and', 'text_or']
-        testobj.text_lt = 'text_lt'
+        testobj.action_gt = 'action_gt'
+        testobj.action_andor = ['action_and', 'action_or']
+        testobj.action_lt = 'action_lt'
         testobj.cb_soort = 'soort'
         testobj.check_cats = ['cat1', 'cat2', 'cat3']
         testobj.cb_status = 'status'
@@ -5680,7 +5692,7 @@ class TestSelectOptionsDialog:
         testobj.set_default_values({'idlt': 'xxx', 'soort': ('b', 'c'), 'status': ('x', 'y'),
                                     'titel': 'yyy', 'arch': 'arch'})
         assert capsys.readouterr().out == (
-                "called SelectOptionsDialogGui.set_textentry_value with args ('text_lt', 'xxx')\n"
+                "called SelectOptionsDialogGui.set_textentry_value with args ('action_lt', 'xxx')\n"
                 "called SelectOptionsDialogGui.set_checkbox_value with args ('actie', True)\n"
                 "called SelectOptionsDialogGui.set_checkbox_value with args ('cat2', True)\n"
                 "called SelectOptionsDialogGui.set_checkbox_value with args ('cat3', True)\n"
@@ -5697,9 +5709,9 @@ class TestSelectOptionsDialog:
                                     'soort': ('a',), 'status': ('z',),
                                     'titel': [('about', 'yyy')], 'arch': 'alles'})
         assert capsys.readouterr().out == (
-                "called SelectOptionsDialogGui.set_textentry_value with args ('text_gt', 'qqq')\n"
-                "called SelectOptionsDialogGui.set_radiobutton_value with args ('text_and', True)\n"
-                "called SelectOptionsDialogGui.set_textentry_value with args ('text_lt', 'xxx')\n"
+                "called SelectOptionsDialogGui.set_textentry_value with args ('action_gt', 'qqq')\n"
+                "called SelectOptionsDialogGui.set_radiobutton_value with args ('action_and', True)\n"
+                "called SelectOptionsDialogGui.set_textentry_value with args ('action_lt', 'xxx')\n"
                 "called SelectOptionsDialogGui.set_checkbox_value with args ('actie', True)\n"
                 "called SelectOptionsDialogGui.set_checkbox_value with args ('cat1', True)\n"
                 "called SelectOptionsDialogGui.set_checkbox_value with args ('soort', True)\n"
@@ -5713,9 +5725,9 @@ class TestSelectOptionsDialog:
                                     'soort': (), 'status': (),
                                     'titel': [('about', 'yyy'), ('of', ''), ('title', 'zzz')]})
         assert capsys.readouterr().out == (
-                "called SelectOptionsDialogGui.set_textentry_value with args ('text_gt', 'qqq')\n"
-                "called SelectOptionsDialogGui.set_radiobutton_value with args ('text_or', True)\n"
-                "called SelectOptionsDialogGui.set_textentry_value with args ('text_lt', 'xxx')\n"
+                "called SelectOptionsDialogGui.set_textentry_value with args ('action_gt', 'qqq')\n"
+                "called SelectOptionsDialogGui.set_radiobutton_value with args ('action_or', True)\n"
+                "called SelectOptionsDialogGui.set_textentry_value with args ('action_lt', 'xxx')\n"
                 "called SelectOptionsDialogGui.set_checkbox_value with args ('actie', True)\n"
                 "called SelectOptionsDialogGui.set_checkbox_value with args ('soort', False)\n"
                 "called SelectOptionsDialogGui.set_checkbox_value with args ('status', False)\n"
@@ -5880,10 +5892,10 @@ class TestSelectOptionsDialog:
             return ''
         def mock_get_text_2(*args):
             print('called SelectOptionsDialogGui.get_textentry_value with args', args)
-            return args[0] if args[0] == 'text_gt' else ''
+            return args[0] if args[0] == 'action_gt' else ''
         def mock_get_text_3(*args):
             print('called SelectOptionsDialogGui.get_textentry_value with args', args)
-            return args[0] if args[0] == 'text_lt' else ''
+            return args[0] if args[0] == 'action_lt' else ''
         def mock_get_text_4(*args):
             print('called SelectOptionsDialogGui.get_textentry_value with args', args)
             return args[0]
@@ -5897,45 +5909,45 @@ class TestSelectOptionsDialog:
             print('called SelectOptionsDialogGui.get_radiobutton_value with args', args)
             return args[0] == 'or'
         testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.text_gt = 'text_gt'
-        testobj.text_andor = ('and', 'or')
-        testobj.text_lt = 'text_lt'
+        testobj.action_gt = 'action_gt'
+        testobj.action_andor = ('and', 'or')
+        testobj.action_lt = 'action_lt'
         testobj.gui = types.SimpleNamespace(get_textentry_value=mock_get_text,
                                             get_radiobutton_value=mock_get_rb)
         assert testobj.get_actie_selargs() == (True, {})
         assert capsys.readouterr().out == (
-                "called SelectOptionsDialogGui.get_textentry_value with args ('text_gt',)\n"
-                "called SelectOptionsDialogGui.get_textentry_value with args ('text_lt',)\n")
+                "called SelectOptionsDialogGui.get_textentry_value with args ('action_gt',)\n"
+                "called SelectOptionsDialogGui.get_textentry_value with args ('action_lt',)\n")
         testobj.gui.get_textentry_value = mock_get_text_2
-        assert testobj.get_actie_selargs() == (True, {'idgt': 'text_gt'})
+        assert testobj.get_actie_selargs() == (True, {'idgt': 'action_gt'})
         assert capsys.readouterr().out == (
-                "called SelectOptionsDialogGui.get_textentry_value with args ('text_gt',)\n"
-                "called SelectOptionsDialogGui.get_textentry_value with args ('text_lt',)\n")
+                "called SelectOptionsDialogGui.get_textentry_value with args ('action_gt',)\n"
+                "called SelectOptionsDialogGui.get_textentry_value with args ('action_lt',)\n")
         testobj.gui.get_textentry_value = mock_get_text_3
-        assert testobj.get_actie_selargs() == (True, {'idlt': 'text_lt'})
+        assert testobj.get_actie_selargs() == (True, {'idlt': 'action_lt'})
         assert capsys.readouterr().out == (
-                "called SelectOptionsDialogGui.get_textentry_value with args ('text_gt',)\n"
-                "called SelectOptionsDialogGui.get_textentry_value with args ('text_lt',)\n")
+                "called SelectOptionsDialogGui.get_textentry_value with args ('action_gt',)\n"
+                "called SelectOptionsDialogGui.get_textentry_value with args ('action_lt',)\n")
         testobj.gui.get_textentry_value = mock_get_text_4
         assert testobj.get_actie_selargs() == (False, {})
         assert capsys.readouterr().out == (
-                "called SelectOptionsDialogGui.get_textentry_value with args ('text_gt',)\n"
-                "called SelectOptionsDialogGui.get_textentry_value with args ('text_lt',)\n"
+                "called SelectOptionsDialogGui.get_textentry_value with args ('action_gt',)\n"
+                "called SelectOptionsDialogGui.get_textentry_value with args ('action_lt',)\n"
                 "called SelectOptionsDialogGui.get_radiobutton_value with args ('and',)\n"
                 "called SelectOptionsDialogGui.get_radiobutton_value with args ('or',)\n")
         testobj.gui.get_radiobutton_value = mock_get_rb_2
-        assert testobj.get_actie_selargs() == (True,
-                                               {'idgt': 'text_gt', 'idlt': 'text_lt', 'id': 'and'})
+        assert testobj.get_actie_selargs() == (True, {'idgt': 'action_gt', 'idlt': 'action_lt',
+                                                      'id': 'and'})
         assert capsys.readouterr().out == (
-                "called SelectOptionsDialogGui.get_textentry_value with args ('text_gt',)\n"
-                "called SelectOptionsDialogGui.get_textentry_value with args ('text_lt',)\n"
+                "called SelectOptionsDialogGui.get_textentry_value with args ('action_gt',)\n"
+                "called SelectOptionsDialogGui.get_textentry_value with args ('action_lt',)\n"
                 "called SelectOptionsDialogGui.get_radiobutton_value with args ('and',)\n")
         testobj.gui.get_radiobutton_value = mock_get_rb_3
-        assert testobj.get_actie_selargs() == (True,
-                                               {'idgt': 'text_gt', 'idlt': 'text_lt', 'id': 'or'})
+        assert testobj.get_actie_selargs() == (True, {'idgt': 'action_gt', 'idlt': 'action_lt',
+                                                      'id': 'or'})
         assert capsys.readouterr().out == (
-                "called SelectOptionsDialogGui.get_textentry_value with args ('text_gt',)\n"
-                "called SelectOptionsDialogGui.get_textentry_value with args ('text_lt',)\n"
+                "called SelectOptionsDialogGui.get_textentry_value with args ('action_gt',)\n"
+                "called SelectOptionsDialogGui.get_textentry_value with args ('action_lt',)\n"
                 "called SelectOptionsDialogGui.get_radiobutton_value with args ('and',)\n"
                 "called SelectOptionsDialogGui.get_radiobutton_value with args ('or',)\n")
 
@@ -6036,8 +6048,7 @@ class TestSelectOptionsDialog:
             print('called SelectOptionsDialogGui.get_radiobutton_value with args', args)
             return args[0] == 'or'
         testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.parent = types.SimpleNamespace(
-                parent=types.SimpleNamespace(use_separate_subject=False))
+        testobj.parent = types.SimpleNamespace(use_separate_subject=False)
         testobj.text_zoek = 'zoek'
         testobj.zoek_andor = ('and', 'or')
         testobj.text_zoek2 = 'zoek2'
@@ -6050,7 +6061,7 @@ class TestSelectOptionsDialog:
         assert testobj.get_search_selargs() == (True, {'titel': 'zoek'})
         assert capsys.readouterr().out == (
                 "called SelectOptionsDialogGui.get_textentry_value with args ('zoek',)\n")
-        testobj.parent.parent.use_separate_subject = True
+        testobj.parent.use_separate_subject = True
         testobj.gui.get_textentry_value = mock_get_text
         assert testobj.get_search_selargs() == (True, {})
         assert capsys.readouterr().out == (

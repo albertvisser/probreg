@@ -8,7 +8,6 @@ importeer models uit alle subdirectories/packages voor benaderen gewenste data
 import sys
 import os
 import datetime as dt
-import collections
 # import importlib
 
 import pathlib

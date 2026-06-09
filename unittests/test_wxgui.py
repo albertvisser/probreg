@@ -1143,7 +1143,7 @@ class TestEditorPanel:
         """unittest for EditorPanel.__init__
         """
         monkeypatch.setattr(testee.wx.TextCtrl, '__init__', mockwx.MockTextCtrl.__init__)
-        testobj = testee.EditorPanel('parent')
+        _testobj = testee.EditorPanel('parent')
         assert capsys.readouterr().out == ("called TextCtrl.__init__ with args"
                                            " ('parent',) {'size': (400, 200), 'style': 32865}\n")
 
@@ -3201,7 +3201,7 @@ class TestEasyPrinter:
         """unittest for EasyPrinter.__init__
         """
         monkeypatch.setattr(testee.wx.html, 'HtmlEasyPrinting', mockwx.MockEasyPrinting)
-        testobj = testee.EasyPrinter()
+        _testobj = testee.EasyPrinter()
         assert capsys.readouterr().out == "called HtmlEasyPrinting.__init__\n"
 
     def test_print(self, monkeypatch, capsys):
@@ -3646,10 +3646,10 @@ class TestSelectOptionsDialogGui:
         """
         def mock_get():
             print('called event.GetEventObject')
-            return testobj.master.text_gt
+            return testobj.master.action_gt
         def mock_get_2():
             print('called event.GetEventObject')
-            return testobj.master.text_lt
+            return testobj.master.action_lt
         def mock_get_3():
             print('called event.GetEventObject')
             return testobj.master.text_zoek
@@ -3662,8 +3662,8 @@ class TestSelectOptionsDialogGui:
         event = mockwx.MockEvent()
         assert capsys.readouterr().out == "called event.__init__ with args ()\n"
         testobj = self.setup_testobj(monkeypatch, capsys)
-        testobj.master = types.SimpleNamespace(text_gt=mockwx.MockTextCtrl(),
-                                               text_lt=mockwx.MockTextCtrl(),
+        testobj.master = types.SimpleNamespace(action_gt=mockwx.MockTextCtrl(),
+                                               action_lt=mockwx.MockTextCtrl(),
                                                text_zoek=mockwx.MockTextCtrl(),
                                                text_zoek2=mockwx.MockTextCtrl(),
                                                cb_actie=mockwx.MockCheckBox(),

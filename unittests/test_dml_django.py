@@ -60,7 +60,7 @@ def test_validate_user(monkeypatch):
     monkeypatch.setattr(dml, 'get_user', lambda x: None)
     assert dml.validate_user('naam', 'passw', 'project') == ('', False, False)
     me = dml.my.User.objects.create(username='testuser')
-    proj = dml.my.Project.objects.create(name='project')
+    dml.my.Project.objects.create(name='project')
     monkeypatch.setattr(dml, 'get_user', lambda x: me)
     monkeypatch.setattr(dml.hashers, 'check_password', lambda *x: False)
     assert dml.validate_user('naam', 'passw', 'project') == ('', False, False)

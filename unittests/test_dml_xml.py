@@ -459,16 +459,16 @@ def test_actie_init(monkeypatch, capsys):
     with pytest.raises(dml.DataError) as exc:
         testobj = dml.Actie('x', 1)
     assert str(exc.value) == "Can't pass non-empty id for nonexistant file"
-    testobj = dml.Actie('x', 0)
+    _testobj = dml.Actie('x', 0)
     assert capsys.readouterr().out == 'called Actie.nieuwfile()\ncalled Actie.nieuw()\n'
-    testobj = dml.Actie('x', '0')
+    _testobj = dml.Actie('x', '0')
     assert capsys.readouterr().out == 'called Actie.nieuwfile()\ncalled Actie.nieuw()\n'
     monkeypatch.setattr(dml, 'check_filename', lambda x: ('x', 'y', True, ""))
-    testobj = dml.Actie('x', 1)
+    _testobj = dml.Actie('x', 1)
     assert capsys.readouterr().out == 'called Actie.read()\n'
-    testobj = dml.Actie('x', 0)
+    _testobj = dml.Actie('x', 0)
     assert capsys.readouterr().out == 'called Actie.nieuw()\n'
-    testobj = dml.Actie('x', '0')
+    _testobj = dml.Actie('x', '0')
     assert capsys.readouterr().out == 'called Actie.nieuw()\n'
 
 

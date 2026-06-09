@@ -3599,64 +3599,64 @@ class TestSelectOptionsDialogGui:
         testobj._cbg = types.SimpleNamespace(buttons=lambda *x: [btn1, '', '', btn2])
         testobj.master = types.SimpleNamespace()
 
-        testobj.master.text_lt = mockqtw.MockLineEdit('text_lt')
-        testobj.master.text_gt = mockqtw.MockLineEdit('text_gt')
-        assert capsys.readouterr().out == ("called LineEdit.__init__ with args ('text_lt',)\n"
-                                           "called LineEdit.__init__ with args ('text_gt',)\n")
-        assert testobj.on_text('gt', 'text') == btn1
+        testobj.master.action_lt = mockqtw.MockLineEdit('action_lt')
+        testobj.master.action_gt = mockqtw.MockLineEdit('action_gt')
+        assert capsys.readouterr().out == ("called LineEdit.__init__ with args ('action_lt',)\n"
+                                           "called LineEdit.__init__ with args ('action_gt',)\n")
+        assert testobj.on_text(testobj.master.action_gt, 'text') == btn1
         assert capsys.readouterr().out == ("called RadioButton.setChecked with arg `True`\n")
-        assert testobj.on_text('gt', '') == btn1
+        assert testobj.on_text(testobj.master.action_gt, '') == btn1
         assert capsys.readouterr().out == ("called LineEdit.text\n"
                                            "called RadioButton.setChecked with arg `True`\n")
-        assert testobj.on_text('lt', 'text') == btn1
+        assert testobj.on_text(testobj.master.action_lt, 'text') == btn1
         assert capsys.readouterr().out == ("called RadioButton.setChecked with arg `True`\n")
-        assert testobj.on_text('lt', '') == btn1
+        assert testobj.on_text(testobj.master.action_lt, '') == btn1
         assert capsys.readouterr().out == ("called LineEdit.text\n"
                                            "called RadioButton.setChecked with arg `True`\n")
 
-        testobj.master.text_lt = mockqtw.MockLineEdit('')
-        testobj.master.text_gt = mockqtw.MockLineEdit('')
+        testobj.master.action_lt = mockqtw.MockLineEdit('')
+        testobj.master.action_gt = mockqtw.MockLineEdit('')
         assert capsys.readouterr().out == ("called LineEdit.__init__ with args ('',)\n"
                                            "called LineEdit.__init__ with args ('',)\n")
         assert capsys.readouterr().out == ("")
-        assert testobj.on_text('gt', 'text') == btn1
+        assert testobj.on_text(testobj.master.action_gt, 'text') == btn1
         assert capsys.readouterr().out == ("called RadioButton.setChecked with arg `True`\n")
-        assert testobj.on_text('gt', '') == btn1
+        assert testobj.on_text(testobj.master.action_gt, '') == btn1
         assert capsys.readouterr().out == ("called LineEdit.text\n"
                                            "called RadioButton.setChecked with arg `False`\n")
-        assert testobj.on_text('lt', 'text') == btn1
+        assert testobj.on_text(testobj.master.action_lt, 'text') == btn1
         assert capsys.readouterr().out == ("called RadioButton.setChecked with arg `True`\n")
-        assert testobj.on_text('lt', '') == btn1
+        assert testobj.on_text(testobj.master.action_lt, '') == btn1
         assert capsys.readouterr().out == ("called LineEdit.text\n"
                                            "called RadioButton.setChecked with arg `False`\n")
 
-        testobj.master.text_lt = mockqtw.MockLineEdit('text_lt')
-        testobj.master.text_gt = mockqtw.MockLineEdit('')
-        assert capsys.readouterr().out == ("called LineEdit.__init__ with args ('text_lt',)\n"
+        testobj.master.action_lt = mockqtw.MockLineEdit('action_lt')
+        testobj.master.action_gt = mockqtw.MockLineEdit('')
+        assert capsys.readouterr().out == ("called LineEdit.__init__ with args ('action_lt',)\n"
                                            "called LineEdit.__init__ with args ('',)\n")
-        testobj.on_text('gt', 'text')
+        testobj.on_text(testobj.master.action_gt, 'text')
         assert capsys.readouterr().out == ("called RadioButton.setChecked with arg `True`\n")
-        assert testobj.on_text('gt', '') == btn1
+        assert testobj.on_text(testobj.master.action_gt, '') == btn1
         assert capsys.readouterr().out == ("called LineEdit.text\n"
                                            "called RadioButton.setChecked with arg `True`\n")
-        assert testobj.on_text('lt', 'text') == btn1
+        assert testobj.on_text(testobj.master.action_lt, 'text') == btn1
         assert capsys.readouterr().out == ("called RadioButton.setChecked with arg `True`\n")
-        assert testobj.on_text('lt', '') == btn1
+        assert testobj.on_text(testobj.master.action_lt, '') == btn1
         assert capsys.readouterr().out == ("called LineEdit.text\n"
                                            "called RadioButton.setChecked with arg `False`\n")
 
-        testobj.master.text_lt = mockqtw.MockLineEdit('')
-        testobj.master.text_gt = mockqtw.MockLineEdit('text_gt')
+        testobj.master.action_lt = mockqtw.MockLineEdit('')
+        testobj.master.action_gt = mockqtw.MockLineEdit('action_gt')
         assert capsys.readouterr().out == ("called LineEdit.__init__ with args ('',)\n"
-                                           "called LineEdit.__init__ with args ('text_gt',)\n")
-        testobj.on_text('gt', 'text')
+                                           "called LineEdit.__init__ with args ('action_gt',)\n")
+        testobj.on_text(testobj.master.action_gt, 'text')
         assert capsys.readouterr().out == ("called RadioButton.setChecked with arg `True`\n")
-        assert testobj.on_text('gt', '') == btn1
+        assert testobj.on_text(testobj.master.action_gt, '') == btn1
         assert capsys.readouterr().out == ("called LineEdit.text\n"
                                            "called RadioButton.setChecked with arg `False`\n")
-        assert testobj.on_text('lt', 'text') == btn1
+        assert testobj.on_text(testobj.master.action_lt, 'text') == btn1
         assert capsys.readouterr().out == ("called RadioButton.setChecked with arg `True`\n")
-        assert testobj.on_text('lt', '') == btn1
+        assert testobj.on_text(testobj.master.action_lt, '') == btn1
         assert capsys.readouterr().out == ("called LineEdit.text\n"
                                            "called RadioButton.setChecked with arg `True`\n")
 
@@ -3664,14 +3664,14 @@ class TestSelectOptionsDialogGui:
         testobj.master.text_zoek2 = mockqtw.MockLineEdit('text_zoek2')
         assert capsys.readouterr().out == ("called LineEdit.__init__ with args ('text_zoek',)\n"
                                            "called LineEdit.__init__ with args ('text_zoek2',)\n")
-        assert testobj.on_text('zoek2', 'text') == btn2
+        assert testobj.on_text(testobj.master.text_zoek2, 'text') == btn2
         assert capsys.readouterr().out == ("called RadioButton.setChecked with arg `True`\n")
-        assert testobj.on_text('zoek2', '') == btn2
+        assert testobj.on_text(testobj.master.text_zoek2, '') == btn2
         assert capsys.readouterr().out == ("called LineEdit.text\n"
                                            "called RadioButton.setChecked with arg `True`\n")
-        assert testobj.on_text('zoek', 'text') == btn2
+        assert testobj.on_text(testobj.master.text_zoek, 'text') == btn2
         assert capsys.readouterr().out == ("called RadioButton.setChecked with arg `True`\n")
-        assert testobj.on_text('zoek', '') == btn2
+        assert testobj.on_text(testobj.master.text_zoek, '') == btn2
         assert capsys.readouterr().out == ("called LineEdit.text\n"
                                            "called RadioButton.setChecked with arg `True`\n")
 
@@ -3680,14 +3680,14 @@ class TestSelectOptionsDialogGui:
         assert capsys.readouterr().out == ("called LineEdit.__init__ with args ('',)\n"
                                            "called LineEdit.__init__ with args ('',)\n")
         assert capsys.readouterr().out == ("")
-        assert testobj.on_text('zoek2', 'text') == btn2
+        assert testobj.on_text(testobj.master.text_zoek2, 'text') == btn2
         assert capsys.readouterr().out == ("called RadioButton.setChecked with arg `True`\n")
-        assert testobj.on_text('zoek2', '') == btn2
+        assert testobj.on_text(testobj.master.text_zoek2, '') == btn2
         assert capsys.readouterr().out == ("called LineEdit.text\n"
                                            "called RadioButton.setChecked with arg `False`\n")
-        assert testobj.on_text('zoek', 'text') == btn2
+        assert testobj.on_text(testobj.master.text_zoek, 'text') == btn2
         assert capsys.readouterr().out == ("called RadioButton.setChecked with arg `True`\n")
-        assert testobj.on_text('zoek', '') == btn2
+        assert testobj.on_text(testobj.master.text_zoek, '') == btn2
         assert capsys.readouterr().out == ("called LineEdit.text\n"
                                            "called RadioButton.setChecked with arg `False`\n")
 
@@ -3695,14 +3695,14 @@ class TestSelectOptionsDialogGui:
         testobj.master.text_zoek2 = mockqtw.MockLineEdit('')
         assert capsys.readouterr().out == ("called LineEdit.__init__ with args ('text_zoek',)\n"
                                            "called LineEdit.__init__ with args ('',)\n")
-        testobj.on_text('zoek2', 'text')
+        testobj.on_text(testobj.master.text_zoek2, 'text')
         assert capsys.readouterr().out == ("called RadioButton.setChecked with arg `True`\n")
-        assert testobj.on_text('zoek2', '') == btn2
+        assert testobj.on_text(testobj.master.text_zoek2, '') == btn2
         assert capsys.readouterr().out == ("called LineEdit.text\n"
                                            "called RadioButton.setChecked with arg `True`\n")
-        assert testobj.on_text('zoek', 'text') == btn2
+        assert testobj.on_text(testobj.master.text_zoek, 'text') == btn2
         assert capsys.readouterr().out == ("called RadioButton.setChecked with arg `True`\n")
-        assert testobj.on_text('zoek', '') == btn2
+        assert testobj.on_text(testobj.master.text_zoek, '') == btn2
         assert capsys.readouterr().out == ("called LineEdit.text\n"
                                            "called RadioButton.setChecked with arg `False`\n")
 
@@ -3710,14 +3710,14 @@ class TestSelectOptionsDialogGui:
         testobj.master.text_zoek2 = mockqtw.MockLineEdit('text_zoek2')
         assert capsys.readouterr().out == ("called LineEdit.__init__ with args ('',)\n"
                                            "called LineEdit.__init__ with args ('text_zoek2',)\n")
-        testobj.on_text('zoek2', 'text')
+        testobj.on_text(testobj.master.text_zoek2, 'text')
         assert capsys.readouterr().out == ("called RadioButton.setChecked with arg `True`\n")
-        assert testobj.on_text('zoek2', '') == btn2
+        assert testobj.on_text(testobj.master.text_zoek2, '') == btn2
         assert capsys.readouterr().out == ("called LineEdit.text\n"
                                            "called RadioButton.setChecked with arg `False`\n")
-        assert testobj.on_text('zoek', 'text') == btn2
+        assert testobj.on_text(testobj.master.text_zoek, 'text') == btn2
         assert capsys.readouterr().out == ("called RadioButton.setChecked with arg `True`\n")
-        assert testobj.on_text('zoek', '') == btn2
+        assert testobj.on_text(testobj.master.text_zoek, '') == btn2
         assert capsys.readouterr().out == ("called LineEdit.text\n"
                                            "called RadioButton.setChecked with arg `True`\n")
 
@@ -3903,7 +3903,7 @@ class TestSettOptionsDialogGui:
         monkeypatch.setattr(testee.qtw.QDialog, 'resize', mockqtw.MockDialog.resize)
         monkeypatch.setattr(testee.qtw.QDialog, 'setWindowTitle', mockqtw.MockDialog.setWindowTitle)
         monkeypatch.setattr(testee.qtw, 'QVBoxLayout', mockqtw.MockVBoxLayout)
-        testobj = testee.SettOptionsDialogGui('master', parent, 'title')
+        _testobj = testee.SettOptionsDialogGui('master', parent, 'title')
         assert capsys.readouterr().out == (
                 "called Dialog.__init__ with args SettOptionsDialogGui () {}\n"
                 "called Dialog.resize with args (350, 200)\n"

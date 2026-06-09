@@ -254,11 +254,13 @@ class ActieFixture:
         return self.finish()
 
     def wrongaction(self):
+        "create XML for an action without subelements"
         self.root = dml.Element('acties')
         dml.SubElement(self.root, 'actie', id='15')
         return self.finish()
 
     def incomplete(self):
+        "create XML for an action with subelements without data "
         self.root = dml.Element('acties')
         actie = dml.SubElement(self.root, 'actie', id='1', status='1', soort='P')
         dml.SubElement(actie, 'titel')
@@ -271,6 +273,7 @@ class ActieFixture:
         return self.finish()
 
     def incomplete_2(self):
+        "create XML for an action with subelements without data "
         self.root = dml.Element('acties')
         actie = dml.SubElement(self.root, 'actie', id='1', status='1', soort='P')
         dml.SubElement(actie, 'titel')
@@ -283,6 +286,7 @@ class ActieFixture:
         return self.finish()
 
     def complete(self):
+        "create XML for an action with all possible types of subelements present with values"
         self.root = dml.Element('acties')
         actie = dml.SubElement(self.root, 'actie', id='1', datum='x', status='1', soort='P',
                                arch='arch', updated='y')

@@ -28,6 +28,8 @@ class MainWindow:
         self.helptext = ''
         self.is_newfile = False
         self.oldsort = -1
+        self.selection = ''
+        self.sel_args = {}
         self.idlist = self.actlist = self.alist = []
         self.projnames = {x[0].lower(): (x[0], x[1]) for x in dmls.get_projnames()}
         if fnaam:
@@ -1058,6 +1060,8 @@ class Page0(Page):
         self.gui.enable_sorting(self.p0list, not self.sort_via_options)
         if self.sort_via_options:
             self.selection = 'volgens user gedefinieerde selectie'
+        else:
+            self.selection = self.appbase.selection
 
         self.seltitel = 'alle meldingen ' + self.selection
         super().vulp()
@@ -1082,7 +1086,7 @@ class Page0(Page):
         self.book.data = {}
         self.gui.clear_list(self.p0list)
 
-        select = self.sel_args.copy()
+        select = self.appbase.sel_args.copy()
         arch = select.pop("arch") if ("arch" in select) else ""  # "alles"
         data = shared.get_acties[self.appbase.datatype](self.book.fnaam, select,
                                                         arch, self.appbase.user)
@@ -1834,13 +1838,13 @@ class SelectOptionsDialog:
         """
         set_checkbox = False
         if "idgt" in sel_args:
-            self.gui.set_textentry_value(self.text_gt, sel_args["idgt"])
+            self.gui.set_textentry_value(self.action_gt, sel_args["idgt"])
             set_checkbox = True
         if "id" in sel_args:
             idx = 0 if sel_args["id"] == "and" else 1
             self.gui.set_radiobutton_value(self.action_andor[idx], True)
         if "idlt" in sel_args:
-            self.gui.set_textentry_value(self.text_lt, sel_args["idlt"])
+            self.gui.set_textentry_value(self.action_lt, sel_args["idlt"])
             set_checkbox = True
         self.gui.set_checkbox_value(self.cb_actie, set_checkbox)
 
@@ -1932,14 +1936,14 @@ class SelectOptionsDialog:
     def get_actie_selargs(self):
         "check conditions for filtering on action ids"
         sel_args = {}
-        if id_gt := self.gui.get_textentry_value(self.text_gt):
+        if id_gt := self.gui.get_textentry_value(self.action_gt):
             sel_args["idgt"] = id_gt
-        if id_lt := self.gui.get_textentry_value(self.text_lt):
+        if id_lt := self.gui.get_textentry_value(self.action_lt):
             sel_args["idlt"] = id_lt
         if all([id_gt, id_lt]):
-            if self.gui.get_radiobutton_value(self.text_andor[0]):
+            if self.gui.get_radiobutton_value(self.action_andor[0]):
                 sel_args["id"] = "and"
-            elif self.gui.get_radiobutton_value(self.text_andor[1]):
+            elif self.gui.get_radiobutton_value(self.action_andor[1]):
                 sel_args["id"] = "or"
             else:
                 return False, {}
@@ -1960,7 +1964,7 @@ class SelectOptionsDialog:
     def get_search_selargs(self):
         "check conditions for filtering on subject/description"
         sel_args = {}
-        if self.parent.parent.use_separate_subject:
+        if self.parent.use_separate_subject:
             if any([about := self.gui.get_textentry_value(self.text_zoek),
                     desc := self.gui.get_textentry_value(self.text_zoek2)]):
                 sel_args['titel'] = []
